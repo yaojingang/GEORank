@@ -1,0 +1,21 @@
+{
+  "name": "admin",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3011",
+    "build": "next build",
+    "start": "next start -p 3011",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@georank/api-sdk": "workspace:*",
+    "@georank/auth": "workspace:*",
+    "@georank/i18n": "workspace:*",
+    "@georank/ui": "workspace:*",
+    "next": "^16.0.0",
+    "next-intl": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>GEO Wiki 知识库 - GEOrank</title>
+    <meta name="description" content="GEO 生成式引擎优化知识库 — 科普教程、最佳实践与技术文档。">
+
+    <!-- Tailwind CSS -->
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Configuration -->
+    <script src="/js/tailwind.config.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/tutorial.css">
+</head>
+<body class="bg-white text-on-surface antialiased">
+    <!-- Header Container -->
+    <div id="header-container"></div>
+
+    <div class="tutorial-page-frame max-w-7xl mx-auto bg-white min-h-screen relative">
+        <div class="flex pt-16 md:pt-24">
+            <!-- Left: Side Navigation -->
+            <aside class="tutorial-sticky-sidebar tutorial-sticky-sidebar-left hidden lg:flex flex-col p-6 space-y-2 w-64 border-r border-slate-100 bg-white overflow-y-auto scrollbar-hide">
+                <div class="mb-6">
+                    <h2 class="text-sm font-bold font-headline">Wiki 知识库</h2>
+                    <p class="text-[10px] font-bold text-on-surface-variant">GEO 科普教程与最佳实践</p>
+                </div>
+                <nav class="flex flex-col space-y-1" id="side-nav">
+                    <div class="px-3 py-2 text-sm text-slate-400">正在加载教程目录...</div>
+                </nav>
+                <div class="mt-auto pt-6 space-y-1">
+                    <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm text-slate-500 hover:text-slate-900 rounded-lg transition-colors font-medium">
+                        <span class="material-symbols-outlined text-lg">settings</span>
+                        <span>设置</span>
+                    </a>
+                    <a href="#" class="flex items-center gap-3 px-3 py-2 text-sm text-slate-500 hover:text-slate-900 rounded-lg transition-colors font-medium">
+                        <span class="material-symbols-outlined text-lg">help</span>
+                        <span>帮助中心</span>
+                    </a>
+                </div>
+            </aside>
+
+            <!-- Main Content Canvas -->
+            <main class="flex-1 bg-white min-h-screen border-r border-slate-100">
+                <!-- 移动端章节导航（仅 lg 以下显示） -->
+                <div class="lg:hidden overflow-x-auto scrollbar-hide border-b border-slate-100 bg-white sticky top-16 z-10">
+                    <div id="tutorial-mobile-nav" class="flex gap-1 px-4 py-2 min-w-max">
+                        <span class="px-3 py-1.5 text-xs font-medium text-slate-400 whitespace-nowrap">正在加载教程...</span>
+                    </div>
+                </div>
+                <div id="tutorial-main-shell" class="max-w-3xl mx-auto px-4 md:px-8 py-8 md:py-12">
+                    <!-- Breadcrumbs -->
+                    <nav class="flex flex-wrap items-center gap-1 text-xs font-medium text-slate-400 mb-6 md:mb-8">
+                        <a href="/" class="hover:text-primary transition-colors">首页</a>
+                        <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+                        <a href="/tutorial" id="tutorial-breadcrumb-category" class="hover:text-primary transition-colors">教程</a>
+                        <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+                        <span id="tutorial-breadcrumb-title" class="text-on-surface">加载中...</span>
+                    </nav>
+
+                    <!-- Article Header -->
+                    <header id="tutorial-header" class="mb-8 md:mb-10">
+                        <h1 id="tutorial-title" class="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight font-headline mb-4">正在加载教程...</h1>
+                        <p id="tutorial-overview" class="hidden max-w-2xl text-sm md:text-[15px] leading-8 text-slate-500 mb-5">
+                            GEO 知识库按认知、方法、技术、执行与案例 5 条学习脉络组织，帮助你从基础理解一路进入可直接复用的 GEO 优化实践。
+                        </p>
+                        <div class="flex flex-wrap items-center gap-4 text-xs text-on-surface-variant font-medium">
+                            <div id="tutorial-reading-time" class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-sm">schedule</span>
+                                预计阅读时间：--
+                            </div>
+                            <div id="tutorial-updated-at" class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-sm">update</span>
+                                最后更新：--
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Article Content -->
+                    <article id="tutorial-article" class="max-w-none">
+                        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-6 md:p-8 text-sm text-slate-400">
+                            正在加载教程正文...
+                        </div>
+                    </article>
+
+                    <!-- Helpfulness Voting -->
+                    <section id="tutorial-feedback" class="mt-16 pt-10 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div>
+                            <h4 class="text-sm font-bold mb-1">这篇文章对您有帮助吗？</h4>
+                            <p class="text-xs text-on-surface-variant">您的反馈将帮助我们改进文档。</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button class="flex items-center gap-2 px-5 py-2 rounded-lg bg-white text-sm text-slate-600 hover:bg-primary hover:text-white transition-all font-medium border border-slate-100">
+                                <span class="material-symbols-outlined text-base">thumb_up</span>
+                                <span>有帮助</span>
+                            </button>
+                            <button class="flex items-center gap-2 px-5 py-2 rounded-lg bg-white text-sm text-slate-600 hover:bg-slate-100 transition-all font-medium border border-slate-100">
+                                <span class="material-symbols-outlined text-base">thumb_down</span>
+                                <span>待改进</span>
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <!-- Right: Table of Contents -->
+            <aside id="tutorial-secondary" class="tutorial-sticky-sidebar tutorial-sticky-sidebar-right hidden xl:block w-64 p-6 overflow-y-auto bg-white">
+                <h3 id="tutorial-secondary-title" class="text-xs font-bold text-slate-400 tracking-widest uppercase mb-5">目录</h3>
+                <nav class="space-y-1" id="toc-nav">
+                    <span class="block text-sm text-slate-400 px-3 py-1.5">正在生成目录...</span>
+                </nav>
+                <div class="mt-10 p-5 rounded-xl border border-slate-100 bg-white">
+                    <h4 class="text-xs font-bold mb-1.5">需要更多帮助？</h4>
+                    <p class="text-xs text-on-surface-variant mb-3 leading-relaxed">联系我们的解决方案架构师，获取定制化的 GEO 优化方案。</p>
+                    <a href="/solutions" class="text-xs font-semibold text-primary flex items-center gap-1 group">
+                        提交咨询单
+                        <span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    </a>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Footer Container -->
+    <div id="footer-container"></div>
+
+    <!-- Scripts -->
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/tutorial.js?v=20260613-site-settings2"></script>
+</body>
+</html>

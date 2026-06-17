@@ -1,0 +1,1000 @@
+/* ========================================
+   Tutorial Page - GEO 教程
+   ======================================== */
+
+/* Prose overrides for article content */
+.tutorial-state-card {
+    border: 1px dashed #cbd5e1;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.72));
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+    color: #64748b;
+}
+
+.tutorial-page-frame {
+    overflow: visible;
+}
+
+.tutorial-sticky-sidebar {
+    align-self: flex-start;
+    position: sticky;
+    top: calc(4.5rem + 0.75rem);
+    height: auto;
+    max-height: calc(100dvh - 5.25rem);
+    overscroll-behavior: contain;
+    z-index: 5;
+}
+
+.tutorial-sticky-sidebar-left,
+.tutorial-sticky-sidebar-right {
+    padding-bottom: 1.5rem;
+}
+
+body.tutorial-channel-home #tutorial-main-shell {
+    padding-top: 1.5rem;
+}
+
+.tutorial-nav-group {
+    position: relative;
+}
+
+.tutorial-nav-group + .tutorial-nav-group {
+    margin-top: 1.35rem;
+    padding-top: 1.05rem;
+    border-top: 1px solid rgba(226, 232, 240, 0.78);
+}
+
+.tutorial-nav-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0.2rem 0.75rem;
+}
+
+.tutorial-nav-group-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 0.85rem;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+    font-size: 1rem;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.tutorial-nav-group-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.tutorial-nav-tree {
+    position: relative;
+    display: grid;
+    gap: 0.18rem;
+    margin-left: 0.95rem;
+    padding-left: 0.95rem;
+}
+
+.tutorial-nav-tree::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    width: 1px;
+    background: linear-gradient(180deg, rgba(148, 163, 184, 0.26), rgba(226, 232, 240, 0.88));
+}
+
+.tutorial-side-link {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.6rem 0.7rem 0.6rem 0.55rem;
+    border-radius: 0.95rem;
+    color: #64748b;
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-align: left;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.tutorial-side-link:hover {
+    background: rgba(148, 163, 184, 0.08);
+    color: #0f172a;
+    transform: translateX(2px);
+}
+
+.tutorial-side-link.is-active {
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.06));
+    color: #0f172a;
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.tutorial-side-link-main {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.tutorial-side-link-icon {
+    flex-shrink: 0;
+    color: #94a3b8;
+    font-size: 0.98rem;
+    font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.tutorial-side-link-label {
+    display: block;
+    overflow: hidden;
+    color: inherit;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tutorial-side-link:hover .tutorial-side-link-icon,
+.tutorial-side-link.is-active .tutorial-side-link-icon {
+    color: #2563eb;
+}
+
+.tutorial-side-link.is-active .tutorial-side-link-label {
+    font-weight: 700;
+}
+
+.tutorial-side-link-meta {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+.tutorial-mobile-chip {
+    flex-shrink: 0;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.96);
+    padding: 0.55rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.tutorial-mobile-chip:hover {
+    border-color: #bfdbfe;
+    color: #2563eb;
+}
+
+.tutorial-mobile-chip.is-active {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.18);
+    color: #2563eb;
+    box-shadow: 0 10px 25px rgba(37, 99, 235, 0.08);
+}
+
+.tutorial-channel-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.9fr);
+    gap: 1.5rem;
+    padding: 1.75rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 1.5rem;
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 38%),
+        linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.94));
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.05);
+}
+
+.tutorial-channel-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.9rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tutorial-channel-title {
+    margin: 0 0 0.85rem;
+    color: #0f172a;
+    font-family: 'Manrope', sans-serif;
+    font-size: clamp(1.6rem, 2.8vw, 2.35rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+}
+
+.tutorial-channel-description {
+    margin: 0;
+    color: #475569;
+    font-size: 0.98rem;
+    line-height: 1.8;
+}
+
+.tutorial-channel-hero-stats {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.tutorial-channel-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1rem 1.05rem;
+    border-radius: 1.1rem;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(226, 232, 240, 0.86);
+}
+
+.tutorial-channel-stat .material-symbols-outlined {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.65rem;
+    height: 2.65rem;
+    border-radius: 0.95rem;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+}
+
+.tutorial-channel-stat p {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.tutorial-channel-stat span:last-child {
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.tutorial-channel-groups {
+    margin-top: 2rem;
+    display: grid;
+    gap: 1.5rem;
+}
+
+.tutorial-channel-group {
+    padding: 1.5rem;
+    border-radius: 1.35rem;
+    border: 1px solid rgba(226, 232, 240, 0.82);
+    background: #ffffff;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.04);
+    scroll-margin-top: 96px;
+}
+
+.tutorial-channel-group-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tutorial-channel-group-kicker {
+    margin: 0 0 0.25rem;
+    color: #2563eb;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tutorial-channel-group-title {
+    margin: 0;
+    color: #0f172a;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.tutorial-channel-group-count {
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.tutorial-channel-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.tutorial-channel-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-height: 100%;
+    padding: 1.15rem;
+    border-radius: 1.2rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.tutorial-channel-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(147, 197, 253, 0.9);
+    box-shadow: 0 18px 32px rgba(37, 99, 235, 0.08);
+}
+
+.tutorial-channel-card-top,
+.tutorial-channel-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.tutorial-channel-card-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.32rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.tutorial-channel-card-time,
+.tutorial-channel-card-meta {
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.tutorial-channel-card-title {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.02rem;
+    line-height: 1.45;
+    font-weight: 800;
+}
+
+.tutorial-channel-card-description {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.88rem;
+    line-height: 1.75;
+}
+
+.tutorial-channel-sidebar-label {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.tutorial-channel-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(226, 232, 240, 0.82);
+    background: rgba(248, 250, 252, 0.86);
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.tutorial-channel-link:hover {
+    border-color: rgba(147, 197, 253, 0.9);
+    background: rgba(239, 246, 255, 0.86);
+}
+
+.tutorial-channel-link-title {
+    color: #0f172a;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.tutorial-channel-link-meta {
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.tutorial-article-nav {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(226, 232, 240, 0.88);
+}
+
+.tutorial-article-nav-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.tutorial-article-nav-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 5.25rem;
+    padding: 1rem 1.1rem;
+    border-radius: 1.1rem;
+    border: 1px solid rgba(191, 219, 254, 0.92);
+    background: linear-gradient(180deg, rgba(239, 246, 255, 0.72), rgba(255, 255, 255, 0.96));
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.tutorial-article-nav-link:hover {
+    transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.98);
+    box-shadow: 0 16px 30px rgba(37, 99, 235, 0.08);
+}
+
+.tutorial-article-nav-label {
+    color: #2563eb;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.tutorial-article-nav-title {
+    color: #2563eb;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.55;
+}
+
+.tutorial-flow-intro {
+    margin-bottom: 1.85rem;
+    padding: 0.1rem 0 0.45rem;
+}
+
+.tutorial-flow-intro-kicker {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.tutorial-flow-intro-title {
+    margin: 0 0 0.75rem;
+    color: #111827;
+    font-family: 'Manrope', sans-serif;
+    font-size: clamp(1.55rem, 2.2vw, 2.15rem);
+    font-weight: 800;
+    line-height: 1.18;
+    letter-spacing: -0.03em;
+    max-width: 42rem;
+}
+
+.tutorial-flow-intro-text {
+    max-width: 42rem;
+    margin: 0;
+    color: #4b5563;
+    font-size: 0.95rem;
+    line-height: 1.78;
+}
+
+.tutorial-flow-intro-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    margin-top: 1rem;
+}
+
+.tutorial-flow-metric {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 12rem;
+    padding: 0.8rem 0.95rem;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.tutorial-flow-metric .material-symbols-outlined {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+}
+
+.tutorial-flow-metric strong {
+    display: block;
+    color: #111827;
+    font-size: 0.94rem;
+    font-weight: 800;
+}
+
+.tutorial-flow-metric span:last-child {
+    color: #6b7280;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.tutorial-flow {
+    position: relative;
+    display: grid;
+    gap: 1.65rem;
+    padding-left: 0.3rem;
+}
+
+.tutorial-flow-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    gap: 1.2rem;
+}
+
+.tutorial-flow-step::before {
+    content: "";
+    position: absolute;
+    left: 1.6rem;
+    top: 0;
+    bottom: -1.7rem;
+    width: 1px;
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.22), rgba(148, 163, 184, 0.08));
+}
+
+.tutorial-flow-step:last-child::before {
+    bottom: 1.8rem;
+}
+
+.tutorial-flow-step-marker {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    z-index: 1;
+}
+
+.tutorial-flow-step-index {
+    width: 3.05rem;
+    height: 3.05rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #3b82f6, #2563eb);
+    color: #ffffff;
+    font-size: 1.02rem;
+    font-weight: 800;
+    box-shadow: 0 14px 26px rgba(37, 99, 235, 0.14);
+}
+
+.tutorial-flow-step-body {
+    padding-top: 0.05rem;
+}
+
+.tutorial-flow-step-kicker {
+    margin: 0 0 0.4rem;
+    color: #2563eb;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.tutorial-flow-step-title {
+    margin: 0 0 0.7rem;
+    color: #111827;
+    font-family: 'Manrope', sans-serif;
+    font-size: clamp(1.18rem, 1.55vw, 1.6rem);
+    font-weight: 800;
+    line-height: 1.22;
+    letter-spacing: -0.02em;
+}
+
+.tutorial-flow-step-text {
+    max-width: 42rem;
+    margin: 0 0 0.6rem;
+    color: #374151;
+    font-size: 0.94rem;
+    line-height: 1.82;
+}
+
+.tutorial-flow-step-text-muted {
+    color: #4b5563;
+}
+
+.tutorial-flow-accordion {
+    margin-top: 1.15rem;
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    border-radius: 1.1rem;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.035);
+}
+
+.tutorial-flow-item {
+    border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+}
+
+.tutorial-flow-item:last-child {
+    border-bottom: none;
+}
+
+.tutorial-flow-item[open] {
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.tutorial-flow-summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.tutorial-flow-summary::-webkit-details-marker {
+    display: none;
+}
+
+.tutorial-flow-summary:hover {
+    background: rgba(249, 250, 251, 0.88);
+}
+
+.tutorial-flow-summary-main {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.tutorial-flow-summary-icon {
+    flex-shrink: 0;
+    color: #6b7280;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.tutorial-flow-item[open] .tutorial-flow-summary-icon {
+    transform: rotate(90deg);
+    color: #111827;
+}
+
+.tutorial-flow-summary-title {
+    color: #111827;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.42;
+}
+
+.tutorial-flow-summary-meta {
+    flex-shrink: 0;
+    color: #9ca3af;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.tutorial-flow-panel {
+    padding: 0 1.25rem 1.15rem 3rem;
+}
+
+.tutorial-flow-panel-text {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.88rem;
+    line-height: 1.74;
+}
+
+.tutorial-flow-panel-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.7rem;
+    color: #9ca3af;
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+.tutorial-flow-panel-link {
+    margin-top: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #2563eb;
+    font-size: 0.84rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.tutorial-flow-panel-link:hover {
+    color: #1d4ed8;
+}
+
+.tutorial-channel-sidebar-step-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.tutorial-channel-sidebar-step-index {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.prose h2 {
+    font-family: 'Manrope', sans-serif;
+    letter-spacing: -0.02em;
+    margin-top: 2.25rem;
+    margin-bottom: 1rem;
+    color: #0f172a;
+}
+
+.prose p {
+    color: #475569;
+    line-height: 1.8;
+}
+
+.prose strong {
+    color: #0f172a;
+}
+
+.prose ul li {
+    line-height: 1.8;
+}
+
+.prose a {
+    color: #2563EB;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.prose a:hover {
+    text-decoration: underline;
+}
+
+.tutorial-prose > :first-child {
+    margin-top: 0;
+}
+
+.tutorial-prose h1,
+.tutorial-prose h2,
+.tutorial-prose h3,
+.tutorial-prose h4 {
+    scroll-margin-top: 96px;
+}
+
+.tutorial-prose h3 {
+    margin-top: 1.8rem;
+    margin-bottom: 0.85rem;
+    color: #0f172a;
+}
+
+.tutorial-prose h4 {
+    margin-top: 1.35rem;
+    margin-bottom: 0.65rem;
+    color: #0f172a;
+}
+
+.tutorial-prose blockquote {
+    margin: 1.5rem 0;
+    border-left: 4px solid rgba(37, 99, 235, 0.2);
+    background: rgba(248, 250, 252, 0.9);
+    border-radius: 0.95rem;
+    padding: 1rem 1.25rem;
+    color: #475569;
+}
+
+.tutorial-prose table {
+    width: 100%;
+    margin: 1.5rem 0;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 1rem;
+    box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.8);
+}
+
+.tutorial-prose th,
+.tutorial-prose td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    text-align: left;
+}
+
+.tutorial-prose th {
+    background: rgba(248, 250, 252, 0.95);
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.tutorial-prose hr {
+    margin: 2rem 0;
+    border: none;
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.tutorial-prose img {
+    border-radius: 1rem;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+}
+
+/* Code block syntax theme */
+pre code {
+    tab-size: 2;
+}
+
+.tutorial-prose pre {
+    margin: 1.4rem 0;
+    border-radius: 1rem;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1.25rem;
+    overflow-x: auto;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
+.tutorial-prose :not(pre) > code {
+    border-radius: 0.5rem;
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.code-copy-btn {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #cbd5e1;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    transition: all 0.18s ease;
+}
+
+.code-copy-btn:hover {
+    background: rgba(30, 41, 59, 0.98);
+    color: #ffffff;
+}
+
+/* TOC active state */
+#toc-nav a.active {
+    color: #2563EB;
+    background: rgba(37, 99, 235, 0.05);
+    font-weight: 600;
+}
+
+.tutorial-toc-link {
+    display: block;
+    border-radius: 0.9rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: #64748b;
+    transition: all 0.2s ease;
+}
+
+.tutorial-toc-link:hover {
+    background: rgba(148, 163, 184, 0.08);
+    color: #0f172a;
+    text-decoration: none;
+}
+
+/* Side nav active state */
+#side-nav a.active {
+    background: rgba(37, 99, 235, 0.05);
+    color: #2563EB;
+    font-weight: 600;
+}
+
+/* Smooth scroll for anchors */
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+}
+
+/* Sticky aside scrollbar */
+aside::-webkit-scrollbar {
+    width: 0;
+}
+
+/* Reading progress bar */
+.reading-progress {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    height: 2px;
+    background: #2563EB;
+    z-index: 50;
+    transition: width 0.1s linear;
+}
+
+@media (max-width: 1024px) {
+    .tutorial-channel-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .tutorial-channel-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tutorial-flow-step {
+        grid-template-columns: 3.85rem minmax(0, 1fr);
+    }
+
+    .tutorial-flow-step::before {
+        left: 1.3rem;
+    }
+
+    .tutorial-flow-step-index {
+        width: 2.6rem;
+        height: 2.6rem;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .tutorial-article-nav-links {
+        grid-template-columns: 1fr;
+    }
+
+    .tutorial-flow-intro-title {
+        font-size: 1.55rem;
+    }
+
+    .tutorial-flow-step {
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    .tutorial-flow-step::before {
+        display: none;
+    }
+
+    .tutorial-flow-step-marker {
+        justify-content: flex-start;
+    }
+
+    .tutorial-flow-panel {
+        padding: 0 1.1rem 1.1rem;
+    }
+
+    .tutorial-flow-summary {
+        padding: 1.15rem 1.1rem;
+    }
+
+    .tutorial-flow-summary-meta {
+        display: none;
+    }
+}

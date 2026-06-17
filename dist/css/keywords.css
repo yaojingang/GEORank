@@ -1,0 +1,170 @@
+/* ========================================
+   Keywords Page - GEO 拓词工具
+   ======================================== */
+
+/* Tag input chips */
+.keyword-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 2px 10px;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.keyword-tag button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #93c5fd;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+}
+
+.keyword-tag button:hover {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+#tag-input-wrapper.is-invalid {
+    border-color: #fda4af;
+    box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.08);
+}
+
+/* Dimension card */
+.dim-card {
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+    background: #fff;
+    overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+
+.dim-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.dim-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Mini table inside card */
+.dim-table-header {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px;
+    padding: 8px 16px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.dim-table-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px;
+    align-items: center;
+    padding: 8px 16px;
+    border-bottom: 1px solid #f8fafc;
+    font-size: 13px;
+    transition: background 0.1s;
+}
+
+.dim-table-row:last-child {
+    border-bottom: none;
+}
+
+.dim-table-row:hover {
+    background: #f8fafc;
+}
+
+.dim-table-row .kw-name {
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 8px;
+}
+
+/* Score cell */
+.score-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.score-bar {
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background: #f1f5f9;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.score-bar-fill.rec { background: #2563eb; }
+.score-bar-fill.biz { background: #f97316; }
+
+.score-num {
+    font-weight: 600;
+    font-size: 11px;
+    min-width: 20px;
+}
+
+.score-num.rec { color: #2563eb; }
+.score-num.biz { color: #ea580c; }
+
+/* Show more button */
+.dim-show-more {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-top: 1px solid #f1f5f9;
+    background: none;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+}
+
+.dim-show-more:hover {
+    background: #f8fafc;
+    color: #2563eb;
+}
+
+/* Skeleton */
+.skeleton-pulse {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}

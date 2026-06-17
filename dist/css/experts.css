@@ -1,0 +1,526 @@
+/* ========================================
+   Experts Page - GEO 专家频道
+   首页式目录列表布局
+   ======================================== */
+
+.expert-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    padding: 0;
+    margin: -1px;
+}
+
+.experts-page h1,
+.experts-page h2,
+.experts-page h3,
+.experts-page p,
+.experts-page input,
+.experts-page button {
+    letter-spacing: 0 !important;
+}
+
+.experts-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 1.75rem;
+}
+
+.experts-eyebrow,
+.experts-sidebar-eyebrow {
+    display: block;
+    margin: 0 0 0.85rem;
+    color: #2563eb;
+    font-size: 0.7rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0 !important;
+    text-transform: uppercase;
+}
+
+.experts-hero h1 {
+    margin: 0;
+    color: #0f172a;
+    font-family: Manrope, Inter, sans-serif;
+    font-size: 3.05rem;
+    font-weight: 900;
+    line-height: 1.08;
+}
+
+.experts-hero-copy {
+    max-width: 34rem;
+    margin: 0.9rem 0 0;
+    color: #64748b;
+    font-size: 0.98rem;
+    line-height: 1.75;
+}
+
+.experts-hero-tabs {
+    display: flex;
+    align-items: center;
+    gap: 1.4rem;
+    flex-shrink: 0;
+    padding-bottom: 0.25rem;
+}
+
+.experts-hero-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    min-width: 2rem;
+    padding: 0.35rem 0.1rem;
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 800;
+    transition: color 0.16s ease;
+}
+
+.experts-hero-tab.is-active {
+    color: #2563eb;
+}
+
+.experts-hero-tab:hover {
+    color: #0f172a;
+}
+
+.experts-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.experts-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.65rem;
+    min-height: 3.15rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.9rem;
+    background: #f8fafc;
+    padding: 0 0.95rem;
+}
+
+.experts-search .material-symbols-outlined {
+    width: 1rem;
+    overflow: hidden;
+    color: #94a3b8;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.experts-search input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.experts-search input:focus {
+    box-shadow: none;
+    outline: 0;
+}
+
+.experts-search input::placeholder {
+    color: #94a3b8;
+}
+
+.experts-filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.expert-filter {
+    min-height: 2.35rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #ffffff;
+    color: #64748b;
+    padding: 0.5rem 0.82rem;
+    font-size: 0.78rem;
+    font-weight: 850;
+    transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.expert-filter:hover,
+.expert-filter.is-active {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #2563eb;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08);
+}
+
+.expert-filter:focus-visible,
+.expert-direction-button:focus-visible,
+.experts-search input:focus-visible,
+.experts-sidebar-heading button:focus-visible,
+.experts-hero-tab:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 2px;
+}
+
+.experts-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.expert-card {
+    display: grid;
+    grid-template-columns: 4.1rem minmax(0, 1fr);
+    gap: 1.05rem;
+    align-items: flex-start;
+    border-radius: 1rem;
+    padding: 1.08rem 1rem;
+    background: #ffffff;
+    transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.expert-card:hover {
+    background: #f8fafc;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+    transform: translateY(-1px);
+}
+
+.expert-card.is-hidden {
+    display: none;
+}
+
+.expert-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.9rem;
+    height: 3.9rem;
+    border: 1px solid #e6eef9;
+    border-radius: 1rem;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 0.92rem;
+    font-weight: 950;
+}
+
+.expert-card-main {
+    min-width: 0;
+}
+
+.expert-card-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    align-items: flex-start;
+}
+
+.expert-card h2 {
+    margin: 0;
+    min-width: 0;
+    color: #0f172a;
+    font-family: Manrope, Inter, sans-serif;
+    font-size: 1.08rem;
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.expert-card-heading span {
+    color: #64748b;
+    font-size: 0.86rem;
+    font-weight: 820;
+    line-height: 1.35;
+}
+
+.expert-summary {
+    max-width: 44rem;
+    margin: 0.72rem 0 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.78;
+}
+
+.expert-keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.82rem;
+}
+
+.expert-keyword-tags span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    border-radius: 0.55rem;
+    background: #f1f5f9;
+    color: #64748b;
+    padding: 0.28rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 850;
+    line-height: 1.2;
+}
+
+.experts-empty-state {
+    border: 1px dashed #d8e3f2;
+    border-radius: 1rem;
+    background: #f8fbff;
+    padding: 2rem;
+    text-align: center;
+}
+
+.experts-empty-state.is-hidden {
+    display: none;
+}
+
+.experts-empty-state h2 {
+    margin: 0;
+    color: #0f172a;
+    font-family: Manrope, Inter, sans-serif;
+    font-size: 1.1rem;
+    font-weight: 900;
+}
+
+.experts-empty-state p {
+    margin: 0.55rem 0 0;
+    color: #64748b;
+    font-size: 0.85rem;
+    line-height: 1.7;
+}
+
+.experts-sidebar {
+    align-self: start;
+}
+
+.experts-tip-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #ffffff;
+    padding: 1.5rem;
+}
+
+.experts-tip-card h2 {
+    margin: 0;
+    color: #0f172a;
+    font-family: Manrope, Inter, sans-serif;
+    font-size: 1.25rem;
+    font-weight: 900;
+    line-height: 1.35;
+}
+
+.experts-tip-card p {
+    margin: 0.9rem 0 1rem;
+    color: #64748b;
+    font-size: 0.88rem;
+    line-height: 1.75;
+}
+
+.experts-sidebar-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: #2563eb;
+    font-size: 0.85rem;
+    font-weight: 850;
+}
+
+.experts-sidebar-link .material-symbols-outlined {
+    font-size: 1rem;
+    transition: transform 0.16s ease;
+}
+
+.experts-sidebar-link:hover .material-symbols-outlined {
+    transform: translateX(0.15rem);
+}
+
+.experts-tip-watermark {
+    position: absolute;
+    right: -0.75rem;
+    bottom: -1.4rem;
+    color: #0f172a;
+    font-size: 7rem;
+    opacity: 0.04;
+}
+
+.experts-sidebar-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
+}
+
+.experts-sidebar-heading h2 {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.experts-sidebar-heading button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    min-width: 2rem;
+    padding: 0.35rem 0.1rem;
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font-size: 0.68rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.expert-direction-list,
+.experts-resource-links {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.expert-direction-button,
+.experts-resource-links a {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    border: 1px solid #f1f5f9;
+    border-radius: 1rem;
+    background: #ffffff;
+    padding: 0.95rem;
+    color: #475569;
+    text-align: left;
+    transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.expert-direction-button:hover,
+.expert-direction-button.is-active,
+.experts-resource-links a:hover {
+    border-color: #bfdbfe;
+    background: #f8fafc;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+}
+
+.expert-direction-button .material-symbols-outlined,
+.experts-resource-links .material-symbols-outlined {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.75rem;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 1rem;
+}
+
+.expert-direction-button span:not(.material-symbols-outlined),
+.experts-resource-links strong {
+    min-width: 0;
+    color: #334155;
+    font-size: 0.86rem;
+    font-weight: 850;
+}
+
+.expert-direction-button strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.experts-checklist {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.experts-checklist div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    border: 1px solid #f1f5f9;
+    border-radius: 1rem;
+    background: #ffffff;
+    padding: 0.95rem;
+}
+
+.experts-checklist span {
+    color: #2563eb;
+    font-size: 0.72rem;
+    font-weight: 950;
+}
+
+.experts-checklist p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.82rem;
+    line-height: 1.65;
+}
+
+@media (max-width: 1120px) {
+    .experts-hero {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .expert-card {
+        grid-template-columns: 4rem minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
+    .experts-hero h1 {
+        font-size: 2.35rem;
+    }
+
+    .experts-hero-tabs {
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 0.1rem;
+    }
+
+    .experts-filter-group {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0.2rem;
+    }
+
+    .expert-filter {
+        flex: 0 0 auto;
+    }
+
+    .expert-card {
+        grid-template-columns: 3.25rem minmax(0, 1fr);
+        gap: 0.8rem;
+        border: 1px solid #f1f5f9;
+        padding: 0.95rem;
+    }
+
+    .expert-avatar {
+        width: 3.05rem;
+        height: 3.05rem;
+        border-radius: 0.85rem;
+    }
+}

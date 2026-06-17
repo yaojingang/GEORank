@@ -1,0 +1,150 @@
+"""
+认证 API — 注册 / 登录 / 获取当前用户
+"""
+from datetime import datetime, timedelta, timezone
+import re
+import uuid
+
+from fastapi import APIRouter, HTTPException, Request, status
+from jose import jwt
+import bcrypt
+from sqlalchemy import or_, select
+
+from app.core.config import settings
+from app.core.deps import DbSession, CurrentUser
+from app.models.user import User, UserRole
+from app.schemas.user import RegisterRequest, LoginRequest, TokenResponse, UserOut
+
+router = APIRouter()
+
+
+# ---------- 工具函数 ----------
+
+def _hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
+
+
+def _normalize_phone(phone: str | None) -> str:
+    digits = re.sub(r"\D+", "", str(phone or ""))
+    if digits.startswith("86") and len(digits) == 13:
+        digits = digits[2:]
+    if not re.fullmatch(r"1\d{10}", digits):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="请输入有效的手机号",
+        )
+    return digits
+
+
+async def _username_exists(db: DbSession, username: str) -> bool:
+    result = await db.execute(select(User.id).where(User.username == username))
+    return result.scalar_one_or_none() is not None
+
+
+async def _build_phone_identity(db: DbSession, phone: str) -> tuple[str, str]:
+    base_username = f"u_{phone}"
+    username = base_username
+    suffix = 1
+    while await _username_exists(db, username):
+        username = f"{base_username}_{suffix}"
+        suffix += 1
+    email = f"phone_{phone}@phone.local"
+    return username, email
+
+
+def _create_access_token(user_id: str, persistent: bool = False) -> str:
+    expire = datetime.now(timezone.utc) + (
+        timedelta(days=settings.JWT_PERSIST_DAYS)
+        if persistent
+        else timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    )
+    payload = {"sub": user_id, "exp": expire}
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+
+# ---------- 路由 ----------
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(data: RegisterRequest, db: DbSession):
+    """用户注册 — 创建账号并返回 JWT"""
+    phone = _normalize_phone(data.phone) if data.phone else None
+    username = data.username
+    email = str(data.email) if data.email else None
+
+    if phone:
+        result = await db.execute(select(User).where(User.phone == phone))
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="手机号已被注册")
+        if not username or not email:
+            username, email = await _build_phone_identity(db, phone)
+
+    if not username or not email:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="注册信息不完整")
+
+    result = await db.execute(select(User).where(User.email == email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="邮箱已被注册")
+
+    result = await db.execute(select(User).where(User.username == username))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已被占用")
+
+    user = User(
+        email=email,
+        username=username,
+        phone=phone,
+        hashed_password=_hash_password(data.password),
+        role=UserRole.USER,
+        is_active=True,
+        is_verified=False,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    token = _create_access_token(str(user.id), persistent=data.remember_me)
+    return TokenResponse(access_token=token)
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(request: Request, data: LoginRequest, db: DbSession):
+    """用户登录 — 支持用户名或邮箱登录（全局限速 200次/分钟/IP 兜底）"""
+    identifier = data.phone or data.account or data.username or ""
+    filters = []
+    if data.phone:
+        normalized_phone = _normalize_phone(data.phone)
+        filters.append(User.phone == normalized_phone)
+    else:
+        filters.extend([User.username == identifier, User.email == identifier])
+
+    result = await db.execute(select(User).where(or_(*filters)))
+    user = result.scalar_one_or_none()
+
+    if not user or not _verify_password(data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码不正确",
+        )
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已停用")
+
+    token = _create_access_token(str(user.id), persistent=data.remember_me)
+    return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserOut)
+async def get_me(current_user: CurrentUser):
+    """获取当前登录用户信息"""
+    return UserOut(
+        id=str(current_user.id),
+        email=current_user.email,
+        username=current_user.username,
+        phone=current_user.phone,
+        role=current_user.role.value if hasattr(current_user.role, "value") else current_user.role,
+        is_active=current_user.is_active,
+        is_verified=current_user.is_verified,
+    )

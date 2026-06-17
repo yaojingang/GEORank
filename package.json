@@ -1,0 +1,24 @@
+{
+  "name": "georank-2",
+  "private": true,
+  "packageManager": "pnpm@10.26.1",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:admin": "pnpm --filter admin dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "i18n:check": "node scripts/check-i18n-hardcoded.mjs",
+    "sdk:pull": "curl http://localhost:8000/openapi.json -o packages/api-sdk/openapi.json",
+    "sdk:generate": "pnpm --filter @georank/api-sdk generate",
+    "sdk:refresh": "pnpm sdk:pull && pnpm sdk:generate"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "turbo": "^2.0.0",
+    "typescript": "^5.8.0",
+    "webpack": "^5.102.1"
+  }
+}

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>GEO 诊断工具 - GEOrank</title>
+    <meta name="description" content="通过先进的语义架构分析器，解码您的网站在生成式 AI (GEO) 中的可见性与权威度。">
+
+    <!-- Tailwind CSS -->
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Configuration -->
+    <script src="/js/tailwind.config.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/diagnostic.css">
+</head>
+<body class="bg-white text-on-surface antialiased">
+    <!-- Header Container -->
+    <div id="header-container"></div>
+
+    <main class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-24 md:pt-32 pb-16 md:pb-24">
+        <!-- Hero Input Section -->
+        <section class="mb-10 md:mb-16 text-center">
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight font-headline mb-3 md:mb-4">GEO 诊断工具</h1>
+            <p class="text-on-surface-variant text-sm max-w-xl mx-auto mb-6 md:mb-10 px-2">
+                输入目标网页 URL，AI 将爬取页面静态代码，从 Schema 标签、内容结构、代码质量等多维度进行诊断分析。
+            </p>
+            <!-- URL 输入框：手机纵向堆叠，平板以上横排 -->
+            <div class="max-w-2xl mx-auto flex flex-col sm:flex-row gap-3 sm:gap-0 sm:p-2 sm:rounded-xl sm:bg-white sm:border sm:border-slate-100">
+                <div class="flex items-center px-3 py-3 sm:py-0 bg-white sm:bg-transparent border border-slate-100 sm:border-none rounded-xl sm:rounded-none flex-1">
+                    <span class="material-symbols-outlined text-slate-400 mr-2 text-lg">language</span>
+                    <input id="url-input" class="w-full border-none focus:ring-0 bg-transparent placeholder:text-slate-400 py-1 sm:py-3 text-sm" placeholder="example.com 或 https://example.com" type="text">
+                </div>
+                <button id="diagnose-btn" class="btn btn-primary w-full sm:w-auto px-6 py-3 sm:px-8 rounded-xl sm:rounded-lg text-sm font-bold">
+                    开始诊断
+                </button>
+            </div>
+            <p id="diagnostic-status-note" class="hidden mt-4 text-xs text-slate-500"></p>
+            <!-- 诊断流程提示：手机 2×2 网格，平板以上一行 -->
+            <div class="mt-6 md:mt-8 text-xs text-on-surface-variant">
+                <div class="hidden sm:flex items-center justify-center gap-8">
+                    <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">travel_explore</span></span><span>爬取静态代码</span></div>
+                    <span class="material-symbols-outlined text-slate-300 text-xs">arrow_forward</span>
+                    <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">code</span></span><span>Schema 标签检测</span></div>
+                    <span class="material-symbols-outlined text-slate-300 text-xs">arrow_forward</span>
+                    <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">analytics</span></span><span>GEO 多维分析</span></div>
+                    <span class="material-symbols-outlined text-slate-300 text-xs">arrow_forward</span>
+                    <div class="flex items-center gap-2"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">description</span></span><span>生成诊断报告</span></div>
+                </div>
+                <!-- 移动端 2×2 网格 -->
+                <div class="grid grid-cols-2 gap-3 sm:hidden">
+                    <div class="flex items-center gap-2 justify-center"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">travel_explore</span></span><span>爬取静态代码</span></div>
+                    <div class="flex items-center gap-2 justify-center"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">code</span></span><span>Schema 检测</span></div>
+                    <div class="flex items-center gap-2 justify-center"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">analytics</span></span><span>GEO 多维分析</span></div>
+                    <div class="flex items-center gap-2 justify-center"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs">description</span></span><span>生成报告</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="diagnostic-report-shell" class="diagnostic-report-shell relative">
+            <div id="diagnostic-report-banner" class="mb-6 md:mb-8 flex flex-col gap-4 rounded-3xl border border-slate-100 bg-white px-5 py-5 md:flex-row md:items-start md:justify-between md:px-6">
+                <div class="max-w-2xl">
+                    <p id="diagnostic-report-mode-eyebrow" class="text-[11px] font-extrabold uppercase tracking-[0.14em] text-primary">示例诊断报告</p>
+                    <h2 id="diagnostic-report-mode-title" class="mt-2 text-xl md:text-2xl font-black tracking-tight text-slate-900">先看一份 GEO 诊断示例</h2>
+                    <p id="diagnostic-report-mode-copy" class="mt-3 text-sm leading-7 text-slate-500">
+                        下面先展示一份典型页面的诊断样例，帮助你快速理解报告结构。发起真实诊断后，这份示例会通过动画过渡替换成你自己的 GEO 诊断结果。
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 self-start rounded-full border border-primary/15 bg-primary/[0.05] px-3 py-1.5 text-[11px] font-bold text-primary">
+                    <span id="diagnostic-report-mode-icon" class="material-symbols-outlined text-sm">visibility</span>
+                    <span id="diagnostic-report-mode-chip">示例预览</span>
+                </div>
+            </div>
+
+            <div id="diagnostic-transition-overlay" class="diagnostic-transition-overlay hidden" aria-hidden="true">
+                <div class="diagnostic-transition-card">
+                    <div class="diagnostic-transition-spinner"></div>
+                    <div>
+                        <p class="text-sm font-bold text-slate-900">正在替换为真实诊断报告</p>
+                        <p id="diagnostic-transition-copy" class="mt-1 text-xs leading-6 text-slate-500">系统正在抓取页面代码、分析结构化标签，并生成你的专属 GEO 报告。</p>
+                    </div>
+                </div>
+            </div>
+
+        <!-- Bento Grid Analysis Results -->
+        <div class="grid grid-cols-12 gap-6" id="results-grid">
+            <div class="col-span-12 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6">
+                <div class="rounded-2xl border border-slate-100 bg-white p-6 md:p-7">
+                    <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">AI 诊断综述</p>
+                    <h3 id="diagnostic-summary-headline" class="mt-3 text-xl md:text-2xl font-black tracking-tight text-slate-900">当前页面已具备一定 GEO 基础，但仍需继续补齐结构化与引用信号。</h3>
+                    <p id="diagnostic-summary-overview" class="mt-4 text-sm leading-7 text-slate-500">
+                        示例页面已经具备基础的标题、描述和部分内容结构，但在 Schema 类型完整度、首段答案表达和外部权威引用方面仍有明显提升空间。
+                    </p>
+                    <div class="mt-5 rounded-2xl border border-primary/10 bg-primary/[0.04] px-4 py-4">
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">优先动作</p>
+                        <p id="diagnostic-summary-priority" class="mt-2 text-sm leading-7 text-slate-700">先补充 Organization、FAQPage 等 JSON-LD，再把首段改成直答式摘要，并增加可引用的案例或权威来源。</p>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-100 bg-white p-6 md:p-7">
+                    <div>
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">已具备优势</p>
+                        <ul id="diagnostic-strength-list" class="mt-4 space-y-3">
+                            <li class="flex items-start gap-3 text-sm text-slate-600"><span class="material-symbols-outlined text-base text-green-500 mt-0.5">check_circle</span><span>标题与描述基础完整，已具备初步的 AI 可理解入口。</span></li>
+                            <li class="flex items-start gap-3 text-sm text-slate-600"><span class="material-symbols-outlined text-base text-green-500 mt-0.5">check_circle</span><span>正文已有一定信息密度，可以继续向结构化答案表达过渡。</span></li>
+                        </ul>
+                    </div>
+                    <div class="mt-6">
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">主要缺口</p>
+                        <ul id="diagnostic-gap-list" class="mt-4 space-y-3">
+                            <li class="flex items-start gap-3 text-sm text-slate-600"><span class="material-symbols-outlined text-base text-orange-400 mt-0.5">warning</span><span>关键 Schema 类型缺失，会削弱生成式搜索对页面实体的理解。</span></li>
+                            <li class="flex items-start gap-3 text-sm text-slate-600"><span class="material-symbols-outlined text-base text-orange-400 mt-0.5">warning</span><span>外部权威引用不足，难以提升 AI 在答案中引用页面内容的信心。</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GEO Score Gauge -->
+            <div class="col-span-12 md:col-span-4 rounded-xl p-8 flex flex-col items-center justify-center relative overflow-hidden bg-white border border-slate-100">
+                <div class="absolute top-4 right-6 uppercase tracking-widest text-[10px] font-bold text-slate-400">Authority Metric</div>
+                <div class="relative w-48 h-48 flex items-center justify-center">
+                    <svg class="w-full h-full -rotate-90">
+                        <circle class="text-slate-100" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-width="12"></circle>
+                        <circle id="geo-score-ring" class="text-primary" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-dasharray="502.6" stroke-dashoffset="125.6" stroke-width="12"></circle>
+                    </svg>
+                    <div class="absolute flex flex-col items-center">
+                        <span id="geo-score-value" class="text-5xl font-extrabold">75</span>
+                        <span class="text-sm font-bold text-slate-400">/ 100</span>
+                    </div>
+                </div>
+                <div class="mt-8 text-center">
+                    <h3 id="geo-score-label" class="text-xl font-bold mb-2">GEO 评分：良好</h3>
+                    <p id="geo-score-summary" class="text-sm text-on-surface-variant">您的网站在 LLM 索引中具有较强的关联性，但结构化权重仍有提升空间。</p>
+                </div>
+            </div>
+
+            <!-- Multi-dimension Scores -->
+            <div class="col-span-12 md:col-span-8 rounded-xl p-6 bg-white border border-slate-100">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-bold font-headline">GEO 多维诊断指标</h3>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">基于页面静态代码分析</span>
+                </div>
+                <div class="space-y-5">
+                    <div data-diagnostic-metric="schema">
+                        <div class="flex justify-between mb-1.5">
+                            <span class="text-sm font-medium flex items-center gap-2"><span class="material-symbols-outlined text-sm text-primary">code</span> Schema.org 标签完整性</span>
+                            <span data-role="score" class="text-sm font-bold text-primary">42%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div data-role="bar" class="bg-red-400 h-full rounded-full" style="width: 42%"></div></div>
+                        <p data-role="note" class="text-[10px] text-on-surface-variant mt-1">缺少 Organization、Product 等关键 Schema 类型</p>
+                    </div>
+                    <div data-diagnostic-metric="content">
+                        <div class="flex justify-between mb-1.5">
+                            <span class="text-sm font-medium flex items-center gap-2"><span class="material-symbols-outlined text-sm text-primary">article</span> 内容结构化程度</span>
+                            <span data-role="score" class="text-sm font-bold text-primary">78%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div data-role="bar" class="bg-primary h-full rounded-full" style="width: 78%"></div></div>
+                        <p data-role="note" class="text-[10px] text-on-surface-variant mt-1">标题层级合理，但部分段落缺少明确的语义锚点</p>
+                    </div>
+                    <div data-diagnostic-metric="meta">
+                        <div class="flex justify-between mb-1.5">
+                            <span class="text-sm font-medium flex items-center gap-2"><span class="material-symbols-outlined text-sm text-primary">html</span> Meta / Open Graph 标签</span>
+                            <span data-role="score" class="text-sm font-bold text-primary">85%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div data-role="bar" class="bg-primary h-full rounded-full" style="width: 85%"></div></div>
+                        <p data-role="note" class="text-[10px] text-on-surface-variant mt-1">基础 Meta 信息完整，缺少 og:type 和 twitter:card</p>
+                    </div>
+                    <div data-diagnostic-metric="citation">
+                        <div class="flex justify-between mb-1.5">
+                            <span class="text-sm font-medium flex items-center gap-2"><span class="material-symbols-outlined text-sm text-primary">format_quote</span> 权威引用密度</span>
+                            <span data-role="score" class="text-sm font-bold text-primary">64%</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden"><div data-role="bar" class="bg-orange-400 h-full rounded-full" style="width: 64%"></div></div>
+                        <p data-role="note" class="text-[10px] text-on-surface-variant mt-1">建议增加外部权威来源引用，提升 AI 引用概率</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-span-12">
+                <h3 class="text-xl font-extrabold font-headline mb-6 flex items-center gap-2">
+                    <span class="w-1.5 h-5 bg-primary rounded-full"></span>
+                    诊断图表总览
+                </h3>
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                    <div class="rounded-xl border border-slate-100 bg-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">六维能力图</p>
+                                <h4 class="mt-2 text-base font-bold text-slate-900">从抓取入口到权威引用的就绪度</h4>
+                            </div>
+                            <span class="material-symbols-outlined text-primary">bar_chart</span>
+                        </div>
+                        <div id="diagnostic-category-bars" class="mt-6 space-y-4"></div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-100 bg-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">GEO 就绪漏斗</p>
+                                <h4 class="mt-2 text-base font-bold text-slate-900">页面从被抓取到被引用的推进链</h4>
+                            </div>
+                            <span class="material-symbols-outlined text-primary">stairs_2</span>
+                        </div>
+                        <div id="diagnostic-readiness-funnel" class="mt-6 space-y-4"></div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-100 bg-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">信号覆盖分布</p>
+                                <h4 class="mt-2 text-base font-bold text-slate-900">结构化、预览、内容与引用的配比</h4>
+                            </div>
+                            <span class="material-symbols-outlined text-primary">donut_large</span>
+                        </div>
+                        <div class="mt-6 flex flex-col gap-5 md:flex-row md:items-center">
+                            <div id="diagnostic-signal-donut" class="diagnostic-signal-donut">
+                                <div class="diagnostic-signal-donut-core">
+                                    <span id="diagnostic-signal-donut-score" class="text-2xl font-black text-slate-900">75</span>
+                                    <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">信号覆盖</span>
+                                </div>
+                            </div>
+                            <div id="diagnostic-signal-legend" class="grid flex-1 grid-cols-1 gap-3"></div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-100 bg-white p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">风险热力图</p>
+                                <h4 class="mt-2 text-base font-bold text-slate-900">最值得优先修复的低分模块</h4>
+                            </div>
+                            <span class="material-symbols-outlined text-primary">monitoring</span>
+                        </div>
+                        <div id="diagnostic-risk-grid" class="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schema 代码检测 -->
+            <div class="col-span-12 rounded-xl bg-white border border-slate-100 overflow-hidden">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+                    <h3 class="text-sm font-bold font-headline flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-lg">code</span>
+                        Schema 标签检测结果
+                    </h3>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">从页面 HTML 源码提取</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2">
+                    <!-- 已检测到的 Schema -->
+                    <div class="p-6 border-r border-slate-50">
+                        <p id="schema-detected-count" class="text-xs font-bold text-green-600 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm filled">check_circle</span>
+                            已检测到 (2项)
+                        </p>
+                        <div id="schema-detected-list" class="space-y-3">
+                            <div class="p-3 bg-slate-50 rounded-lg">
+                                <p class="text-xs font-bold font-mono text-green-700">@type: "WebSite"</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">包含 name、url、potentialAction 属性</p>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-lg">
+                                <p class="text-xs font-bold font-mono text-green-700">@type: "BreadcrumbList"</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">包含 3 级面包屑导航结构</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 缺失的 Schema -->
+                    <div class="p-6">
+                        <p id="schema-missing-count" class="text-xs font-bold text-red-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm filled">error</span>
+                            建议补充 (4项)
+                        </p>
+                        <div id="schema-missing-list" class="space-y-3">
+                            <div class="p-3 bg-red-50/50 rounded-lg">
+                                <p class="text-xs font-bold font-mono text-red-600">@type: "Organization"</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">企业基础信息：名称、logo、联系方式</p>
+                            </div>
+                            <div class="p-3 bg-red-50/50 rounded-lg">
+                                <p class="text-xs font-bold font-mono text-red-600">@type: "Product"</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">产品描述、定价、评分信息</p>
+                            </div>
+                            <div class="p-3 bg-red-50/50 rounded-lg">
+                                <p class="text-xs font-bold font-mono text-red-600">@type: "FAQPage"</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">FAQ 结构化问答，有助于 AI 直接引用</p>
+                            </div>
+                            <div class="p-3 bg-red-50/50 rounded-lg">
+                                <p class="text-xs font-bold font-mono text-red-600">@type: "Article"</p>
+                                <p class="text-[10px] text-on-surface-variant mt-1">文章的作者、发布日期、修改日期</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-span-12">
+                <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h3 class="text-xl font-extrabold font-headline flex items-center gap-2">
+                            <span class="w-1.5 h-5 bg-primary rounded-full"></span>
+                            24 项诊断模块矩阵
+                        </h3>
+                        <p class="mt-2 text-sm text-slate-500">将报告拆成更具体的信号模块，方便团队按条目分配修复和跟踪。</p>
+                    </div>
+                    <p id="diagnostic-module-summary" class="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">覆盖 6 个章节 · 24 个模块</p>
+                </div>
+                <div id="diagnostic-module-sections" class="mt-6 space-y-5"></div>
+            </div>
+
+            <div class="col-span-12 grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-5">
+                <div class="rounded-xl border border-slate-100 bg-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">三阶段行动路线</p>
+                            <h3 class="mt-2 text-base font-bold text-slate-900">把诊断结果转成可执行推进节奏</h3>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">alt_route</span>
+                    </div>
+                    <div id="diagnostic-roadmap" class="mt-6 space-y-4"></div>
+                </div>
+
+                <div class="rounded-xl border border-slate-100 bg-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">HTML 证据清单</p>
+                            <h3 class="mt-2 text-base font-bold text-slate-900">报告背后的源码信号与证据摘要</h3>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">data_object</span>
+                    </div>
+                    <div id="diagnostic-evidence-grid" class="mt-6 grid grid-cols-1 gap-3"></div>
+                </div>
+            </div>
+
+            <!-- AI 优化建议 -->
+            <div class="col-span-12">
+                <h3 class="text-xl font-extrabold font-headline mb-6 flex items-center gap-2">
+                    <span class="w-1.5 h-5 bg-primary rounded-full"></span>
+                    优化建议
+                </h3>
+                <div id="recommendations-list" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div class="p-6 rounded-xl bg-white border border-slate-100">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="w-5 h-5 rounded bg-red-50 flex items-center justify-center"><span class="material-symbols-outlined text-red-500 text-xs filled">error</span></span>
+                            <span class="text-xs font-bold text-red-500">紧急</span>
+                        </div>
+                        <h4 class="text-sm font-bold mb-2">补充 Schema.org 结构化标记</h4>
+                        <p class="text-xs text-on-surface-variant leading-relaxed mb-4">当前仅有 2 项 Schema 标记，建议至少补充 Organization、Product 和 FAQPage 类型，大幅提升 AI 解析精度。</p>
+                        <a href="/tutorial" class="text-xs font-semibold text-primary inline-flex items-center gap-1 group">
+                            查看实施指南
+                            <span class="material-symbols-outlined text-xs group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </a>
+                    </div>
+                    <div class="p-6 rounded-xl bg-white border border-slate-100">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="w-5 h-5 rounded bg-blue-50 flex items-center justify-center"><span class="material-symbols-outlined text-primary text-xs filled">bolt</span></span>
+                            <span class="text-xs font-bold text-primary">建议</span>
+                        </div>
+                        <h4 class="text-sm font-bold mb-2">增强权威引用密度</h4>
+                        <p class="text-xs text-on-surface-variant leading-relaxed mb-4">在关键段落中添加行业报告、学术论文等外部权威引用链接，提升 AI 生成回答时的引用概率。</p>
+                        <a href="/tutorial" class="text-xs font-semibold text-primary inline-flex items-center gap-1 group">
+                            查看优化策略
+                            <span class="material-symbols-outlined text-xs group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </a>
+                    </div>
+                    <div class="p-6 rounded-xl bg-white border border-slate-100">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="w-5 h-5 rounded bg-slate-100 flex items-center justify-center"><span class="material-symbols-outlined text-slate-400 text-xs filled">info</span></span>
+                            <span class="text-xs font-bold text-slate-400">优化</span>
+                        </div>
+                        <h4 class="text-sm font-bold mb-2">图片 Alt 文本语义化</h4>
+                        <p class="text-xs text-on-surface-variant leading-relaxed mb-4">当前页面有 12 张图片缺少描述性 Alt 文本，影响多模态 AI 模型对页面内容的理解。</p>
+                        <a href="/plans" class="text-xs font-semibold text-primary inline-flex items-center gap-1 group">
+                            生成自动化方案
+                            <span class="material-symbols-outlined text-xs group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 导出报告 -->
+            <div class="col-span-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 md:p-6 bg-white border border-slate-100 rounded-xl">
+                <div>
+                    <h3 class="text-sm font-bold">导出完整诊断报告</h3>
+                    <p class="text-xs text-on-surface-variant mt-0.5">包含所有检测项详情、代码示例和优化清单</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="diagnostic-export-btn" class="btn btn-outline flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold">导出 PDF</button>
+                    <a id="diagnostic-to-solutions-btn" href="/plans" class="btn btn-primary flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold text-center">发送到方案生成器</a>
+                </div>
+            </div>
+        </div>
+        </section>
+    </main>
+
+    <!-- Footer Container -->
+    <div id="footer-container"></div>
+
+    <!-- Scripts -->
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/diagnostic.js"></script>
+</body>
+</html>

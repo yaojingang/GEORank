@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>个人中心 - GEOrank</title>
+    <meta name="description" content="GEOrank 个人中心，用于管理账号状态、语言偏好和常用功能入口。">
+
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/profile.css">
+</head>
+<body class="bg-white text-on-surface antialiased">
+    <div id="header-container"></div>
+
+    <main class="profile-page max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-24 md:pt-28 pb-16 md:pb-24">
+        <section class="profile-hero">
+            <p class="profile-eyebrow" data-i18n="profile.eyebrow">ACCOUNT SETTINGS</p>
+            <h1 data-i18n="profile.title">个人中心</h1>
+            <p data-i18n="profile.copy">集中管理账号状态、语言偏好和前台体验设置。</p>
+        </section>
+
+        <section class="profile-grid" aria-label="个人中心设置">
+            <div class="profile-card profile-card--account">
+                <div class="profile-card__header">
+                    <div>
+                        <p class="profile-card__eyebrow" data-i18n="profile.accountTitle">账号状态</p>
+                        <h2 data-profile-account-status data-i18n="auth.signedOut">未登录</h2>
+                    </div>
+                    <div class="profile-card__icon">
+                        <span class="material-symbols-outlined">manage_accounts</span>
+                    </div>
+                </div>
+                <p class="profile-card__copy" data-profile-account-copy data-i18n="profile.signedOutCopy">当前未登录。登录后可以保存诊断、问答和方案记录。</p>
+                <div class="profile-account-meta">
+                    <span data-i18n="profile.statusLabel">当前账号</span>
+                    <strong data-profile-account-value data-i18n="auth.signedOut">未登录</strong>
+                </div>
+                <div class="profile-actions">
+                    <a href="/login" class="profile-button profile-button--primary" data-profile-login data-i18n="profile.login">登录账号</a>
+                    <a href="/register" class="profile-button profile-button--secondary" data-profile-register data-i18n="profile.register">注册账号</a>
+                    <button type="button" class="profile-button profile-button--secondary hidden" data-profile-logout data-i18n="profile.logout">退出登录</button>
+                </div>
+            </div>
+
+            <div class="profile-card profile-card--settings">
+                <div class="profile-card__header">
+                    <div>
+                        <p class="profile-card__eyebrow" data-i18n="profile.preferenceTitle">偏好设置</p>
+                        <h2 data-i18n="profile.languageTitle">界面语言</h2>
+                    </div>
+                    <div class="profile-card__icon">
+                        <span class="material-symbols-outlined">language</span>
+                    </div>
+                </div>
+                <p class="profile-card__copy" data-i18n="profile.languageCopy">语言设置会保存在当前浏览器，并立即应用到前台公共导航和账号界面。</p>
+                <div class="profile-setting-row">
+                    <div>
+                        <span data-i18n="profile.languageCurrent">当前语言</span>
+                        <strong data-current-locale-label>中文</strong>
+                    </div>
+                    <div class="profile-language" data-language-switcher aria-label="语言切换">
+                        <button type="button" class="profile-language__option" data-lang-option="zh-CN" data-i18n="profile.languageZh" aria-label="切换到中文">中文</button>
+                        <button type="button" class="profile-language__option" data-lang-option="en-US" data-i18n="profile.languageEn" aria-label="Switch to English">English</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-card profile-card--api">
+                <div class="profile-card__header">
+                    <div>
+                        <p class="profile-card__eyebrow">API USAGE</p>
+                        <h2>AI 额度与 API Key</h2>
+                    </div>
+                    <div class="profile-card__icon">
+                        <span class="material-symbols-outlined">key</span>
+                    </div>
+                </div>
+                <p class="profile-card__copy">平台额度用于免费体验。你也可以使用自己的模型 API Key 继续生成，Key 只保存在当前浏览器。</p>
+
+                <div class="profile-usage-grid">
+                    <div>
+                        <span>当前模式</span>
+                        <strong data-api-usage-mode>读取中</strong>
+                    </div>
+                    <div>
+                        <span>今日剩余额度</span>
+                        <strong data-api-usage-remaining>--</strong>
+                    </div>
+                    <div>
+                        <span>今日已用</span>
+                        <strong data-api-usage-used>--</strong>
+                    </div>
+                    <div>
+                        <span>本地 Key</span>
+                        <strong data-api-key-status>未配置</strong>
+                    </div>
+                </div>
+
+                <form class="profile-api-form" data-profile-api-form>
+                    <label>
+                        <span>供应商</span>
+                        <select name="provider">
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="custom">自定义 OpenAI-compatible</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Base URL</span>
+                        <input name="baseUrl" placeholder="https://api.deepseek.com/v1" autocomplete="off">
+                    </label>
+                    <label>
+                        <span>Model</span>
+                        <input name="model" placeholder="deepseek-chat" autocomplete="off">
+                    </label>
+                    <label>
+                        <span>API Key</span>
+                        <input name="apiKey" type="password" placeholder="只保存在当前浏览器" autocomplete="off">
+                    </label>
+                    <label class="profile-api-form__check">
+                        <input type="checkbox" name="enabled">
+                        <span>启用自定义 API Key</span>
+                    </label>
+                    <p class="profile-api-note">如果使用兼容性更好的代理模式，Key 会在本次生成请求中临时发送到服务端调用模型，但不会保存到数据库或写入日志。</p>
+                    <div class="profile-actions">
+                        <button type="submit" class="profile-button profile-button--primary">保存 API 设置</button>
+                        <button type="button" class="profile-button profile-button--secondary" data-profile-api-clear>清除本地 Key</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="profile-card profile-card--shortcuts">
+                <div class="profile-card__header">
+                    <div>
+                        <p class="profile-card__eyebrow" data-i18n="profile.quickTitle">快捷入口</p>
+                        <h2 data-site-name>GEOrank</h2>
+                    </div>
+                    <div class="profile-card__icon">
+                        <span class="material-symbols-outlined">apps</span>
+                    </div>
+                </div>
+                <div class="profile-shortcuts">
+                    <a href="/?submit=company">
+                        <span class="material-symbols-outlined">add_business</span>
+                        <strong data-i18n="profile.quickSubmit">提交公司</strong>
+                    </a>
+                    <a href="/diagnostic">
+                        <span class="material-symbols-outlined">analytics</span>
+                        <strong data-i18n="profile.quickDiagnostic">GEO 诊断</strong>
+                    </a>
+                    <a href="/plans">
+                        <span class="material-symbols-outlined">checklist</span>
+                        <strong data-i18n="profile.quickPlans">生成方案</strong>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/profile.js"></script>
+</body>
+</html>

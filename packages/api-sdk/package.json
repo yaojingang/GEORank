@@ -1,0 +1,13 @@
+{
+  "name": "@georank/api-sdk",
+  "private": true,
+  "scripts": {
+    "generate": "openapi-ts -i openapi.json -o src/generated -c @hey-api/client-fetch"
+  },
+  "dependencies": {
+    "@hey-api/client-fetch": "^0.13.1"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "^0.57.0"
+  }
+}

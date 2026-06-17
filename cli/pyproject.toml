@@ -1,0 +1,11 @@
+[project]
+name = "georank-cli"
+version = "0.1.0"
+dependencies = [
+  "httpx>=0.28",
+  "rich>=13.9",
+  "typer>=0.12"
+]
+
+[project.scripts]
+georank = "georank_cli.main:app"

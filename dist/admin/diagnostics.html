@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>诊断管理 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main">
+            <div id="admin-topbar"></div>
+
+            <main class="p-6 lg:p-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-extrabold font-headline tracking-tight">诊断管理</h1>
+                        <p class="text-sm text-on-surface-variant mt-1">查看 GEO 诊断报告状态、评分结果和详细分析输出</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="diagnostics-rules-button" class="btn admin-btn-secondary px-5 py-2.5 rounded-lg text-sm inline-flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">tune</span>
+                            配置评分规则
+                        </button>
+                        <a href="/diagnostic" target="_blank" class="btn admin-btn-secondary px-5 py-2.5 rounded-lg text-sm flex items-center gap-2 self-start">
+                            <span class="material-symbols-outlined text-sm">open_in_new</span>
+                            查看前台诊断页
+                        </a>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-xl">analytics</span>
+                            </div>
+                            <span class="badge badge-info">总量</span>
+                        </div>
+                        <p id="diagnostics-total" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">诊断报告总数</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-green-600 text-xl">task_alt</span>
+                            </div>
+                            <span class="badge badge-success">完成</span>
+                        </div>
+                        <p id="diagnostics-completed" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">当前页已完成报告</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-red-500 text-xl">error</span>
+                            </div>
+                            <span class="badge badge-warning">失败</span>
+                        </div>
+                        <p id="diagnostics-failed" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">当前页失败报告</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-purple-600 text-xl">query_stats</span>
+                            </div>
+                            <span class="badge badge-neutral">均值</span>
+                        </div>
+                        <p id="diagnostics-average-score" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">当前页平均评分</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                    <div class="flex-1 flex items-center bg-slate-50 rounded-lg px-3 border border-slate-100">
+                        <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+                        <input id="diagnostics-search" type="text" placeholder="搜索诊断 URL..." class="bg-transparent border-none focus:ring-0 text-sm w-full py-2.5 placeholder:text-slate-400">
+                    </div>
+                    <select id="diagnostics-status-filter" class="form-input w-auto text-sm py-2.5">
+                        <option value="">全部状态</option>
+                        <option value="completed">已完成</option>
+                        <option value="failed">失败</option>
+                        <option value="pending">等待中</option>
+                        <option value="crawling">爬取中</option>
+                        <option value="analyzing">分析中</option>
+                    </select>
+                    <button id="diagnostics-refresh" class="btn admin-btn-secondary px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">refresh</span>
+                        刷新
+                    </button>
+                </div>
+
+                <div id="diagnostics-rule-summary" class="bg-white rounded-xl border border-slate-100 p-4">
+                    <div class="text-sm text-slate-400">加载评分规则中...</div>
+                </div>
+
+                <div class="admin-list-layout">
+                    <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                        <div class="flex items-center justify-between px-6 py-5 border-b border-slate-50">
+                            <div>
+                                <h3 class="text-base font-bold font-headline">诊断报告列表</h3>
+                                <p class="text-xs text-on-surface-variant mt-1">支持按状态和 URL 关键词筛选，点击预览按钮查看报告详情</p>
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                    <th>状态</th>
+                                    <th>评分</th>
+                                    <th>用户</th>
+                                    <th>时间</th>
+                                    <th class="text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="diagnostics-tbody">
+                                <tr><td colspan="6" class="text-center py-12 text-slate-400 text-sm">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-50 text-sm">
+                            <span id="diagnostics-pagination-info" class="text-on-surface-variant">--</span>
+                            <div id="diagnostics-pagination" class="flex items-center gap-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-100 p-6 admin-detail-panel admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="diagnostic-preview-title" hidden>
+                        <div class="flex items-center justify-between mb-5">
+                            <h3 id="diagnostic-preview-title" class="text-base font-bold font-headline">报告详情</h3>
+                            <div class="flex items-center gap-2">
+                                <span id="diagnostics-detail-badge" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">未选中</span>
+                                <button type="button" class="admin-preview-close" data-preview-close title="关闭预览">
+                                    <span class="material-symbols-outlined text-base">close</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="diagnostics-detail" class="space-y-4">
+                            <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-sm text-slate-400">
+                                点击列表中的预览按钮，查看评分、分析维度和优化建议。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/admin.js?v=20260615-admin-entry-path"></script>
+</body>
+</html>

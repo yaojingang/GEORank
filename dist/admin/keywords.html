@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>拓词管理 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main">
+            <div id="admin-topbar"></div>
+
+            <main class="p-6 lg:p-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-extrabold font-headline tracking-tight">拓词管理</h1>
+                        <p class="text-sm text-on-surface-variant mt-1">查看、筛选、预览、导出和删除前台生成的 GEO 八维拓词词包，后台不再提供生成入口</p>
+                    </div>
+                    <a href="/keywords" target="_blank" class="btn admin-btn-secondary px-5 py-2.5 rounded-lg text-sm inline-flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">open_in_new</span>
+                        查看前台拓词页
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-emerald-600 text-xl">inventory_2</span>
+                            </div>
+                            <span class="badge badge-info">词包</span>
+                        </div>
+                        <p id="keyword-stat-packs" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">已保存词包</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-xl">manage_search</span>
+                            </div>
+                            <span class="badge badge-success">词项</span>
+                        </div>
+                        <p id="keyword-stat-keywords" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">累计关键词</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-purple-600 text-xl">recommend</span>
+                            </div>
+                            <span class="badge badge-neutral">推荐</span>
+                        </div>
+                        <p id="keyword-stat-rec" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">平均推荐指数</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-orange-500 text-xl">payments</span>
+                            </div>
+                            <span class="badge badge-warning">商业</span>
+                        </div>
+                        <p id="keyword-stat-business" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">平均商业指数</p>
+                    </div>
+                </div>
+
+                <div class="admin-list-layout">
+                    <section class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-50 flex flex-col md:flex-row gap-3 md:items-center">
+                            <div class="flex-1 flex items-center bg-slate-50 rounded-lg px-3">
+                                <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+                                <input id="keyword-search" type="text" placeholder="搜索词包标题、种子词或画像..." class="bg-transparent border-none focus:ring-0 text-sm w-full py-2.5 placeholder:text-slate-400">
+                            </div>
+                            <select id="keyword-source-filter" class="form-input w-full md:w-[180px] text-sm py-2.5">
+                                <option value="">全部来源</option>
+                                <option value="manual">手动创建</option>
+                                <option value="company">公司</option>
+                                <option value="diagnostic">诊断</option>
+                                <option value="solution">问答/方案</option>
+                                <option value="tutorial">教程</option>
+                            </select>
+                            <button id="keyword-refresh" class="btn admin-btn-secondary px-4 py-2.5 rounded-lg text-sm inline-flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-sm">refresh</span>
+                                刷新
+                            </button>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>词包</th>
+                                    <th>来源</th>
+                                    <th>词项</th>
+                                    <th>推荐/商业</th>
+                                    <th>创建时间</th>
+                                    <th class="text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keyword-packs-tbody">
+                                <tr><td colspan="6" class="text-center py-12 text-slate-400 text-sm">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-50 text-sm">
+                            <span id="keyword-pagination-info" class="text-on-surface-variant">--</span>
+                            <div id="keyword-pagination" class="flex items-center gap-1"></div>
+                        </div>
+                    </section>
+
+                    <aside class="bg-white rounded-xl border border-slate-100 p-5 admin-detail-panel admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="keyword-preview-title" hidden>
+                        <div class="flex items-start justify-between gap-3 mb-4">
+                            <div>
+                                <h2 id="keyword-preview-title" class="text-base font-bold font-headline">词包详情</h2>
+                                <p class="text-xs text-on-surface-variant mt-1">查看维度、词项和评分，并导出 CSV。</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="keyword-pack-detail-badge" class="badge badge-neutral">未选择</span>
+                                <button type="button" class="admin-preview-close" data-preview-close title="关闭预览">
+                                    <span class="material-symbols-outlined text-base">close</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="keyword-pack-detail">
+                            <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-sm text-slate-400">点击列表中的预览按钮，查看词包维度、词项和评分。</div>
+                        </div>
+                    </aside>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/admin.js?v=20260615-keyword-admin-list-only"></script>
+</body>
+</html>

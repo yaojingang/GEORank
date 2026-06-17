@@ -1,0 +1,45 @@
+# Traefik v3 配置文件
+# 文档: https://doc.traefik.io/traefik/
+
+# API 和 Dashboard（生产环境注释掉 dashboard）
+api:
+  dashboard: true
+  insecure: true   # 允许 8080 端口访问 Dashboard（仅开发环境）
+
+# 日志
+log:
+  level: INFO
+
+# 访问日志
+accessLog: {}
+
+# 入口点
+entryPoints:
+  web:
+    address: ":80"
+    # 生产环境启用 HTTPS 重定向:
+    # http:
+    #   redirections:
+    #     entryPoint:
+    #       to: websecure
+    #       scheme: https
+  websecure:
+    address: ":443"
+
+# 证书解析器（生产环境启用 Let's Encrypt）
+# certificatesResolvers:
+#   letsencrypt:
+#     acme:
+#       email: admin@georank.com
+#       storage: /etc/traefik/acme.json
+#       httpChallenge:
+#         entryPoint: web
+
+# 服务发现 — Docker
+providers:
+  docker:
+    exposedByDefault: false
+    network: georank-net
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true

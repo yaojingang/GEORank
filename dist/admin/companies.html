@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>公司管理 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main">
+            <div id="admin-topbar"></div>
+
+            <main class="p-6 lg:p-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-extrabold font-headline tracking-tight">公司管理</h1>
+                        <p class="text-sm text-on-surface-variant mt-1">查看公司资料、AI 入库状态和最近诊断上下文</p>
+                    </div>
+                    <a href="../companies" target="_blank" rel="noreferrer" class="btn admin-btn-secondary px-5 py-2.5 rounded-lg text-sm inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">open_in_new</span>
+                        查看前台公司页
+                    </a>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold font-headline">AI 入库流水线</h3>
+                            <p class="text-xs text-on-surface-variant mt-1">监控公司数据从爬取到审核的处理队列</p>
+                        </div>
+                        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">实时处理状态</span>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div class="p-3 rounded-lg bg-orange-50 border border-orange-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-symbols-outlined text-orange-500 text-base">travel_explore</span>
+                                <span class="text-xs font-bold text-orange-700">爬取中</span>
+                            </div>
+                            <p id="companies-pipeline-crawling" class="text-xl font-extrabold text-orange-600">0</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-symbols-outlined text-blue-500 text-base">data_object</span>
+                                <span class="text-xs font-bold text-blue-700">清洗中</span>
+                            </div>
+                            <p id="companies-pipeline-cleaning" class="text-xl font-extrabold text-blue-600">0</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-purple-50 border border-purple-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-symbols-outlined text-purple-500 text-base">hub</span>
+                                <span class="text-xs font-bold text-purple-700">图谱构建</span>
+                            </div>
+                            <p id="companies-pipeline-graph" class="text-xl font-extrabold text-purple-600">0</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-indigo-50 border border-indigo-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-symbols-outlined text-indigo-500 text-base">neurology</span>
+                                <span class="text-xs font-bold text-indigo-700">向量化</span>
+                            </div>
+                            <p id="companies-pipeline-vectorizing" class="text-xl font-extrabold text-indigo-600">0</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-green-50 border border-green-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="material-symbols-outlined text-green-500 text-base">rate_review</span>
+                                <span class="text-xs font-bold text-green-700">待审核</span>
+                            </div>
+                            <p id="companies-pipeline-review" class="text-xl font-extrabold text-green-600">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
+                    <div class="flex-1 flex items-center bg-slate-50 rounded-lg px-3">
+                        <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+                        <input id="companies-search" type="text" placeholder="搜索公司名称、分类或标签..." class="bg-transparent border-none focus:ring-0 text-sm w-full py-2.5 placeholder:text-slate-400">
+                    </div>
+                    <select id="companies-status-filter" class="form-input xl:w-[180px] text-sm py-2.5">
+                        <option value="">全部状态</option>
+                    </select>
+                    <select id="companies-category-filter" class="form-input xl:w-[180px] text-sm py-2.5">
+                        <option value="">全部分类</option>
+                    </select>
+                    <select id="companies-sort-filter" class="form-input xl:w-[180px] text-sm py-2.5">
+                        <option value="">最新添加</option>
+                    </select>
+                    <button id="companies-refresh" class="btn admin-btn-secondary px-4 py-2.5 rounded-lg text-sm inline-flex items-center justify-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">refresh</span>
+                        刷新
+                    </button>
+                </div>
+
+                <div class="admin-list-layout">
+                    <section class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                        <div class="px-6 py-5 border-b border-slate-100">
+                            <h2 class="text-base font-bold font-headline">公司列表</h2>
+                            <p class="text-xs text-on-surface-variant mt-1">列表优先展示，点击每行右侧预览按钮查看完整资料和流水线状态</p>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="companies-table" class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>公司</th>
+                                        <th>分类</th>
+                                        <th>入库</th>
+                                        <th>发布</th>
+                                        <th>评分</th>
+                                        <th>更新时间</th>
+                                        <th class="text-right">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="companies-tbody">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-12 text-slate-400 text-sm">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-50 text-sm">
+                            <span id="companies-pagination-info" class="text-on-surface-variant">共 0 家公司</span>
+                            <div id="companies-pagination" class="flex items-center gap-1"></div>
+                        </div>
+                    </section>
+
+                    <aside class="bg-white rounded-xl border border-slate-100 p-5 admin-detail-panel admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="company-preview-title" hidden>
+                        <div class="flex items-start justify-between gap-3 mb-4">
+                            <div>
+                                <h2 id="company-preview-title" class="text-base font-bold font-headline">公司详情</h2>
+                                <p class="text-xs text-on-surface-variant mt-1">公司资料、技术结构和最近诊断记录</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="company-detail-badge" class="badge badge-neutral">未选择</span>
+                                <button type="button" class="admin-preview-close" data-preview-close title="关闭预览">
+                                    <span class="material-symbols-outlined text-base">close</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="company-detail" class="space-y-4 text-sm text-slate-500">
+                            <div class="admin-detail-section p-5 text-sm text-slate-500">
+                                点击列表中的预览按钮后，这里会展示该公司的完整资料、入库状态、GEO 评分和最近诊断上下文。
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="../js/admin.js?v=20260615-admin-entry-path"></script>
+</body>
+</html>

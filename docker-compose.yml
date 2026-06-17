@@ -1,0 +1,223 @@
+version: "3.9"
+
+# ============================================
+# GEOrank — Docker 容器编排
+# ============================================
+
+services:
+
+  # ---------- 1. 反向代理 / API Gateway ----------
+  traefik:
+    image: traefik:v3.1
+    container_name: georank-gateway
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8090:8080"     # Traefik Dashboard (生产环境关闭)，本地访问: http://localhost:8090
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/traefik:/etc/traefik
+    networks:
+      - georank-net
+
+  # ---------- 2. 前端静态服务 ----------
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: georank-frontend
+    restart: always
+    ports:
+      - "3009:80"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./runtime/homepages/public:/usr/share/nginx/custom_homepage:ro
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`app.georank.com`)"
+      # catch-all: 直接用 IP 访问时也能路由到前端（低优先级）
+      - "traefik.http.routers.frontend-ip.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend-ip.priority=1"
+    depends_on:
+      - api
+    networks:
+      - georank-net
+
+  # ---------- 3. 核心 API 服务 (FastAPI) ----------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: georank-api
+    restart: always
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./runtime/homepages:/app/runtime/homepages
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      neo4j:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`app.georank.com`) && PathPrefix(`/api`)"
+    networks:
+      - georank-net
+
+  # ---------- 4. Celery Worker (异步任务) ----------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: georank-worker
+    restart: always
+    command: celery -A app.core.celery_app worker -l info -c 4 -Q process,diagnose
+    env_file: .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - api
+      - redis
+    networks:
+      - georank-net
+
+  # ---------- 5. Celery Beat (定时任务调度) ----------
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: georank-beat
+    restart: always
+    command: celery -A app.core.celery_app beat -l info
+    env_file: .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    networks:
+      - georank-net
+
+  # ---------- 6. PostgreSQL ----------
+  postgres:
+    image: postgres:16-alpine
+    container_name: georank-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-georank}
+      POSTGRES_USER: ${POSTGRES_USER:-georank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-postgres-password}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U georank"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - georank-net
+
+  # ---------- 7. Redis ----------
+  redis:
+    image: redis:7-alpine
+    container_name: georank-redis
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - georank-net
+
+
+  # ---------- 8. Qdrant 向量数据库 ----------
+  qdrant:
+    image: qdrant/qdrant:v1.12.1
+    container_name: georank-qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    networks:
+      - georank-net
+
+  # ---------- 9. Neo4j 知识图谱数据库 ----------
+  neo4j:
+    image: neo4j:5.24-community
+    container_name: georank-neo4j
+    restart: always
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-change-me-neo4j-password}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - georank-net
+
+  # ---------- 10. MinIO 对象存储 ----------
+  minio:
+    image: minio/minio:latest
+    container_name: georank-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-change-me-minio-access-key}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-change-me-minio-secret-key}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - georank-net
+
+  # ---------- 11. Playwright 爬虫沙箱 ----------
+  crawler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.crawler
+    container_name: georank-crawler
+    restart: always
+    command: celery -A app.core.celery_app worker -l info -c 2 -Q crawl --hostname=crawler@%h
+    env_file: .env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - minio
+    networks:
+      - georank-net
+
+volumes:
+  pg_data:
+  redis_data:
+  qdrant_data:
+  neo4j_data:
+  minio_data:
+
+networks:
+  georank-net:
+    driver: bridge
