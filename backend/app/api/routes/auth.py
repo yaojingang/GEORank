@@ -13,7 +13,7 @@ from sqlalchemy import or_, select
 from app.core.config import settings
 from app.core.deps import DbSession, CurrentUser
 from app.models.user import User, UserRole
-from app.schemas.user import RegisterRequest, LoginRequest, TokenResponse, UserOut
+from app.schemas.user import RegisterRequest, LoginRequest, PasswordChangeRequest, TokenResponse, UserOut
 
 router = APIRouter()
 
@@ -148,3 +148,16 @@ async def get_me(current_user: CurrentUser):
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
     )
+
+
+@router.put("/password")
+async def change_password(data: PasswordChangeRequest, current_user: CurrentUser, db: DbSession):
+    """修改当前登录用户密码"""
+    if not _verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前密码不正确")
+    if _verify_password(data.new_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新密码不能与当前密码相同")
+
+    current_user.hashed_password = _hash_password(data.new_password)
+    await db.commit()
+    return {"message": "密码已更新"}

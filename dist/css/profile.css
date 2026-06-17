@@ -64,6 +64,10 @@
     min-height: 20rem;
 }
 
+.profile-card--security {
+    min-height: 20rem;
+}
+
 .profile-card--shortcuts {
     grid-column: 1 / -1;
 }
@@ -135,7 +139,8 @@
 }
 
 .profile-usage-grid span,
-.profile-api-form label span {
+.profile-api-form label span,
+.profile-password-form label span {
     display: block;
     color: #94a3b8;
     font-size: 0.75rem;
@@ -205,6 +210,56 @@
     margin-top: 0;
 }
 
+.profile-password-form {
+    display: grid;
+    gap: 0.9rem;
+    margin-top: 1.25rem;
+}
+
+.profile-password-form label {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.profile-password-form input {
+    width: 100%;
+    min-height: 2.9rem;
+    border: 1px solid #dbe3ef;
+    border-radius: 0.9rem;
+    background: #ffffff;
+    padding: 0 0.95rem;
+    color: #0f172a;
+    font-size: 0.9rem;
+}
+
+.profile-password-form input:focus {
+    border-color: #93c5fd;
+    outline: 3px solid rgba(37, 99, 235, 0.12);
+}
+
+.profile-form-message {
+    margin: 0;
+    border: 1px solid #dbeafe;
+    border-radius: 0.85rem;
+    background: #eff6ff;
+    padding: 0.75rem 0.85rem;
+    color: #1d4ed8;
+    font-size: 0.84rem;
+    line-height: 1.6;
+}
+
+.profile-form-message.is-error {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.profile-form-message.is-success {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #15803d;
+}
+
 .profile-account-meta span,
 .profile-setting-row span {
     display: block;
@@ -250,6 +305,13 @@
 .profile-button--primary:hover {
     color: #ffffff;
     background: #1d4ed8;
+}
+
+.profile-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
+    transform: none;
+    box-shadow: none;
 }
 
 .profile-button--secondary {

@@ -306,6 +306,22 @@
                 'profile.languageCurrent': '当前语言',
                 'profile.languageZh': '中文',
                 'profile.languageEn': 'English',
+                'profile.securityTitle': '账号安全',
+                'profile.passwordTitle': '修改密码',
+                'profile.passwordCopy': '需要先输入当前密码。修改成功后会退出登录，请使用新密码重新登录。',
+                'profile.currentPassword': '当前密码',
+                'profile.newPassword': '新密码',
+                'profile.confirmPassword': '确认新密码',
+                'profile.currentPasswordPlaceholder': '请输入当前密码',
+                'profile.newPasswordPlaceholder': '至少 6 位',
+                'profile.confirmPasswordPlaceholder': '再次输入新密码',
+                'profile.passwordSubmit': '保存新密码',
+                'profile.passwordSubmitting': '保存中...',
+                'profile.passwordLoginRequired': '请先登录后再修改密码',
+                'profile.passwordMismatch': '两次输入的新密码不一致',
+                'profile.passwordTooShort': '新密码至少 6 位',
+                'profile.passwordUpdated': '密码已更新，请使用新密码重新登录',
+                'profile.passwordFailed': '修改密码失败',
                 'profile.quickTitle': '快捷入口',
                 'profile.quickSubmit': '提交公司',
                 'profile.quickDiagnostic': 'GEO 诊断',
@@ -393,6 +409,22 @@
                 'profile.languageCurrent': 'Current language',
                 'profile.languageZh': '中文',
                 'profile.languageEn': 'English',
+                'profile.securityTitle': 'Account security',
+                'profile.passwordTitle': 'Change password',
+                'profile.passwordCopy': 'Enter your current password first. After the update, you will be signed out and should sign in again with the new password.',
+                'profile.currentPassword': 'Current password',
+                'profile.newPassword': 'New password',
+                'profile.confirmPassword': 'Confirm new password',
+                'profile.currentPasswordPlaceholder': 'Enter current password',
+                'profile.newPasswordPlaceholder': 'At least 6 characters',
+                'profile.confirmPasswordPlaceholder': 'Enter new password again',
+                'profile.passwordSubmit': 'Save new password',
+                'profile.passwordSubmitting': 'Saving...',
+                'profile.passwordLoginRequired': 'Please sign in before changing your password',
+                'profile.passwordMismatch': 'The two new passwords do not match',
+                'profile.passwordTooShort': 'New password must be at least 6 characters',
+                'profile.passwordUpdated': 'Password updated. Please sign in again with the new password',
+                'profile.passwordFailed': 'Failed to change password',
                 'profile.quickTitle': 'Shortcuts',
                 'profile.quickSubmit': 'Submit company',
                 'profile.quickDiagnostic': 'GEO diagnostic',
@@ -501,13 +533,17 @@
                 <a href="/tutorial" data-nav-link data-i18n="nav.tutorial" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">教程</a>
             </div>
         </div>
-        <div class="flex items-center gap-2 md:gap-3">
-            <div class="relative">
-                <a href="/profile" data-auth-trigger data-profile-link class="auth-trigger header-icon-button" aria-label="登录 / 个人中心" data-i18n-aria-label="auth.triggerSignedOut">
-                    <span class="material-symbols-outlined">manage_accounts</span>
-                    <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
-                </a>
+        <div class="header-actions flex items-center gap-2 md:gap-3">
+            <div class="header-language" data-language-switcher aria-label="语言切换" data-i18n-aria-label="language.label">
+                <button type="button" class="header-language__option" data-lang-option="zh-CN" aria-label="切换到中文" data-i18n-aria-label="language.switchToZh">中</button>
+                <button type="button" class="header-language__option" data-lang-option="en-US" aria-label="Switch to English" data-i18n-aria-label="language.switchToEn">EN</button>
             </div>
+            <a href="/profile" data-auth-trigger data-profile-link class="auth-trigger header-profile-button" aria-label="登录 / 个人中心" data-i18n-aria-label="auth.triggerSignedOut">
+                <span class="header-profile-button__icon" aria-hidden="true">
+                    <span class="material-symbols-outlined">person</span>
+                </span>
+                <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
+            </a>
             <button id="mobile-menu-toggle" class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-slate-800" aria-label="打开菜单" data-i18n-aria-label="header.mobileMenu">
                 <span class="material-symbols-outlined text-slate-600 dark:text-slate-400">menu</span>
             </button>

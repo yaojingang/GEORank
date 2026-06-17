@@ -149,6 +149,16 @@
     gap: 0.55rem;
 }
 
+.experts-hero-tabs,
+.experts-filter-group {
+    scrollbar-width: none;
+}
+
+.experts-hero-tabs::-webkit-scrollbar,
+.experts-filter-group::-webkit-scrollbar {
+    display: none;
+}
+
 .expert-filter {
     min-height: 2.35rem;
     border: 1px solid #e2e8f0;
@@ -267,7 +277,7 @@
     margin: 0.72rem 0 0;
     color: #64748b;
     font-size: 0.9rem;
-    line-height: 1.78;
+    line-height: 1.72;
 }
 
 .expert-keyword-tags {
@@ -334,7 +344,7 @@
 
 .expert-detail-card {
     display: grid;
-    gap: 1.35rem;
+    gap: 1.2rem;
     border: 1px solid #e2e8f0;
     border-radius: 1.1rem;
     background: #ffffff;
@@ -384,7 +394,7 @@
 
 .expert-detail-section {
     display: grid;
-    gap: 0.9rem;
+    gap: 0.78rem;
 }
 
 .expert-detail-section h2 {
@@ -398,19 +408,19 @@
 
 .expert-detail-body {
     display: grid;
-    gap: 0.8rem;
+    gap: 0.68rem;
 }
 
 .expert-detail-body p {
     margin: 0;
     color: #64748b;
-    font-size: 0.94rem;
-    line-height: 1.9;
+    font-size: 0.95rem;
+    line-height: 1.78;
 }
 
 .expert-highlight-list {
     display: grid;
-    gap: 0.65rem;
+    gap: 0.56rem;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -422,17 +432,17 @@
     border-radius: 0.85rem;
     background: #f8fafc;
     color: #475569;
-    padding: 0.72rem 0.85rem 0.72rem 2.05rem;
+    padding: 0.64rem 0.82rem 0.64rem 1.92rem;
     font-size: 0.88rem;
     font-weight: 700;
-    line-height: 1.65;
+    line-height: 1.55;
 }
 
 .expert-highlight-list li::before {
     content: "";
     position: absolute;
-    top: 1.12rem;
-    left: 0.95rem;
+    top: 1rem;
+    left: 0.86rem;
     width: 0.42rem;
     height: 0.42rem;
     border-radius: 999px;
@@ -488,6 +498,12 @@
 
 .experts-sidebar {
     align-self: start;
+}
+
+@media (min-width: 1024px) {
+    .experts-page.is-detail-mode .experts-sidebar {
+        margin-top: 2.5rem;
+    }
 }
 
 .experts-tip-card {
@@ -687,12 +703,16 @@
         width: 100%;
         justify-content: flex-start;
         overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: 0.1rem;
     }
 
     .experts-filter-group {
         flex-wrap: nowrap;
         overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: 0.2rem;
     }
 

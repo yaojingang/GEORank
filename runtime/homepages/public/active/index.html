@@ -32,7 +32,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 
-  <link rel="stylesheet" href="/_custom_homepage/active/css/style.css?v=20260617-platform6">
+  <link rel="stylesheet" href="/_custom_homepage/active/css/style.css?v=20260617-book-cover-clean">
 
   <!-- 结构化数据 -->
     <meta http-equiv="Content-Security-Policy" content="script-src 'none'; object-src 'none'; base-uri 'self'">
@@ -54,9 +54,17 @@
         <li><a href="/experts">专家</a></li>
         <li><a href="/tutorial">教程</a></li>
       </ul>
-      <a href="/profile" class="georank-profile-link" aria-label="个人中心">
-        <span class="material-symbols-outlined" aria-hidden="true">manage_accounts</span>
-      </a>
+      <div class="georank-header-actions" aria-label="账号与语言">
+        <div class="georank-language-switch" aria-label="语言切换">
+          <a href="/" class="is-active" aria-current="true">中</a>
+          <a href="/profile#language" title="在个人中心切换英文">EN</a>
+        </div>
+        <a href="/profile" class="georank-profile-link" aria-label="个人中心">
+          <span class="georank-profile-link__icon">
+            <span class="material-symbols-outlined" aria-hidden="true">person</span>
+          </span>
+        </a>
+      </div>
     </nav>
   </header>
 
@@ -76,7 +84,7 @@
           让好品牌被<span class="text-primary">AI</span>准确推荐
         </h1>
         <p class="hero-sub reveal">
-          GEORankHub 是独立第三方 GEO 研究平台，旨在推动科学、系统、有效、健康的 GEO 方法论。
+          GEORankHub 是独立第三方 GEO 研究平台，旨在推动科学、系统、有效、健康的 GEO 方法论
         </p>
         <div class="hero-actions reveal">
           <a href="#platform" class="btn btn-primary">
@@ -106,6 +114,49 @@
             <span>届全国 GEO 大会</span>
           </li>
         </ul>
+      </div>
+    </section>
+
+    <!-- 新书推荐 -->
+    <section class="section book-feature" id="ai-marketing-book" aria-labelledby="bookFeatureTitle">
+      <div class="container">
+        <div class="book-feature-card reveal">
+          <div class="book-feature-cover" aria-label="《AI营销：从SEO到GEO》书籍封面">
+            <img src="/_custom_homepage/active/images/ai-marketing-book.png" alt="《AI营销：从SEO到GEO》书籍封面" loading="lazy">
+          </div>
+          <div class="book-feature-content">
+            <p class="section-eyebrow">GEO 新书推荐</p>
+            <h2 class="book-feature-title" id="bookFeatureTitle">《AI营销：从SEO到GEO》</h2>
+            <p class="book-feature-lead">写给 AI 时代的营销操盘手，系统呈现从 SEO 迈向 GEO 的关键跃迁，让品牌成为 AI 首选答案。</p>
+            <div class="book-feature-points" aria-label="新书核心亮点">
+              <div>
+                <strong>系统化 GEO 方法论</strong>
+                <span>从搜索逻辑、信源建设、内容工程到数据监测，建立可复用的增长框架。</span>
+              </div>
+              <div>
+                <strong>27 个提示词模板</strong>
+                <span>覆盖内容工程、信源建设、诊断分析等场景，可直接复用到团队工作流。</span>
+              </div>
+              <div>
+                <strong>免费 GEO 诊断</strong>
+                <span>轻松开启企业 GEO 营销第一步，把策略判断落到具体行动。</span>
+              </div>
+            </div>
+            <blockquote class="book-feature-quote">
+              GEO 是一个强大的工具，你把它用在哪里，就可能在哪里创造奇迹。
+            </blockquote>
+            <div class="book-feature-actions">
+              <a href="https://item.jd.com/14656783.html" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+                <span class="material-symbols-outlined" aria-hidden="true">shopping_cart</span>
+                京东购买
+              </a>
+              <a href="https://yaojingang.feishu.cn/wiki/YbMLwkChmiktbskRoHZcFixBnxb" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
+                <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+                查看提示词合集
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 

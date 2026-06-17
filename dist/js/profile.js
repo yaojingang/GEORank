@@ -32,6 +32,26 @@
         return Number(value || 0).toLocaleString();
     }
 
+    function t(key, fallback = '') {
+        return window.GEOrank?.I18N?.t?.(key) || fallback || key;
+    }
+
+    function showPasswordMessage(message, type = 'info') {
+        const messageEl = $('[data-profile-password-message]');
+        if (!messageEl) return;
+        messageEl.textContent = message;
+        messageEl.classList.remove('hidden', 'is-error', 'is-success');
+        if (type === 'error') messageEl.classList.add('is-error');
+        if (type === 'success') messageEl.classList.add('is-success');
+    }
+
+    function setPasswordBusy(isBusy) {
+        const submit = $('[data-profile-password-submit]');
+        if (!submit) return;
+        submit.disabled = Boolean(isBusy);
+        submit.textContent = isBusy ? t('profile.passwordSubmitting', '保存中...') : t('profile.passwordSubmit', '保存新密码');
+    }
+
     function renderProfile() {
         const Auth = window.GEOrank?.Auth;
         const I18N = window.GEOrank?.I18N;
@@ -61,6 +81,7 @@
         if (registerLink) registerLink.classList.toggle('hidden', authenticated);
         if (logoutButton) logoutButton.classList.toggle('hidden', !authenticated);
         if (localeLabelEl) localeLabelEl.textContent = localeLabel(I18N.getLocale());
+        setPasswordBusy(false);
         renderApiKeyForm();
     }
 
@@ -111,6 +132,48 @@
             window.GEOrank?.Auth?.clearSession?.();
             renderProfile();
             void renderUsage();
+        });
+        $('[data-profile-password-form]')?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const Auth = window.GEOrank?.Auth;
+            if (!Auth?.isAuthenticated?.()) {
+                showPasswordMessage(t('profile.passwordLoginRequired', '请先登录后再修改密码'), 'error');
+                return;
+            }
+
+            const form = event.currentTarget;
+            const currentPassword = form.elements.currentPassword?.value || '';
+            const newPassword = form.elements.newPassword?.value || '';
+            const confirmPassword = form.elements.confirmPassword?.value || '';
+
+            if (newPassword.length < 6) {
+                showPasswordMessage(t('profile.passwordTooShort', '新密码至少 6 位'), 'error');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showPasswordMessage(t('profile.passwordMismatch', '两次输入的新密码不一致'), 'error');
+                return;
+            }
+
+            setPasswordBusy(true);
+            try {
+                await Auth.request('/api/auth/password', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword,
+                    }),
+                });
+                form.reset();
+                showPasswordMessage(t('profile.passwordUpdated', '密码已更新，请使用新密码重新登录'), 'success');
+                Auth.clearSession?.();
+                window.setTimeout(() => {
+                    window.location.href = `/login?return=${encodeURIComponent('/profile')}`;
+                }, 900);
+            } catch (error) {
+                showPasswordMessage(error.message || t('profile.passwordFailed', '修改密码失败'), 'error');
+                setPasswordBusy(false);
+            }
         });
         $('[data-profile-api-form]')?.addEventListener('submit', (event) => {
             event.preventDefault();

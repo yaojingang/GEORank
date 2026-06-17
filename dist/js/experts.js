@@ -9,6 +9,20 @@
     const API_BASE = ['80', '443', ''].includes(window.location.port)
         ? ''
         : `${window.location.protocol}//${window.location.hostname}:8000`;
+    const EXPERTS_PAGE_TITLE = 'GEO 专家频道 - GEOrank | 2026 GEO/SEO专家推荐、AI搜索优化顾问、出海SEO与品牌可见性咨询';
+    const EXPERTS_PAGE_DESCRIPTION = 'GEOrank 2026 GEO 专家频道，收录 GEO 方法论、SEO 专家、AI 搜索优化顾问、出海 SEO、豆包 GEO、品牌 AI 可见性和企业 GEO 咨询相关专家画像。';
+    const EXPERTS_PAGE_KEYWORDS = [
+        'GEO专家推荐',
+        'SEO专家推荐',
+        'AI搜索优化专家',
+        '生成式引擎优化顾问',
+        '出海SEO专家',
+        '豆包GEO顾问',
+        '企业GEO咨询',
+        '品牌AI可见性优化',
+        'GEO方法论专家',
+    ];
+    const EXPERTS_PAGE_DATE = '2026-06-17';
 
     const CATEGORY_META = {
         methodology: { label: '方法论', icon: 'psychology', tags: ['GEO 方法论', '开源项目', '行业标准'] },
@@ -28,12 +42,12 @@
             slug: 'yao-jingang',
             display_name: '姚金刚',
             avatar_initials: '姚',
-            title: '中国知名 GEO 专家',
+            title: 'GEO 专家 / AI创业者 / AI营销',
             category: 'methodology',
             specialty_label: 'GEO 方法论',
             sort_order: 1,
             updated_at: '2026-06-17T00:00:00+08:00',
-            summary: '中国知名 GEO 专家，第一届 GEO 大会发起者，《AI营销：从SEO到GEO》作者，GEOFlow 开源项目发起人。',
+            summary: 'GEO 专家 / AI创业者 / AI营销，第一届 GEO 大会发起者，《AI营销：从SEO到GEO》作者，GEOFlow 开源项目发起人。',
             keywords: ['GEO 大会', 'GEOFlow', 'GEO 开源', 'GEO 文档', 'AI 营销'],
             paragraphs: [
                 '姚金刚是国内较早系统推动 GEO 研究、开源与行业交流的实践者，发起并成功举办中国第一届 GEO 大会，创立国内第一批 GEO 公司，并推动国内早期 GEO 行业标准与方法论建设。',
@@ -53,12 +67,7 @@
                 '创立国内第一批 GEO 公司',
                 '曾在知名上市公司、独角兽公司任职营销高管',
             ],
-            links: [
-                {
-                    label: '阅读 arXiv 论文',
-                    href: 'https://arxiv.org/abs/2604.25707',
-                },
-            ],
+            links: [],
         },
         {
             slug: 'qiao-xiangyang',
@@ -79,11 +88,13 @@
                 '在商业化方向，他参与 GEO 白皮书、GEO 大会，并与姚金刚一起出版 GEO 书籍《AI营销：从SEO到GEO》，把传统 SEO 经验延伸到 AI 搜索时代，关注品牌如何被大模型理解、引用和推荐。',
             ],
             highlights: [
+                '发起并成功举办中国第一届 GEO 大会',
+                'GEO 书籍《AI营销：从SEO到GEO》作者',
                 '曾任字节跳动 / TikTok 商业化 AI 产品经理',
                 '持续跟踪 OpenAI、Anthropic、Google、xAI、AI Agent、AI 编程和 AI 搜索',
                 '擅长 AI 工具实测、AI 编程、独立开发、GEO 与 AI 营销',
                 'GitHub 项目覆盖内容处理、NotebookLM 资料生成、OpenCLI 技能、AI 海报设计和知识网站生成',
-                '参与 GEO 白皮书、GEO 大会，并与姚金刚共同出版《AI营销：从SEO到GEO》',
+                '发布 GEO 白皮书并发起中国第一届GEO 大会',
             ],
         },
         {
@@ -190,6 +201,61 @@
             .replace(/'/g, '&#39;');
     }
 
+    function compactText(value, maxLength = 260) {
+        const text = String(value || '').replace(/\s+/g, ' ').trim();
+        if (text.length <= maxLength) return text;
+        return `${text.slice(0, maxLength - 1)}…`;
+    }
+
+    function absoluteUrl(path) {
+        try {
+            return new URL(path || '/', window.location.origin).href;
+        } catch (_) {
+            return path || '';
+        }
+    }
+
+    function upsertMetaName(name, content) {
+        let meta = document.querySelector(`meta[name="${name}"]`);
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute('name', name);
+            document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', content);
+    }
+
+    function upsertMetaProperty(property, content) {
+        let meta = document.querySelector(`meta[property="${property}"]`);
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.setAttribute('property', property);
+            document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', content);
+    }
+
+    function upsertCanonical(path) {
+        let link = document.querySelector('link[rel="canonical"]');
+        if (!link) {
+            link = document.createElement('link');
+            link.setAttribute('rel', 'canonical');
+            document.head.appendChild(link);
+        }
+        link.setAttribute('href', absoluteUrl(path));
+    }
+
+    function updateStructuredData(schema) {
+        let script = document.getElementById('experts-jsonld');
+        if (!script) {
+            script = document.createElement('script');
+            script.id = 'experts-jsonld';
+            script.type = 'application/ld+json';
+            document.head.appendChild(script);
+        }
+        script.textContent = JSON.stringify(schema, null, 2);
+    }
+
     function uniqueList(items) {
         const seen = new Set();
         return (items || [])
@@ -219,6 +285,10 @@
         return key ? `/experts/${encodeURIComponent(key)}` : '/experts';
     }
 
+    function expertDescription(expert) {
+        return compactText(expert?.summary || expert?.consultation || `${expert?.display_name || 'GEO 专家'} 的专家介绍。`);
+    }
+
     function expertTags(expert) {
         const meta = CATEGORY_META[expert.category] || {};
         return uniqueList([
@@ -228,6 +298,89 @@
             ...(Array.isArray(meta.tags) ? meta.tags : []),
             'GEO',
         ]).slice(0, 5);
+    }
+
+    function buildExpertPersonSchema(expert) {
+        const url = absoluteUrl(expertHref(expert));
+        const links = Array.isArray(expert.links)
+            ? expert.links.map(link => link?.href).filter(Boolean).map(absoluteUrl)
+            : [];
+
+        const schema = {
+            '@type': 'Person',
+            '@id': `${url}#person`,
+            name: expert.display_name || '未命名专家',
+            url,
+            jobTitle: expert.title || 'GEO 专家',
+            description: expertDescription(expert),
+            knowsAbout: uniqueList([
+                ...expertTags(expert),
+                ...(Array.isArray(expert.highlights) ? expert.highlights.slice(0, 3) : []),
+                'SEO 专家',
+                'AI 搜索优化',
+                '生成式引擎优化',
+            ]).slice(0, 12),
+        };
+        if (links.length) schema.sameAs = links;
+        return schema;
+    }
+
+    function buildExpertsListSchema() {
+        const pageUrl = absoluteUrl('/experts');
+        return {
+            '@context': 'https://schema.org',
+            '@graph': [
+                {
+                    '@type': 'CollectionPage',
+                    '@id': `${pageUrl}#webpage`,
+                    url: pageUrl,
+                    name: EXPERTS_PAGE_TITLE,
+                    headline: 'GEO 专家频道',
+                    description: EXPERTS_PAGE_DESCRIPTION,
+                    inLanguage: 'zh-CN',
+                    datePublished: EXPERTS_PAGE_DATE,
+                    dateModified: EXPERTS_PAGE_DATE,
+                    keywords: EXPERTS_PAGE_KEYWORDS,
+                    about: ['GEO 专家', 'SEO 专家', 'AI 搜索优化', '生成式引擎优化', '出海 SEO', '企业 GEO 咨询'],
+                    mainEntity: { '@id': `${pageUrl}#expert-list` },
+                },
+                {
+                    '@type': 'ItemList',
+                    '@id': `${pageUrl}#expert-list`,
+                    name: '2026 GEO/SEO 专家推荐列表',
+                    numberOfItems: state.experts.length,
+                    itemListElement: state.experts.map((expert, index) => ({
+                        '@type': 'ListItem',
+                        position: index + 1,
+                        url: absoluteUrl(expertHref(expert)),
+                        item: buildExpertPersonSchema(expert),
+                    })),
+                },
+            ],
+        };
+    }
+
+    function buildExpertDetailSchema(expert, pageTitle, pageDescription) {
+        const pageUrl = absoluteUrl(expertHref(expert));
+        return {
+            '@context': 'https://schema.org',
+            '@graph': [
+                {
+                    '@type': 'ProfilePage',
+                    '@id': `${pageUrl}#webpage`,
+                    url: pageUrl,
+                    name: pageTitle,
+                    headline: `${expert.display_name || 'GEO 专家'} - ${expert.title || 'GEO 专家'}`,
+                    description: pageDescription,
+                    inLanguage: 'zh-CN',
+                    datePublished: EXPERTS_PAGE_DATE,
+                    dateModified: String(expert.updated_at || EXPERTS_PAGE_DATE).slice(0, 10),
+                    keywords: uniqueList([expert.display_name, expert.title, ...expertTags(expert), ...EXPERTS_PAGE_KEYWORDS]),
+                    mainEntity: { '@id': `${pageUrl}#person` },
+                },
+                buildExpertPersonSchema(expert),
+            ],
+        };
     }
 
     function searchText(expert) {
@@ -361,19 +514,44 @@
     function setViewMode(mode) {
         const listView = $('[data-experts-list-view]');
         const detailView = $('[data-expert-detail-view]');
+        const page = $('.experts-page');
         if (listView) listView.classList.toggle('is-hidden', mode === 'detail');
         if (detailView) detailView.classList.toggle('is-hidden', mode !== 'detail');
+        if (page) page.classList.toggle('is-detail-mode', mode === 'detail');
     }
 
     function updateDocumentMeta(expert) {
-        const meta = document.querySelector('meta[name="description"]');
         if (!expert) {
-            document.title = 'GEO 专家频道 - GEOrank';
-            if (meta) meta.setAttribute('content', 'GEOrank 专家频道，推荐 GEO 与 AI 搜索相关专家介绍。');
+            document.title = EXPERTS_PAGE_TITLE;
+            upsertMetaName('description', EXPERTS_PAGE_DESCRIPTION);
+            upsertMetaName('keywords', EXPERTS_PAGE_KEYWORDS.join(','));
+            upsertMetaProperty('og:type', 'website');
+            upsertMetaProperty('og:title', EXPERTS_PAGE_TITLE);
+            upsertMetaProperty('og:description', EXPERTS_PAGE_DESCRIPTION);
+            upsertMetaProperty('og:url', absoluteUrl('/experts'));
+            upsertCanonical('/experts');
+            updateStructuredData(buildExpertsListSchema());
             return;
         }
-        document.title = `${expert.display_name} - GEO 专家频道 - GEOrank`;
-        if (meta) meta.setAttribute('content', expert.summary || `${expert.display_name} 的 GEO 专家介绍。`);
+
+        const detailTitle = `${expert.display_name || 'GEO 专家'} - ${expert.title || 'GEO 专家'} | 2026 GEO/SEO专家介绍 - GEOrank`;
+        const detailDescription = expertDescription(expert);
+        const detailKeywords = uniqueList([
+            expert.display_name,
+            expert.title,
+            ...expertTags(expert),
+            ...EXPERTS_PAGE_KEYWORDS,
+        ]).join(',');
+
+        document.title = detailTitle;
+        upsertMetaName('description', detailDescription);
+        upsertMetaName('keywords', detailKeywords);
+        upsertMetaProperty('og:type', 'profile');
+        upsertMetaProperty('og:title', detailTitle);
+        upsertMetaProperty('og:description', detailDescription);
+        upsertMetaProperty('og:url', absoluteUrl(expertHref(expert)));
+        upsertCanonical(expertHref(expert));
+        updateStructuredData(buildExpertDetailSchema(expert, detailTitle, detailDescription));
     }
 
     function renderDetailLinks(expert) {
@@ -509,6 +687,14 @@
         renderExpertCards();
     }
 
+    function refreshCurrentMeta() {
+        if (state.activeExpertKey) {
+            updateDocumentMeta(findExpertByKey(state.activeExpertKey));
+            return;
+        }
+        updateDocumentMeta(null);
+    }
+
     function bindFilters() {
         $$('[data-expert-filter]').forEach(button => {
             button.addEventListener('click', () => {
@@ -540,6 +726,8 @@
             applyFilters();
         });
     }
+
+    document.addEventListener('georank:site-settings-applied', refreshCurrentMeta);
 
     document.addEventListener('DOMContentLoaded', () => {
         state.activeExpertKey = getRequestedExpertKey();

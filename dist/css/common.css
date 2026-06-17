@@ -461,64 +461,85 @@ textarea:focus {
 }
 
 /* ===== 认证组件 ===== */
+.header-actions {
+    flex-shrink: 0;
+}
+
+.header-profile-button,
 .header-icon-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 2.85rem;
+    height: 2.85rem;
     border: 1px solid #dbe3ef;
-    border-radius: 0.95rem;
+    border-radius: 1rem;
     background: #ffffff;
     color: #334155;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
     cursor: pointer;
     transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+.header-profile-button:hover,
 .header-icon-button:hover {
     border-color: #bfdbfe;
     background: #f8fbff;
     color: #2563eb;
     box-shadow: 0 14px 34px rgba(37, 99, 235, 0.1);
+    transform: translateY(-1px);
 }
 
+.header-profile-button:active,
 .header-icon-button:active {
     transform: scale(0.96);
 }
 
+.header-profile-button:focus-visible,
 .header-icon-button:focus-visible {
     outline: none;
     border-color: #2563eb;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
+.header-profile-button__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.75rem;
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.header-profile-button .material-symbols-outlined,
 .header-icon-button .material-symbols-outlined {
-    font-size: 1.35rem;
+    font-size: 1.22rem;
     line-height: 1;
 }
 
 .header-language {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
-    height: 2.75rem;
+    gap: 0.25rem;
+    height: 2.85rem;
     padding: 0.25rem;
     border: 1px solid #dbe3ef;
-    border-radius: 0.95rem;
+    border-radius: 1rem;
     background: #ffffff;
-    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
 }
 
 .header-language__option {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 2.1rem;
-    height: 2.15rem;
-    padding: 0 0.45rem;
+    min-width: 2.15rem;
+    height: 2.2rem;
+    padding: 0 0.5rem;
     border: 0;
-    border-radius: 0.72rem;
+    border-radius: 0.78rem;
     background: transparent;
     color: #64748b;
     font-size: 0.76rem;
@@ -536,7 +557,7 @@ textarea:focus {
 .header-language__option.is-active {
     color: #ffffff;
     background: #2563eb;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
 }
 
 .header-language__option:focus-visible {
@@ -1033,16 +1054,34 @@ textarea:focus {
 }
 
 @media (max-width: 768px) {
+    .header-actions {
+        gap: 0.45rem !important;
+    }
+
     .header-language {
         height: 2.5rem;
         padding: 0.2rem;
+        border-radius: 0.9rem;
     }
 
     .header-language__option {
-        min-width: 1.95rem;
+        min-width: 1.9rem;
         height: 2rem;
         padding: 0 0.35rem;
         font-size: 0.72rem;
+    }
+
+    .header-profile-button,
+    .header-icon-button {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.9rem;
+    }
+
+    .header-profile-button__icon {
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 0.68rem;
     }
 
     .auth-menu {

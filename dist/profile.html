@@ -49,7 +49,38 @@
                 </div>
             </div>
 
-            <div class="profile-card profile-card--settings">
+            <div class="profile-card profile-card--security">
+                <div class="profile-card__header">
+                    <div>
+                        <p class="profile-card__eyebrow" data-i18n="profile.securityTitle">账号安全</p>
+                        <h2 data-i18n="profile.passwordTitle">修改密码</h2>
+                    </div>
+                    <div class="profile-card__icon">
+                        <span class="material-symbols-outlined">lock_reset</span>
+                    </div>
+                </div>
+                <p class="profile-card__copy" data-i18n="profile.passwordCopy">需要先输入当前密码。修改成功后会退出登录，请使用新密码重新登录。</p>
+                <form class="profile-password-form" data-profile-password-form>
+                    <label>
+                        <span data-i18n="profile.currentPassword">当前密码</span>
+                        <input name="currentPassword" type="password" autocomplete="current-password" minlength="6" maxlength="128" required data-i18n-placeholder="profile.currentPasswordPlaceholder" placeholder="请输入当前密码">
+                    </label>
+                    <label>
+                        <span data-i18n="profile.newPassword">新密码</span>
+                        <input name="newPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required data-i18n-placeholder="profile.newPasswordPlaceholder" placeholder="至少 6 位">
+                    </label>
+                    <label>
+                        <span data-i18n="profile.confirmPassword">确认新密码</span>
+                        <input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" maxlength="128" required data-i18n-placeholder="profile.confirmPasswordPlaceholder" placeholder="再次输入新密码">
+                    </label>
+                    <p class="profile-form-message hidden" data-profile-password-message></p>
+                    <div class="profile-actions">
+                        <button type="submit" class="profile-button profile-button--primary" data-profile-password-submit data-i18n="profile.passwordSubmit">保存新密码</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="profile-card profile-card--settings" id="language">
                 <div class="profile-card__header">
                     <div>
                         <p class="profile-card__eyebrow" data-i18n="profile.preferenceTitle">偏好设置</p>

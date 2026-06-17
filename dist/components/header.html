@@ -65,20 +65,24 @@
         </div>
 
         <!-- 右侧操作区 -->
-        <div class="flex items-center gap-2 md:gap-3">
-            <div class="relative">
-                <a
-                    href="/profile"
-                    data-auth-trigger
-                    data-profile-link
-                    class="auth-trigger header-icon-button"
-                    aria-label="登录 / 个人中心"
-                    data-i18n-aria-label="auth.triggerSignedOut"
-                >
-                    <span class="material-symbols-outlined">manage_accounts</span>
-                    <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
-                </a>
+        <div class="header-actions flex items-center gap-2 md:gap-3">
+            <div class="header-language" data-language-switcher aria-label="语言切换" data-i18n-aria-label="language.label">
+                <button type="button" class="header-language__option" data-lang-option="zh-CN" aria-label="切换到中文" data-i18n-aria-label="language.switchToZh">中</button>
+                <button type="button" class="header-language__option" data-lang-option="en-US" aria-label="Switch to English" data-i18n-aria-label="language.switchToEn">EN</button>
             </div>
+            <a
+                href="/profile"
+                data-auth-trigger
+                data-profile-link
+                class="auth-trigger header-profile-button"
+                aria-label="登录 / 个人中心"
+                data-i18n-aria-label="auth.triggerSignedOut"
+            >
+                <span class="header-profile-button__icon" aria-hidden="true">
+                    <span class="material-symbols-outlined">person</span>
+                </span>
+                <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
+            </a>
 
             <!-- 移动端菜单按钮 -->
             <button id="mobile-menu-toggle" class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-slate-800" aria-label="打开菜单" data-i18n-aria-label="header.mobileMenu">

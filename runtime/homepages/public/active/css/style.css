@@ -269,7 +269,7 @@ ul, ol { list-style: none; }
 .text-primary { color: var(--primary); }
 
 .hero-sub {
-  max-width: 600px;
+  max-width: 900px;
   margin: 0 auto 36px;
   color: var(--text-sub);
   font-size: clamp(15px, 2vw, 17px);
@@ -350,6 +350,104 @@ ul, ol { list-style: none; }
   line-height: 1.62;
 }
 .section-head .section-desc { margin-inline: auto; }
+
+/* ---- 新书推荐 ---- */
+.book-feature {
+  padding-top: 40px;
+  padding-bottom: 58px;
+  background: #FFFFFF;
+}
+.book-feature + .platform-tools {
+  border-top: 0;
+}
+.book-feature-card {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 0.58fr);
+  gap: 42px;
+  align-items: center;
+  padding: 36px;
+  border: 1px solid #DCE6F3;
+  border-radius: 24px;
+  background: #FFFFFF;
+  box-shadow: 0 18px 52px rgba(15, 23, 42, 0.06);
+}
+.book-feature-cover {
+  min-height: 430px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+.book-feature-cover img {
+  width: min(100%, 360px);
+  max-height: 470px;
+  object-fit: contain;
+  filter: drop-shadow(0 22px 28px rgba(15, 23, 42, 0.14));
+}
+.book-feature-content {
+  min-width: 0;
+}
+.book-feature-title {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: clamp(28px, 3.2vw, 42px);
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+.book-feature-lead {
+  max-width: 680px;
+  margin-top: 18px;
+  color: var(--text-sub);
+  font-size: 17px;
+  line-height: 1.72;
+}
+.book-feature-points {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+.book-feature-points div {
+  min-height: 132px;
+  padding: 17px 16px;
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  background: #FFFFFF;
+}
+.book-feature-points strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.book-feature-points span {
+  display: block;
+  color: var(--text-sec);
+  font-size: 13px;
+  line-height: 1.58;
+}
+.book-feature-quote {
+  margin: 26px 0 0;
+  padding: 14px 18px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 14px 14px 0;
+  background: #F8FBFF;
+  color: var(--text-sec);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.book-feature-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
 
 /* ---- 平台能力入口 ---- */
 .platform-tools {
@@ -1042,6 +1140,16 @@ ul, ol { list-style: none; }
 
 /* ===== 响应式 ===== */
 @media (max-width: 1100px) {
+  .book-feature-card {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .book-feature-cover {
+    min-height: 360px;
+  }
+  .book-feature-cover img {
+    width: min(100%, 320px);
+  }
   .platform-grid { grid-template-columns: repeat(2, 1fr); }
   .geoflow-spotlight {
     grid-template-columns: 1fr;
@@ -1066,6 +1174,41 @@ ul, ol { list-style: none; }
   .hero-stats { grid-template-columns: repeat(2, 1fr); margin-top: 48px; }
   .hero-actions { flex-direction: column; align-items: center; }
   .hero-actions .btn { width: 100%; max-width: 300px; justify-content: center; }
+  .book-feature {
+    padding-top: 24px;
+    padding-bottom: 48px;
+  }
+  .book-feature-card {
+    padding: 24px;
+    border-radius: var(--radius-lg);
+  }
+  .book-feature-cover {
+    min-height: 320px;
+    border-radius: 16px;
+  }
+  .book-feature-cover img {
+    width: min(100%, 275px);
+    max-height: 360px;
+  }
+  .book-feature-title {
+    font-size: 28px;
+  }
+  .book-feature-lead {
+    font-size: 15px;
+  }
+  .book-feature-points {
+    grid-template-columns: 1fr;
+  }
+  .book-feature-points div {
+    min-height: auto;
+  }
+  .book-feature-actions {
+    flex-direction: column;
+  }
+  .book-feature-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
   .article-grid { grid-template-columns: 1fr; }
   .founder-grid { grid-template-columns: 1fr; }
   .footer-inner { grid-template-columns: 1fr; gap: 32px; }
@@ -1205,28 +1348,78 @@ ul, ol { list-style: none; }
   opacity: 1;
   transform: scaleX(1);
 }
-.georank-profile-link {
+.georank-header-actions {
   flex: 0 0 auto;
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.georank-language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 46px;
+  padding: 4px;
+  border: 1px solid #DBE3EF;
+  border-radius: 16px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 28px rgba(15,23,42,0.055);
+}
+.georank-language-switch a {
+  min-width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #64748B;
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.georank-language-switch a:hover {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+.georank-language-switch a.is-active {
+  background: #2563EB;
+  color: #FFFFFF;
+  box-shadow: 0 10px 20px rgba(37,99,235,0.20);
+}
+.georank-profile-link {
   width: 44px;
   height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #DBE3EF;
-  border-radius: 15.2px;
+  border-radius: 16px;
   color: #334155;
   background: #FFFFFF;
-  box-shadow: 0 10px 26px rgba(15,23,42,0.04);
-  transition: border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  box-shadow: 0 12px 28px rgba(15,23,42,0.055);
+  transition: border-color 0.16s ease, color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
 }
 .georank-profile-link:hover {
   border-color: #BFD7FF;
   color: #2563EB;
   transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(37,99,235,0.10);
+}
+.georank-profile-link__icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #EFF6FF;
+  color: #2563EB;
 }
 .georank-profile-link .material-symbols-outlined {
-  font-size: 25px;
+  font-size: 20px;
 }
 .reveal {
   opacity: 1;
@@ -1282,10 +1475,28 @@ ul, ol { list-style: none; }
     font-size: 14px;
     line-height: 14px;
   }
+  .georank-header-actions {
+    gap: 8px;
+  }
+  .georank-language-switch {
+    height: 40px;
+    border-radius: 14px;
+  }
+  .georank-language-switch a {
+    min-width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
   .georank-profile-link {
     width: 40px;
     height: 40px;
     border-radius: 14px;
+  }
+  .georank-profile-link__icon {
+    width: 29px;
+    height: 29px;
+    border-radius: 10px;
   }
 }
 @media (max-width: 520px) {
@@ -1300,6 +1511,15 @@ ul, ol { list-style: none; }
   }
   .georank-platform-menu {
     gap: 14px;
+  }
+  .georank-header-actions {
+    gap: 6px;
+  }
+  .georank-language-switch {
+    padding: 3px;
+  }
+  .georank-language-switch a {
+    min-width: 28px;
   }
   .georank-profile-link {
     width: 38px;
