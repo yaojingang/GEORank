@@ -53,7 +53,10 @@ async def get_current_user_optional(
     db: DbSession,
 ) -> User | None:
     """可选认证 — 未登录时返回 None"""
-    return await _get_user_from_token(credentials, db)
+    user = await _get_user_from_token(credentials, db)
+    if not user or not user.is_active:
+        return None
+    return user
 
 
 async def get_current_user(

@@ -84,12 +84,19 @@ async def _seed_settings(db):
 
 
 async def _seed_default_homepage_release(db):
-    """初始化开源版内置首页版本（幂等：不覆盖用户后续操作）。"""
+    """初始化内置首页记录，并按数据库配置重建运行时首页指针。"""
     from sqlalchemy import select, update
 
     from app.models.homepage import HomepageRelease, HomepageReleaseStatus, HomepageSourceType
     from app.models.settings import Setting
-    from app.services.homepage_assets import ENTRY_PATH, homepage_root, public_release_path
+    from app.services.homepage_assets import (
+        ENTRY_PATH,
+        HomepageAssetError,
+        activate_homepage_release,
+        homepage_root,
+        public_release_path,
+        reset_active_homepage,
+    )
     from app.services.runtime_settings import DEFAULT_HOMEPAGE_RELEASE_ID, DEFAULT_HOMEPAGE_RELEASE_TITLE
 
     release_uuid = uuid.UUID(DEFAULT_HOMEPAGE_RELEASE_ID)
@@ -104,6 +111,7 @@ async def _seed_default_homepage_release(db):
         if builtin_selected
         else HomepageReleaseStatus.ARCHIVED
     )
+    root = homepage_root()
 
     result = await db.execute(select(HomepageRelease).where(HomepageRelease.id == release_uuid))
     existing_release = result.scalar_one_or_none()
@@ -124,49 +132,66 @@ async def _seed_default_homepage_release(db):
                 .values(status=HomepageReleaseStatus.ARCHIVED)
             )
         await db.commit()
-        return
-
-    root = homepage_root()
-    public_dir = public_release_path(root, DEFAULT_HOMEPAGE_RELEASE_ID)
-    if not (public_dir / ENTRY_PATH).is_file():
-        return
-
-    manifest_path = root / "releases" / DEFAULT_HOMEPAGE_RELEASE_ID / "manifest.json"
-    manifest = {}
-    if manifest_path.is_file():
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+    else:
+        public_dir = public_release_path(root, DEFAULT_HOMEPAGE_RELEASE_ID)
+        if (public_dir / ENTRY_PATH).is_file():
+            manifest_path = root / "releases" / DEFAULT_HOMEPAGE_RELEASE_ID / "manifest.json"
             manifest = {}
+            if manifest_path.is_file():
+                try:
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    manifest = {}
 
-    files = [path for path in public_dir.rglob("*") if path.is_file()]
-    created_at = datetime.utcnow()
-    raw_created_at = manifest.get("created_at")
-    if isinstance(raw_created_at, str) and raw_created_at.strip():
-        try:
-            created_at = datetime.fromisoformat(raw_created_at.replace("Z", "+00:00")).replace(tzinfo=None)
-        except ValueError:
-            pass
+            files = [path for path in public_dir.rglob("*") if path.is_file()]
+            created_at = datetime.utcnow()
+            raw_created_at = manifest.get("created_at")
+            if isinstance(raw_created_at, str) and raw_created_at.strip():
+                try:
+                    created_at = datetime.fromisoformat(raw_created_at.replace("Z", "+00:00")).replace(tzinfo=None)
+                except ValueError:
+                    pass
 
-    db.add(
-        HomepageRelease(
-            id=release_uuid,
-            title=manifest.get("title") or DEFAULT_HOMEPAGE_RELEASE_TITLE,
-            source_type=HomepageSourceType.ZIP_PACKAGE,
-            status=desired_status,
-            entry_path=manifest.get("entry_path") or ENTRY_PATH,
-            storage_path=str(root / "releases" / DEFAULT_HOMEPAGE_RELEASE_ID),
-            file_count=int(manifest.get("file_count") or len(files)),
-            compressed_size=int(manifest.get("compressed_size") or 0),
-            extracted_size=int(manifest.get("extracted_size") or sum(path.stat().st_size for path in files)),
-            sha256=manifest.get("sha256"),
-            release_manifest=manifest,
-            created_by=None,
-            created_at=created_at,
-            activated_at=created_at if builtin_selected else None,
-        )
+            db.add(
+                HomepageRelease(
+                    id=release_uuid,
+                    title=manifest.get("title") or DEFAULT_HOMEPAGE_RELEASE_TITLE,
+                    source_type=HomepageSourceType.ZIP_PACKAGE,
+                    status=desired_status,
+                    entry_path=manifest.get("entry_path") or ENTRY_PATH,
+                    storage_path=str(root / "releases" / DEFAULT_HOMEPAGE_RELEASE_ID),
+                    file_count=int(manifest.get("file_count") or len(files)),
+                    compressed_size=int(manifest.get("compressed_size") or 0),
+                    extracted_size=int(manifest.get("extracted_size") or sum(path.stat().st_size for path in files)),
+                    sha256=manifest.get("sha256"),
+                    release_manifest=manifest,
+                    created_by=None,
+                    created_at=created_at,
+                    activated_at=created_at if builtin_selected else None,
+                )
+            )
+            await db.commit()
+
+    active_release_id = runtime.get("active_release_id") if isinstance(runtime, dict) else None
+    if not isinstance(runtime, dict) or runtime.get("mode") != "custom" or not active_release_id:
+        reset_active_homepage(root)
+        return
+
+    analytics_result = await db.execute(
+        select(Setting.value).where(Setting.key == "analytics_tracking_code")
     )
-    await db.commit()
+    analytics_code = analytics_result.scalar_one_or_none()
+    if not isinstance(analytics_code, str):
+        analytics_code = ""
+    try:
+        activate_homepage_release(
+            root,
+            str(active_release_id),
+            analytics_code=analytics_code,
+        )
+    except (HomepageAssetError, OSError):
+        reset_active_homepage(root)
+        raise
 
 
 @asynccontextmanager

@@ -213,6 +213,35 @@ test('development override exposes browser surfaces only on loopback', () => {
   );
 });
 
+test('static browser clients keep API requests on the frontend origin', () => {
+  const javascriptRoot = resolve(repoRoot, 'dist/js');
+  const javascriptFiles = readdirSync(javascriptRoot).filter((name) => name.endsWith('.js'));
+
+  for (const name of javascriptFiles) {
+    const source = readFileSync(resolve(javascriptRoot, name), 'utf8');
+    assert.doesNotMatch(
+      source,
+      /:8000\b/,
+      `${name} must use the frontend's same-origin /api proxy`,
+    );
+  }
+});
+
+test('the active homepage pointer remains deployment-local runtime state', () => {
+  const activePath = 'runtime/homepages/public/active';
+  const tracked = execFileSync('git', ['ls-files', '--', activePath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim();
+  const ignored = execFileSync('git', ['check-ignore', activePath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim();
+
+  assert.equal(tracked, '');
+  assert.equal(ignored, activePath);
+});
+
 test('container contract exercises the production gateway through the shared network', () => {
   const contract = readFileSync(
     resolve(repoRoot, 'scripts/check-container-migration-bootstrap.sh'),

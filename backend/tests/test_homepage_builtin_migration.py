@@ -13,6 +13,7 @@ from sqlalchemy.pool import NullPool
 from tests.database_safety import resolve_test_database, verify_test_database_engine
 from app.core.config import settings
 from app.main import _seed_default_homepage_release
+from app.services.homepage_assets import HomepageAssetError
 
 
 MIGRATION_PATH = (
@@ -394,11 +395,19 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
                     expire_on_commit=False,
                     join_transaction_mode="create_savepoint",
                 ) as session:
-                    with patch(
-                        "app.services.homepage_assets.homepage_root",
-                        return_value=PROJECT_ROOT / "runtime" / "homepages",
+                    with (
+                        patch(
+                            "app.services.homepage_assets.homepage_root",
+                            return_value=PROJECT_ROOT / "runtime" / "homepages",
+                        ),
+                        patch("app.services.homepage_assets.activate_homepage_release") as activate,
                     ):
                         await _seed_default_homepage_release(session)
+                activate.assert_called_once_with(
+                    PROJECT_ROOT / "runtime" / "homepages",
+                    custom_id,
+                    analytics_code="",
+                )
 
                 statuses = dict(
                     (
@@ -437,11 +446,19 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
                     expire_on_commit=False,
                     join_transaction_mode="create_savepoint",
                 ) as session:
-                    with patch(
-                        "app.services.homepage_assets.homepage_root",
-                        return_value=PROJECT_ROOT / "runtime" / "homepages",
+                    with (
+                        patch(
+                            "app.services.homepage_assets.homepage_root",
+                            return_value=PROJECT_ROOT / "runtime" / "homepages",
+                        ),
+                        patch("app.services.homepage_assets.activate_homepage_release") as activate,
                     ):
                         await _seed_default_homepage_release(session)
+                activate.assert_called_once_with(
+                    PROJECT_ROOT / "runtime" / "homepages",
+                    NEW_RELEASE_ID,
+                    analytics_code="",
+                )
 
                 release = (
                     await connection.execute(
@@ -457,6 +474,36 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
                 ).one()
                 self.assertEqual(release[0], "active")
                 self.assertIsNotNone(release[1])
+            finally:
+                await transaction.rollback()
+
+    async def test_startup_clears_stale_pointer_when_selected_release_is_missing(self):
+        custom_id = str(uuid.uuid4())
+        root = PROJECT_ROOT / "runtime" / "homepages"
+        async with self.engine.connect() as connection:
+            transaction = await connection.begin()
+            try:
+                await self._reset_rows(connection)
+                await self._insert_setting(connection, custom_id)
+                await self._insert_release(connection, custom_id, "active", "missing homepage")
+
+                async with AsyncSession(
+                    bind=connection,
+                    expire_on_commit=False,
+                    join_transaction_mode="create_savepoint",
+                ) as session:
+                    with (
+                        patch("app.services.homepage_assets.homepage_root", return_value=root),
+                        patch(
+                            "app.services.homepage_assets.activate_homepage_release",
+                            side_effect=HomepageAssetError("首页版本缺少可发布入口文件"),
+                        ),
+                        patch("app.services.homepage_assets.reset_active_homepage") as reset,
+                    ):
+                        with self.assertRaises(HomepageAssetError):
+                            await _seed_default_homepage_release(session)
+
+                reset.assert_called_once_with(root)
             finally:
                 await transaction.rollback()
 

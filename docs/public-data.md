@@ -34,11 +34,11 @@ Release `43a461f6-6be2-4931-9dbb-f1d56576292a` is the built-in default homepage.
 
 `runtime/homepages/releases/<release-id>/source`
 
-The corresponding `manifest.json` is the immutable release record. `runtime/homepages/public/releases/<release-id>` contains the output produced by `build_zip_homepage_release`: HTML passes through the homepage normalizer, script markup is removed, local asset URLs are rewritten to `/_custom_homepage/active`, a restrictive CSP is inserted, SVG files pass through the markup sanitizer, and binary assets retain their bytes. `runtime/homepages/public/active` points to the release through a relative symlink.
+The corresponding `manifest.json` is the immutable release record. `runtime/homepages/public/releases/<release-id>` contains the output produced by `build_zip_homepage_release`: HTML passes through the homepage normalizer, script markup is removed, local asset URLs are rewritten to `/_custom_homepage/active`, a restrictive CSP is inserted, SVG files pass through the markup sanitizer, and binary assets retain their bytes. `runtime/homepages/public/active` is runtime state: Git ignores it, and API startup rebuilds the relative symlink from the database selection.
 
 The canonical source keeps the current template, CSS, book-cover asset, configuration, and the internal `/tutorial` link. Tests rebuild the published HTML from the source with `normalize_homepage_html`, then verify every public file against the manifest size and SHA-256 hash.
 
-Treat an existing release directory as immutable. To publish an updated default homepage, package the revised canonical source and call `build_zip_homepage_release` with a new release ID. Commit the new source, generated public output, manifest, and active pointer together after the public boundary gate passes.
+Treat an existing release directory as immutable. To publish an updated default homepage, package the revised canonical source and call `build_zip_homepage_release` with a new release ID. Commit the new source, generated public output, and manifest after the public boundary gate passes. The active pointer stays local to each deployment.
 
 ## Rights and requests
 

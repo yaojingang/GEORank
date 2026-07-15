@@ -57,9 +57,7 @@
     };
 
     function apiBase() {
-        return ['80', '443', ''].includes(window.location.port)
-            ? ''
-            : `${window.location.protocol}//${window.location.hostname}:8000`;
+        return '';
     }
 
     // ===== 公开站点设置 =====
@@ -1158,9 +1156,7 @@ const FOOTER_HTML = `
         },
 
         get apiBase() {
-            return ['80', '443', ''].includes(window.location.port)
-                ? ''
-                : `${window.location.protocol}//${window.location.hostname}:8000`;
+            return '';
         },
 
         getCookie(name) {

@@ -6,9 +6,7 @@
 
     const $ = (selector, root = document) => root.querySelector(selector);
     const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
-    const API_BASE = ['80', '443', ''].includes(window.location.port)
-        ? ''
-        : `${window.location.protocol}//${window.location.hostname}:8000`;
+    const API_BASE = '';
     const EXPERTS_PAGE_TITLE = 'GEO 专家频道 - GEOrank | 2026 GEO/SEO专家推荐、AI搜索优化顾问、出海SEO与品牌可见性咨询';
     const EXPERTS_PAGE_DESCRIPTION = 'GEOrank 2026 GEO 专家频道，收录 GEO 方法论、SEO 专家、AI 搜索优化顾问、出海 SEO、豆包 GEO、品牌 AI 可见性和企业 GEO 咨询相关专家画像。';
     const EXPERTS_PAGE_KEYWORDS = [

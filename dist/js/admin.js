@@ -6,10 +6,7 @@
     'use strict';
 
     // ─── 配置 ───────────────────────────────────────────────────────────────
-    // 本地 3001 端口时指向 8000；生产走 Traefik 同域路由
-    const API_BASE = ['80', '443', ''].includes(window.location.port)
-        ? ''
-        : `${window.location.protocol}//${window.location.hostname}:8000`;
+    const API_BASE = '';
     const APP_ORIGIN = window.location.origin;
 
     const TOKEN_KEY = 'georank_admin_token';

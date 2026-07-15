@@ -3491,6 +3491,24 @@ class ApiIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(duplicate_response.status_code, 409, duplicate_response.text)
 
+    def test_admin_list_filters_reject_unknown_enum_values(self):
+        admin = self.run_async(self._register_user(admin=True))
+        invalid_filter_urls = (
+            "/api/admin/users?role=owner",
+            "/api/admin/diagnostics/reports?status_filter=unknown",
+            "/api/admin/content?content_type=unknown",
+            "/api/admin/content?status_filter=unknown",
+        )
+        for url in invalid_filter_urls:
+            with self.subTest(url=url):
+                response = self.run_async(
+                    self.client.get(
+                        url,
+                        headers=self._auth_headers(admin["token"]),
+                    )
+                )
+                self.assertEqual(response.status_code, 422, response.text)
+
     def test_admin_cannot_disable_or_demote_current_admin_account(self):
         admin = self.run_async(self._register_user(admin=True))
         me_response = self.run_async(
@@ -3608,6 +3626,86 @@ class ApiIntegrationTests(unittest.TestCase):
         listed = list_response.json()["items"][0]
         self.assertEqual(listed["role"], "enterprise")
         self.assertFalse(listed["is_active"])
+
+    def test_disabled_user_token_cannot_authenticate_optional_routes(self):
+        admin = self.run_async(self._register_user(admin=True))
+        user = self.run_async(self._register_user())
+
+        async def _create_private_report():
+            async with async_session() as db:
+                user_id = await db.scalar(select(User.id).where(User.email == user["email"]))
+                report = DiagnosticReport(
+                    url=f"{TEST_COMPANY_URL_PREFIX}disabled-{uuid.uuid4().hex[:8]}.example.com",
+                    status=DiagnosticStatus.COMPLETED,
+                    user_id=user_id,
+                )
+                db.add(report)
+                await db.commit()
+                await db.refresh(report)
+                return str(user_id), str(report.id)
+
+        user_id, report_id = self.run_async(_create_private_report())
+        toggle_response = self.run_async(
+            self.client.post(
+                f"/api/admin/users/{user_id}/toggle-active",
+                headers=self._auth_headers(admin["token"]),
+            )
+        )
+        self.assertEqual(toggle_response.status_code, 200, toggle_response.text)
+        self.assertFalse(toggle_response.json()["is_active"])
+
+        report_response = self.run_async(
+            self.client.get(
+                f"/api/diagnostics/{report_id}",
+                headers=self._auth_headers(user["token"]),
+            )
+        )
+        self.assertEqual(report_response.status_code, 403, report_response.text)
+
+        enable_response = self.run_async(
+            self.client.post(
+                f"/api/admin/users/{user_id}/toggle-active",
+                headers=self._auth_headers(admin["token"]),
+            )
+        )
+        self.assertEqual(enable_response.status_code, 200, enable_response.text)
+        self.assertTrue(enable_response.json()["is_active"])
+
+        revoked_token_response = self.run_async(
+            self.client.get(
+                "/api/auth/me",
+                headers=self._auth_headers(user["token"]),
+            )
+        )
+        self.assertEqual(revoked_token_response.status_code, 401, revoked_token_response.text)
+
+        relogin_response = self.run_async(
+            self.client.post(
+                "/api/auth/login",
+                json={"phone": user["phone"], "password": TEST_PASSWORD},
+            )
+        )
+        self.assertEqual(relogin_response.status_code, 200, relogin_response.text)
+        relogin_token = relogin_response.json()["access_token"]
+
+        for is_active in (False, True):
+            update_response = self.run_async(
+                self.client.put(
+                    f"/api/admin/users/{user_id}",
+                    headers=self._auth_headers(admin["token"]),
+                    json={"is_active": is_active},
+                )
+            )
+            self.assertEqual(update_response.status_code, 200, update_response.text)
+            self.assertEqual(update_response.json()["is_active"], is_active)
+
+        update_revoked_response = self.run_async(
+            self.client.get(
+                "/api/auth/me",
+                headers=self._auth_headers(relogin_token),
+            )
+        )
+        self.assertEqual(update_revoked_response.status_code, 401, update_revoked_response.text)
 
     def test_admin_survival_guard_serializes_concurrent_demotion_checks(self):
         first_admin = self.run_async(self._register_user(admin=True))

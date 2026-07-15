@@ -1608,7 +1608,14 @@ async def list_diagnostic_reports_admin(
     safe_page, safe_size = _safe_page_size(page, size)
     query = select(DiagnosticReport)
     if status_filter:
-        query = query.where(DiagnosticReport.status == status_filter)
+        try:
+            diagnostic_status = DiagnosticStatus(status_filter)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="诊断状态筛选条件不合法",
+            ) from exc
+        query = query.where(DiagnosticReport.status == diagnostic_status)
     if search:
         like = f"%{search.strip()}%"
         query = query.where(
@@ -1981,9 +1988,23 @@ async def list_content_admin(
     safe_page, safe_size = _safe_page_size(page, size)
     filters = []
     if content_type:
-        filters.append(Content.content_type == content_type)
+        try:
+            parsed_content_type = ContentType(content_type)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="内容类型筛选条件不合法",
+            ) from exc
+        filters.append(Content.content_type == parsed_content_type)
     if status_filter:
-        filters.append(Content.status == status_filter)
+        try:
+            content_status = ContentStatus(status_filter)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="内容状态筛选条件不合法",
+            ) from exc
+        filters.append(Content.status == content_status)
     if search:
         like = f"%{search.strip()}%"
         filters.append(
@@ -2473,7 +2494,14 @@ async def list_users(
     safe_page, safe_size = _safe_page_size(page, size)
     query = select(User)
     if role:
-        query = query.where(User.role == role)
+        try:
+            user_role = UserRole(role)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="用户角色筛选条件不合法",
+            ) from exc
+        query = query.where(User.role == user_role)
     if is_active is not None:
         query = query.where(User.is_active == is_active)
     if search:
@@ -2510,6 +2538,8 @@ async def toggle_user_active(user_id: str, db: DbSession, admin: AdminUser):
     next_active = not bool(user.is_active)
     await _guard_admin_survival(db, user, next_active=next_active)
 
+    if user.is_active and not next_active:
+        user.token_version += 1
     user.is_active = next_active
     await db.commit()
     return {"user_id": user_id, "is_active": next_active}
@@ -2696,6 +2726,8 @@ async def update_user_admin(
     if next_role:
         user.role = next_role
     if next_active is not None:
+        if user.is_active and not next_active:
+            user.token_version += 1
         user.is_active = next_active
     if "is_verified" in updates:
         user.is_verified = bool(updates["is_verified"])

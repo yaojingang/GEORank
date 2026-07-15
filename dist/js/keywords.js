@@ -5,9 +5,7 @@
 (function () {
     'use strict';
 
-    const API_BASE = ['80', '443', ''].includes(window.location.port)
-        ? ''
-        : `${window.location.protocol}//${window.location.hostname}:8000`;
+    const API_BASE = '';
     const Auth = window.GEOrank?.Auth;
     const PREVIEW_COUNT = 8;
     const SAMPLE_PAYLOAD = {

@@ -46,9 +46,6 @@ runtime/homepages/releases/*
 !runtime/homepages/public/
 runtime/homepages/public/*
 !runtime/homepages/public/.gitkeep
-!runtime/homepages/public/active
-!runtime/homepages/public/active/
-!runtime/homepages/public/active/**
 !runtime/homepages/public/releases/
 runtime/homepages/public/releases/*
 !runtime/homepages/public/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/
