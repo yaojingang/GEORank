@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>公司详情 - GEOrank</title>
+    <meta name="description" content="查看 GEO 公司目录中的详细资料、团队信息、技术栈与相似推荐。">
+
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script src="/js/tailwind.config.js"></script>
+
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/company.css">
+</head>
+<body class="bg-white text-on-surface antialiased overflow-x-hidden">
+    <div id="header-container"></div>
+
+    <header class="pt-32 pb-16 px-6 md:px-8 max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <div id="company-hero-left" class="lg:col-span-8">
+                <div class="company-state-card">正在加载公司资料...</div>
+            </div>
+            <div id="company-hero-right" class="hidden lg:block lg:col-span-4">
+                <div class="company-state-card">正在加载公司概览...</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="px-6 md:px-8 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 pb-24">
+        <div class="lg:col-span-8 space-y-16">
+            <section id="company-description-section" class="prose max-w-none">
+                <div class="company-state-card">正在加载公司介绍...</div>
+            </section>
+
+            <section id="company-team-section">
+                <div class="company-state-card">正在加载团队信息...</div>
+            </section>
+
+            <div id="company-insight-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
+                <div class="company-state-card">正在加载 GEO 指标...</div>
+                <div class="company-state-card">正在加载技术栈...</div>
+            </div>
+
+            <div id="company-vector-status" class="company-state-card">
+                正在加载向量化状态...
+            </div>
+        </div>
+
+        <aside class="lg:col-span-4 space-y-8">
+            <section id="company-diagnostic-cta" class="p-6 bg-white border border-slate-100 rounded-2xl">
+                <div class="flex items-center gap-2.5 mb-3">
+                    <span class="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-primary text-base filled">analytics</span>
+                    </span>
+                    <h3 class="text-sm font-bold">需要精准诊断？</h3>
+                </div>
+                <p class="text-xs text-on-surface-variant leading-relaxed mb-5">通过 GEO 审计算法，获取该公司在主流 LLM 中的排名与关联性诊断报告。</p>
+                <a id="company-diagnostic-link" href="/diagnostic" class="block w-full py-2.5 bg-primary text-white rounded-lg font-semibold text-sm text-center hover:opacity-90 transition-all">
+                    开始免费评估
+                </a>
+            </section>
+
+            <section>
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">相似公司推荐</h3>
+                <div id="similar-companies" class="space-y-1">
+                    <div class="company-state-card">正在加载相似公司...</div>
+                </div>
+            </section>
+        </aside>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/company.js?v=20260613-site-settings2"></script>
+</body>
+</html>

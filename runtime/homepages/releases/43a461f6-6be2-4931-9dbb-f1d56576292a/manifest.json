@@ -1,0 +1,35 @@
+{
+  "id": "43a461f6-6be2-4931-9dbb-f1d56576292a",
+  "title": "开源内置首页",
+  "source_type": "zip_package",
+  "entry_path": "index.html",
+  "storage_path": "/app/runtime/homepages/releases/43a461f6-6be2-4931-9dbb-f1d56576292a",
+  "public_path": "/app/runtime/homepages/public/releases/43a461f6-6be2-4931-9dbb-f1d56576292a",
+  "file_count": 4,
+  "compressed_size": 1467692,
+  "extracted_size": 1524643,
+  "sha256": "f4172e816fcc99dd337d4dadb809278601388d0dd438b7f4dfff44453057f376",
+  "files": [
+    {
+      "path": "css/style.css",
+      "size": 35442,
+      "sha256": "8072bf21c8297c981a9ba83fbf05fee408f49e01bfa22cae23808f8fb740b927"
+    },
+    {
+      "path": "favicon.svg",
+      "size": 513,
+      "sha256": "4ed02e3c7de9b2c1b2efd461eeec75fd7e56b6272bad3bc2a37bb8e56fb2bce8"
+    },
+    {
+      "path": "images/ai-marketing-book.png",
+      "size": 1456316,
+      "sha256": "d797fe991235da5b9d7308db24fc78ca0d142456b707931caf9c6764e0f13636"
+    },
+    {
+      "path": "index.html",
+      "size": 31800,
+      "sha256": "c96de65d35694f0ed49549c8fee23c67b2553db6854be167363c9f498e8e6803"
+    }
+  ],
+  "created_at": "2026-07-15T07:33:21.725406Z"
+}

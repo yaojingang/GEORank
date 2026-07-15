@@ -1,0 +1,222 @@
+# ============================================
+# GEOrank — Docker 容器编排
+# ============================================
+
+services:
+
+  # ---------- 1. 反向代理 / API Gateway ----------
+  traefik:
+    image: traefik:v3.1.7@sha256:74d72c7a1345984f186bddbabcc462b2128d0d8054177dc84afaeac4db1f0f56
+    restart: always
+    ports:
+      - "${GEORANK_HTTP_PORT:-80}:80"
+      - "${GEORANK_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infra/traefik:/etc/traefik:ro
+      - traefik_acme:/var/lib/traefik
+    networks:
+      - georank-net
+
+  # ---------- 2. 前端静态服务 ----------
+  frontend:
+    image: nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    restart: always
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./runtime/homepages/public:/usr/share/nginx/custom_homepage:ro
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - georank-net
+
+  # ---------- 3. 数据库迁移（唯一 schema owner） ----------
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: "no"
+    command: ["python", "-m", "app.scripts.migrate"]
+    environment:
+      DEBUG: "false"
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-georank}
+      POSTGRES_USER: ${POSTGRES_USER:-georank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?replace-me-postgres-password}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - georank-net
+
+  # ---------- 4. 核心 API 服务 (FastAPI) ----------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file: ${GEORANK_ENV_FILE:-.env}
+    volumes:
+      - ./backend:/app
+      - ./runtime/homepages:/app/runtime/homepages
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      neo4j:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - georank-net
+
+  # ---------- 5. Celery Worker (异步任务) ----------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    command: celery -A app.core.celery_app worker -l info -c 4 -Q process,diagnose
+    env_file: ${GEORANK_ENV_FILE:-.env}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - georank-net
+
+  # ---------- 6. Celery Beat (定时任务调度) ----------
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    command: celery -A app.core.celery_app beat -l info
+    env_file: ${GEORANK_ENV_FILE:-.env}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - georank-net
+
+  # ---------- 7. PostgreSQL ----------
+  postgres:
+    image: postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-georank}
+      POSTGRES_USER: ${POSTGRES_USER:-georank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?replace-me-postgres-password}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - georank-net
+
+  # ---------- 8. Redis ----------
+  redis:
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - georank-net
+
+
+  # ---------- 9. Qdrant 向量数据库 ----------
+  qdrant:
+    image: qdrant/qdrant:v1.12.1@sha256:d774e7bb65744454984c6021637a0da89271f30df15e48601a9fafc926d26b1f
+    restart: always
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    networks:
+      - georank-net
+
+  # ---------- 10. Neo4j 知识图谱数据库 ----------
+  neo4j:
+    image: neo4j:5.24.2-community@sha256:2e7e4eea5bc1eec581a3097c018dfeb3747f3638e67a963c10554825c31c1425
+    restart: always
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-change-me-neo4j-password}
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - georank-net
+
+  # ---------- 11. MinIO 对象存储 ----------
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-change-me-minio-access-key}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-change-me-minio-secret-key}
+    volumes:
+      - minio_data:/data
+    networks:
+      - georank-net
+
+  # ---------- 12. Playwright 爬虫沙箱 ----------
+  crawler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.crawler
+    restart: always
+    command: celery -A app.core.celery_app worker -l info -c 2 -Q crawl --hostname=crawler@%h
+    env_file: ${GEORANK_ENV_FILE:-.env}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - georank-net
+
+volumes:
+  traefik_acme:
+  pg_data:
+  redis_data:
+  qdrant_data:
+  neo4j_data:
+  minio_data:
+
+networks:
+  georank-net:
+    driver: bridge

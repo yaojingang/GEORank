@@ -1,0 +1,18 @@
+FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy@sha256:a34c7c0c74cc5c94f39bedbee2cb220b1e0c0408c78610eade5ab1db32c3294f
+
+WORKDIR /app
+
+# 额外系统依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Python 依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/georank-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/georank-entrypoint"]
+CMD ["celery", "-A", "app.core.celery_app", "worker", "-l", "info", "-c", "2", "-Q", "crawl"]

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>GEO 小工具 - GEOrank</title>
+    <meta name="description" content="GEOrank 工具频道，提供 JSON-LD、llms.txt、GEO 标题、GEO 知识库和 AI 友好度评分工具。">
+
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/tools.css">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div id="header-container"></div>
+
+    <main class="tools-page mx-auto px-4 md:px-6 lg:px-8 pt-24 md:pt-28 pb-16 md:pb-24">
+        <section class="tools-hero">
+            <div>
+                <p class="tools-eyebrow">GEO Tool Channel</p>
+                <h1>GEO 小工具</h1>
+                <p class="tools-hero-copy">把结构化标记、AI 可读文件和页面友好度检查集中到一个工作台，先生成可落地的基础资产。</p>
+            </div>
+            <div class="tools-hero-metrics" aria-label="工具频道概览">
+                <div>
+                    <strong>5</strong>
+                    <span>基础工具</span>
+                </div>
+                <div>
+                    <strong>1</strong>
+                    <span>主输入框</span>
+                </div>
+                <div>
+                    <strong>AI</strong>
+                    <span>示例生成</span>
+                </div>
+            </div>
+            <div id="tools-direct-status" class="tools-direct-status" aria-live="polite">
+                当前使用本地规则生成；后台启用浏览器直连后，简单工具可直接调用用户本地 API Key。
+            </div>
+        </section>
+
+        <section class="tools-layout">
+            <aside class="tools-sidebar" aria-label="工具列表">
+                <button type="button" class="tools-card is-active" data-tool-tab="jsonld">
+                    <span class="tools-card-icon" aria-hidden="true">{ }</span>
+                    <span>
+                        <strong>JSON-LD 生成器</strong>
+                        <small>Organization / WebSite</small>
+                    </span>
+                </button>
+                <button type="button" class="tools-card" data-tool-tab="llms">
+                    <span class="tools-card-icon" aria-hidden="true">TXT</span>
+                    <span>
+                        <strong>llms.txt 生成器</strong>
+                        <small>AI 可读入口文件</small>
+                    </span>
+                </button>
+                <button type="button" class="tools-card" data-tool-tab="score">
+                    <span class="tools-card-icon" aria-hidden="true">AI</span>
+                    <span>
+                        <strong>AI 友好度评分</strong>
+                        <small>页面结构自查</small>
+                    </span>
+                </button>
+                <button type="button" class="tools-card" data-tool-tab="title">
+                    <span class="tools-card-icon" aria-hidden="true">H1</span>
+                    <span>
+                        <strong>GEO 标题生成器</strong>
+                        <small>标题与问答入口</small>
+                    </span>
+                </button>
+                <button type="button" class="tools-card" data-tool-tab="kb">
+                    <span class="tools-card-icon" aria-hidden="true">KB</span>
+                    <span>
+                        <strong>GEO 知识库生成器</strong>
+                        <small>品牌事实库草稿</small>
+                    </span>
+                </button>
+            </aside>
+
+            <div class="tools-workspace">
+                <section class="tools-panel is-active" data-tool-panel="jsonld" aria-labelledby="jsonld-title">
+                    <div class="tools-panel-header">
+                        <div>
+                            <p class="tools-eyebrow">Schema Asset</p>
+                            <h2 id="jsonld-title">JSON-LD 生成器</h2>
+                            <p>只输入品牌和网站的自然语言描述，AI 自动补齐 Organization / WebSite 结构化数据。</p>
+                        </div>
+                        <button id="jsonld-generate" type="button" class="btn btn-primary tools-action">
+                            <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            生成 JSON-LD
+                        </button>
+                    </div>
+
+                    <div class="tools-ai-shell">
+                        <label class="tools-field tools-ai-field">
+                            <span>输入你的品牌信息</span>
+                            <textarea id="jsonld-brief" class="tools-ai-input" rows="5" placeholder="例如：BrandOrbit，官网 https://brandorbit.test，AI 搜索可见性管理平台，Logo https://brandorbit.test/logo.png。"></textarea>
+                        </label>
+                    </div>
+
+                    <div class="tools-output-block">
+                        <div class="tools-output-header">
+                            <div>
+                                <h3>示例 / 生成结果</h3>
+                                <p>默认展示示例，生成时会先进入 AI 处理中状态。</p>
+                            </div>
+                            <button type="button" class="tools-copy" data-copy-target="jsonld-output">
+                                <span class="material-symbols-outlined">content_copy</span>
+                                复制
+                            </button>
+                        </div>
+                        <div id="jsonld-loading" class="tools-loading hidden" aria-live="polite">
+                            <span></span><span></span><span></span>
+                            <strong>AI 正在识别品牌实体、官网 URL 和 Schema 字段...</strong>
+                        </div>
+                        <textarea id="jsonld-output" class="tools-output" spellcheck="false"></textarea>
+                    </div>
+                </section>
+
+                <section class="tools-panel" data-tool-panel="llms" aria-labelledby="llms-title">
+                    <div class="tools-panel-header">
+                        <div>
+                            <p class="tools-eyebrow">AI Entry File</p>
+                            <h2 id="llms-title">llms.txt 生成器</h2>
+                            <p>把站点介绍和几个核心链接放进一个输入框，AI 自动整理 llms.txt 草稿。</p>
+                        </div>
+                        <button id="llms-generate" type="button" class="btn btn-primary tools-action">
+                            <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            生成 llms.txt
+                        </button>
+                    </div>
+
+                    <div class="tools-ai-shell">
+                        <label class="tools-field tools-ai-field">
+                            <span>输入站点信息</span>
+                            <textarea id="llms-brief" class="tools-ai-input" rows="5" placeholder="例如：BrandOrbit helps teams improve AI search visibility. Core pages: https://brandorbit.test/pricing and https://brandorbit.test/docs"></textarea>
+                        </label>
+                    </div>
+
+                    <div class="tools-output-block">
+                        <div class="tools-output-header">
+                            <div>
+                                <h3>示例 / 生成结果</h3>
+                                <p>AI 会从描述里抽取站点名、摘要和关键页面。</p>
+                            </div>
+                            <button type="button" class="tools-copy" data-copy-target="llms-output">
+                                <span class="material-symbols-outlined">content_copy</span>
+                                复制
+                            </button>
+                        </div>
+                        <div id="llms-loading" class="tools-loading hidden" aria-live="polite">
+                            <span></span><span></span><span></span>
+                            <strong>AI 正在整理站点摘要、核心页面和读取说明...</strong>
+                        </div>
+                        <textarea id="llms-output" class="tools-output" spellcheck="false"></textarea>
+                    </div>
+                </section>
+
+                <section class="tools-panel" data-tool-panel="title" aria-labelledby="title-heading">
+                    <div class="tools-panel-header">
+                        <div>
+                            <p class="tools-eyebrow">GEO Title Pack</p>
+                            <h2 id="title-heading">GEO 标题生成器</h2>
+                            <p>输入关键词、品牌或受众目标，AI 自动生成适合 AI 答案引用的标题组合。</p>
+                        </div>
+                        <button id="title-generate" type="button" class="btn btn-primary tools-action">
+                            <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            生成标题
+                        </button>
+                    </div>
+
+                    <div class="tools-ai-shell">
+                        <label class="tools-field tools-ai-field">
+                            <span>输入标题需求</span>
+                            <textarea id="title-brief" class="tools-ai-input" rows="5" placeholder="例如：为 BrandOrbit 生成 GEO服务商 关键词标题，面向 B2B 市场负责人，重点是可执行的 AI 搜索优化方案。"></textarea>
+                        </label>
+                    </div>
+
+                    <div class="tools-output-block">
+                        <div class="tools-output-header">
+                            <div>
+                                <h3>示例 / 生成结果</h3>
+                                <p>默认示例可直接作为标题方向参考。</p>
+                            </div>
+                            <button type="button" class="tools-copy" data-copy-target="title-output">
+                                <span class="material-symbols-outlined">content_copy</span>
+                                复制
+                            </button>
+                        </div>
+                        <div id="title-loading" class="tools-loading hidden" aria-live="polite">
+                            <span></span><span></span><span></span>
+                            <strong>AI 正在判断搜索意图并生成标题组合...</strong>
+                        </div>
+                        <textarea id="title-output" class="tools-output" spellcheck="false"></textarea>
+                    </div>
+                </section>
+
+                <section class="tools-panel" data-tool-panel="kb" aria-labelledby="kb-heading">
+                    <div class="tools-panel-header">
+                        <div>
+                            <p class="tools-eyebrow">GEO Knowledge Base</p>
+                            <h2 id="kb-heading">GEO 知识库生成器</h2>
+                            <p>一个输入框描述品牌、资料链接和目标；需要时可附加资料文件，AI 自动生成知识库草稿。</p>
+                        </div>
+                        <button id="kb-generate" type="button" class="btn btn-primary tools-action">
+                            <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            生成知识库
+                        </button>
+                    </div>
+
+                    <div class="tools-ai-shell">
+                        <label class="tools-field tools-ai-field">
+                            <span>输入知识库需求</span>
+                            <textarea id="kb-brief" class="tools-ai-input" rows="6" placeholder="例如：BrandOrbit 是 AI 搜索可见性管理平台，服务市场团队、内容团队、增长团队。资料页：https://brandorbit.test/docs 和 https://brandorbit.test/cases。常见问题：BrandOrbit 适合谁？适合需要提升 AI 搜索可见性的团队。"></textarea>
+                        </label>
+                        <div class="tools-compact-upload">
+                            <div>
+                                <strong>可选资料附件</strong>
+                                <small>最多 5 个 PDF / Word / TXT / Markdown，文件内容会与输入框一起整理。</small>
+                            </div>
+                            <label class="tools-file-button" for="kb-files">
+                                <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
+                                选择文件
+                            </label>
+                            <input
+                                id="kb-files"
+                                type="file"
+                                multiple
+                                accept=".txt,.md,.markdown,.pdf,.doc,.docx,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            >
+                        </div>
+                        <div id="kb-file-list" class="tools-source-list" aria-live="polite"></div>
+                        <p id="kb-status" class="tools-helper" aria-live="polite">也可以只粘贴文字和网址，不上传文件。</p>
+                    </div>
+
+                    <div class="tools-output-block">
+                        <div class="tools-output-header">
+                            <div>
+                                <h3>示例 / 生成结果</h3>
+                                <p>左侧可继续编辑 Markdown，右侧实时预览知识库结构。</p>
+                            </div>
+                            <div class="tools-output-actions">
+                                <button type="button" class="tools-copy" data-copy-target="kb-output">
+                                    <span class="material-symbols-outlined">content_copy</span>
+                                    复制
+                                </button>
+                                <button id="kb-export-md" type="button" class="tools-copy" disabled>
+                                    <span class="material-symbols-outlined">download</span>
+                                    Markdown
+                                </button>
+                                <button id="kb-export-word" type="button" class="tools-copy" disabled>
+                                    <span class="material-symbols-outlined">description</span>
+                                    Word
+                                </button>
+                                <button id="kb-export-pdf" type="button" class="tools-copy" disabled>
+                                    <span class="material-symbols-outlined">picture_as_pdf</span>
+                                    PDF
+                                </button>
+                            </div>
+                        </div>
+                        <div id="kb-loading" class="tools-loading hidden" aria-live="polite">
+                            <span></span><span></span><span></span>
+                            <strong>AI 正在清洗资料、抽取原子化事实并生成知识库...</strong>
+                        </div>
+                        <div class="tools-kb-output-grid">
+                            <textarea id="kb-output" class="tools-output tools-kb-editor" spellcheck="false"></textarea>
+                            <div id="kb-preview" class="tools-kb-preview" aria-live="polite">
+                                <p>生成后可在这里预览结构化知识库。</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tools-panel" data-tool-panel="score" aria-labelledby="score-title-heading">
+                    <div class="tools-panel-header">
+                        <div>
+                            <p class="tools-eyebrow">AI Readability</p>
+                            <h2 id="score-title-heading">AI 友好度评分工具</h2>
+                            <p>粘贴页面 URL、标题或正文片段，AI 自动判断结构、可信度和可引用程度。</p>
+                        </div>
+                        <button id="score-run" type="button" class="btn btn-primary tools-action">
+                            <span class="material-symbols-outlined text-sm">query_stats</span>
+                            开始评分
+                        </button>
+                    </div>
+
+                    <div class="tools-ai-shell">
+                        <label class="tools-field tools-ai-field">
+                            <span>输入页面信息</span>
+                            <textarea id="score-brief" class="tools-ai-input" rows="5" placeholder="例如：https://brandorbit.test 的页面标题是 BrandOrbit GEO Platform，首页首段说明它服务 marketing and content teams，页面包含 FAQ、JSON-LD、案例引用、作者和公司信息。"></textarea>
+                        </label>
+                    </div>
+
+                    <div class="tools-output-block">
+                        <div class="tools-output-header">
+                            <div>
+                                <h3>示例 / 生成结果</h3>
+                                <p>结果会给出评分、信号判断和下一步建议。</p>
+                            </div>
+                            <button type="button" class="tools-copy" data-copy-target="score-output">
+                                <span class="material-symbols-outlined">content_copy</span>
+                                复制
+                            </button>
+                        </div>
+                        <div id="score-loading" class="tools-loading hidden" aria-live="polite">
+                            <span></span><span></span><span></span>
+                            <strong>AI 正在检查页面结构、引用信号和可读性...</strong>
+                        </div>
+                        <textarea id="score-output" class="tools-output" spellcheck="false"></textarea>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <div id="footer-container"></div>
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/tools.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+name: Frontend CI
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "runtime/homepages/**"
+      - "README*.md"
+      - "scripts/check-i18n-hardcoded.mjs"
+      - "scripts/check-generated-sdk.mjs"
+      - "scripts/check-public-*.mjs"
+      - "scripts/public-content-policy*.mjs"
+      - "scripts/release-contract*.mjs"
+      - "backend/app/version.py"
+      - "backend/Dockerfile"
+      - "backend/Dockerfile.crawler"
+      - "cli/**"
+      - "docker-compose*.yml"
+      - "infra/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - main
+      - master
+      - "codex/**"
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "runtime/homepages/**"
+      - "README*.md"
+      - "scripts/check-i18n-hardcoded.mjs"
+      - "scripts/check-generated-sdk.mjs"
+      - "scripts/check-public-*.mjs"
+      - "scripts/public-content-policy*.mjs"
+      - "scripts/release-contract*.mjs"
+      - "backend/app/version.py"
+      - "backend/Dockerfile"
+      - "backend/Dockerfile.crawler"
+      - "cli/**"
+      - "docker-compose*.yml"
+      - "infra/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
+      - name: Enable pinned pnpm
+        run: corepack enable
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check release metadata and CI contract
+        run: pnpm release:contract
+
+      - name: Check generated API SDK
+        run: pnpm sdk:check
+
+      - name: Check public repository boundary
+        run: pnpm public:check
+
+      - name: Check translations
+        run: pnpm i18n:check
+
+      - name: Type-check web
+        run: pnpm --filter @georank/web typecheck
+
+      - name: Type-check admin
+        run: pnpm --filter @georank/admin typecheck
+
+      - name: Build production applications
+        run: pnpm build

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>专家管理 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main">
+            <div id="admin-topbar"></div>
+
+            <main class="admin-experts-page p-6 lg:p-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-extrabold font-headline tracking-tight">专家管理</h1>
+                        <p class="text-sm text-on-surface-variant mt-1">维护前台专家频道的人物画像、专长方向、咨询场景和发布状态</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <a href="/experts" target="_blank" class="btn admin-btn-secondary px-5 py-2.5 rounded-lg text-sm inline-flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">open_in_new</span>
+                            查看前台专家页
+                        </a>
+                        <button id="expert-create-button" type="button" class="btn btn-primary px-5 py-2.5 rounded-lg text-sm inline-flex items-center gap-2">
+                            <span class="material-symbols-outlined text-sm">add</span>
+                            新建专家
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-xl">person_search</span>
+                            </div>
+                            <span class="badge badge-info">总量</span>
+                        </div>
+                        <p id="expert-stat-total" class="expert-stat-total text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">专家画像总数</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-green-600 text-xl">publish</span>
+                            </div>
+                            <span class="badge badge-success">发布</span>
+                        </div>
+                        <p id="expert-stat-published" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">前台可见专家</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-orange-500 text-xl">draft</span>
+                            </div>
+                            <span class="badge badge-warning">草稿</span>
+                        </div>
+                        <p id="expert-stat-draft" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">待完善专家</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-purple-600 text-xl">stars</span>
+                            </div>
+                            <span class="badge badge-neutral">推荐</span>
+                        </div>
+                        <p id="expert-stat-featured" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">频道推荐专家</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
+                    <div class="flex-1 flex items-center bg-slate-50 rounded-lg px-3 border border-slate-100">
+                        <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+                        <input id="expert-search" type="text" placeholder="搜索专家姓名、专长、咨询场景..." class="bg-transparent border-none focus:ring-0 text-sm w-full py-2.5 placeholder:text-slate-400">
+                    </div>
+                    <select id="expert-category-filter" class="form-input w-full xl:w-[180px] text-sm py-2.5">
+                        <option value="">全部方向</option>
+                        <option value="strategy">策略</option>
+                        <option value="methodology">方法论</option>
+                        <option value="ai-workflow">AI 工作流</option>
+                        <option value="seo-practice">SEO/GEO</option>
+                        <option value="traffic-growth">流量增长</option>
+                        <option value="overseas">出海 GEO</option>
+                        <option value="technical">技术</option>
+                        <option value="content">内容</option>
+                        <option value="reputation">品牌治理</option>
+                        <option value="industry">行业</option>
+                    </select>
+                    <select id="expert-status-filter" class="form-input w-full xl:w-[180px] text-sm py-2.5">
+                        <option value="">全部状态</option>
+                        <option value="published">已发布</option>
+                        <option value="draft">草稿</option>
+                        <option value="featured">推荐</option>
+                    </select>
+                    <button id="expert-refresh" class="btn admin-btn-secondary px-4 py-2.5 rounded-lg text-sm inline-flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">refresh</span>
+                        刷新
+                    </button>
+                </div>
+
+                <section class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                    <div class="flex items-center justify-between px-6 py-5 border-b border-slate-50">
+                        <div>
+                            <h2 class="text-base font-bold font-headline">专家列表</h2>
+                            <p class="text-xs text-on-surface-variant mt-1">列表保持全宽显示，点击预览按钮查看完整画像</p>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>专家</th>
+                                <th>方向</th>
+                                <th>状态</th>
+                                <th>推荐</th>
+                                <th>排序</th>
+                                <th>更新时间</th>
+                                <th class="text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="experts-tbody">
+                            <tr><td colspan="7" class="text-center py-12 text-slate-400 text-sm">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="flex items-center justify-between px-6 py-4 border-t border-slate-50 text-sm">
+                        <span id="expert-pagination-info" class="text-on-surface-variant">--</span>
+                        <div id="expert-pagination" class="flex items-center gap-1"></div>
+                    </div>
+                </section>
+
+                <section class="bg-white rounded-xl border border-slate-100 p-6 admin-detail-panel admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="expert-preview-title" hidden>
+                    <div class="flex items-start justify-between gap-3 mb-5">
+                        <div>
+                            <h2 id="expert-preview-title" class="text-base font-bold font-headline">专家预览</h2>
+                            <p class="text-xs text-on-surface-variant mt-1">查看前台专家卡片会使用的完整字段</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="expert-detail-badge" class="badge badge-neutral">未选择</span>
+                            <button type="button" class="admin-preview-close" data-preview-close title="关闭预览">
+                                <span class="material-symbols-outlined text-base">close</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="expert-detail">
+                        <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-sm text-slate-400">点击列表中的预览按钮，查看专家画像、专长和咨询场景。</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div id="expert-editor-modal" class="fixed inset-0 z-[90] bg-slate-900/45 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h2 id="expert-editor-title" class="text-lg font-bold font-headline">新建专家</h2>
+                    <p class="text-sm text-slate-500 mt-1">这些字段会同步影响前台专家频道展示。</p>
+                </div>
+                <button id="expert-editor-close" type="button" class="w-9 h-9 rounded-lg hover:bg-slate-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-slate-400">close</span>
+                </button>
+            </div>
+            <form id="expert-editor-form" class="p-6 space-y-5 overflow-auto">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">专家姓名 <span class="text-primary">必填</span></span>
+                        <input id="expert-display-name" class="form-input" placeholder="例如：许然" required>
+                    </label>
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">详情链接标识</span>
+                        <input id="expert-slug" class="form-input" placeholder="例如：xu-ran" pattern="[a-z0-9]+(?:-[a-z0-9]+)*">
+                    </label>
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">头像缩写</span>
+                        <input id="expert-avatar-initials" class="form-input" placeholder="例如：XR">
+                    </label>
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">头衔 <span class="text-primary">必填</span></span>
+                        <input id="expert-title" class="form-input" placeholder="例如：GEO 知识库专家" required>
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="space-y-2 text-sm">
+                            <span class="font-semibold text-slate-700">方向</span>
+                            <select id="expert-category" class="form-input">
+                                <option value="strategy">策略</option>
+                                <option value="methodology">方法论</option>
+                                <option value="ai-workflow">AI 工作流</option>
+                                <option value="seo-practice">SEO/GEO</option>
+                                <option value="traffic-growth">流量增长</option>
+                                <option value="overseas">出海 GEO</option>
+                                <option value="technical">技术</option>
+                                <option value="content">内容</option>
+                                <option value="reputation">品牌治理</option>
+                                <option value="industry">行业</option>
+                            </select>
+                        </label>
+                        <label class="space-y-2 text-sm">
+                            <span class="font-semibold text-slate-700">展示标签</span>
+                            <input id="expert-specialty-label" class="form-input" placeholder="例如：技术">
+                        </label>
+                    </div>
+                </div>
+                <label class="space-y-2 text-sm block">
+                    <span class="font-semibold text-slate-700">一句话介绍 <span class="text-primary">必填</span></span>
+                    <textarea id="expert-summary" class="form-input min-h-[92px]" placeholder="用于专家卡片摘要，建议一句话说明擅长什么和解决什么问题。" required></textarea>
+                </label>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">专长清单</span>
+                        <textarea id="expert-expertise" class="form-input min-h-[130px]" placeholder="每行一个专长，例如：&#10;知识库生成&#10;资料清洗&#10;RAG 内容规范"></textarea>
+                    </label>
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">适合咨询</span>
+                        <textarea id="expert-consultation" class="form-input min-h-[130px]" placeholder="说明什么情况适合找这位专家。"></textarea>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-[1fr_180px] gap-4">
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">搜索关键词</span>
+                        <input id="expert-keywords" class="form-input" placeholder="用逗号分隔，例如：知识库, RAG, 结构化">
+                    </label>
+                    <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">排序</span>
+                        <input id="expert-sort-order" class="form-input" type="number" min="0" step="1" value="100">
+                    </label>
+                </div>
+                <div class="flex flex-wrap items-center gap-5 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input id="expert-is-featured" type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary" checked>
+                        频道推荐
+                    </label>
+                    <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input id="expert-is-published" type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary">
+                        发布到前台
+                    </label>
+                </div>
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                    <button id="expert-editor-cancel" type="button" class="btn admin-btn-secondary px-5 py-2.5 rounded-lg text-sm">取消</button>
+                    <button id="expert-editor-submit" type="submit" class="btn btn-primary px-5 py-2.5 rounded-lg text-sm inline-flex items-center gap-2">
+                        <span class="material-symbols-outlined text-sm">save</span>
+                        保存专家
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/admin.js?v=20260615-admin-entry-path"></script>
+</body>
+</html>

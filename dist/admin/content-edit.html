@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>教程编辑 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+    <style>
+        /* EasyMDE 样式覆盖 */
+        .EasyMDEContainer { display: flex; flex-direction: column; height: 100%; }
+        .EasyMDEContainer .CodeMirror { flex: 1; font-size: 14px; font-family: 'JetBrains Mono', 'Fira Code', monospace; line-height: 1.7; border: none; border-radius: 0; padding: 20px 24px; }
+        .EasyMDEContainer .CodeMirror-scroll { padding: 0; }
+        .editor-toolbar { border: none; border-bottom: 1px solid #e5edf7; padding: 10px 14px; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); flex-shrink: 0; }
+        .editor-toolbar button { width: 36px !important; height: 36px !important; min-width: 36px; color: #64748b !important; border: 1px solid transparent !important; border-radius: 10px !important; margin: 0 1px; transition: all 150ms ease; }
+        .editor-toolbar button:hover, .editor-toolbar button.active { background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important; box-shadow: 0 6px 16px rgba(37, 99, 235, 0.08); }
+        .editor-toolbar i.separator { border-color: #e5edf7; margin: 0 6px; }
+        .editor-preview { padding: 24px; font-size: 14px; line-height: 1.8; }
+        .editor-preview h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
+        .editor-preview h2 { font-size: 1.125rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
+        .editor-preview h3 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
+        .editor-preview p { margin-bottom: 0.875rem; }
+        .editor-preview ul, .editor-preview ol { padding-left: 1.5rem; margin-bottom: 0.875rem; }
+        .editor-preview li { margin-bottom: 0.25rem; }
+        .editor-preview blockquote { border-left: 3px solid #2563EB; padding-left: 1rem; color: #64748b; margin: 1rem 0; }
+        .editor-preview code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.8125rem; color: #e11d48; }
+        .editor-preview pre { background: #0f172a; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+        .editor-preview pre code { background: none; color: #93c5fd; padding: 0; }
+        /* 编辑器区域撑满 */
+        #editor-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        #editor-area .EasyMDEContainer { flex: 1; overflow: hidden; }
+        #editor-area .CodeMirror { height: 100% !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main flex flex-col" style="height:100vh;overflow:hidden;">
+            <div id="admin-topbar"></div>
+
+            <!-- 编辑器顶部操作栏 -->
+            <div class="admin-editor-topbar flex items-center gap-4 px-6 h-14 border-b border-slate-100 bg-white flex-shrink-0">
+                <a href="./tutorials" class="admin-editor-back-link w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors" title="返回列表">
+                    <span class="material-symbols-outlined text-slate-500">arrow_back</span>
+                </a>
+                <div class="w-px h-5 bg-slate-200"></div>
+                <input id="editor-title" type="text" placeholder="输入教程标题..."
+                    class="admin-editor-title-input flex-1 border-none focus:ring-0 text-lg font-bold font-headline placeholder:text-slate-300 bg-transparent p-0 min-w-0">
+                <div class="admin-editor-actions flex items-center gap-2 flex-shrink-0">
+                    <select id="editor-type" class="form-input w-auto text-xs py-1.5 rounded-lg">
+                        <option value="tutorial">教程</option>
+                        <option value="template">方案模板</option>
+                        <option value="whitepaper">白皮书</option>
+                        <option value="announcement">公告</option>
+                    </select>
+                    <input id="editor-tags" type="text" placeholder="标签，逗号分隔"
+                        class="form-input w-36 text-xs py-1.5 rounded-lg hidden md:block">
+                    <button id="editor-save-draft" class="btn admin-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold min-h-9">
+                        存草稿
+                    </button>
+                    <button id="editor-publish" class="px-4 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 min-h-9"
+                        style="background:linear-gradient(135deg,#2563EB,#1d4ed8)">
+                        <span class="material-symbols-outlined" style="font-size:14px">publish</span>
+                        发布
+                    </button>
+                </div>
+            </div>
+
+            <!-- EasyMDE 编辑区 -->
+            <div id="editor-area" class="flex-1 overflow-hidden bg-white">
+                <textarea id="easymde-editor"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+    <script src="../js/admin.js?v=20260615-admin-entry-path"></script>
+</body>
+</html>

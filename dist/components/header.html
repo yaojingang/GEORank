@@ -1,0 +1,147 @@
+<!--
+    GEOrank - 公共头部导航组件
+    GEO 智搜优化引擎
+    用法: 在页面中添加 <div id="header-container"></div>，JS会自动加载此组件
+-->
+<nav id="main-nav" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_rgba(25,27,35,0.04)]">
+    <div class="flex justify-between items-center px-6 md:px-8 h-16 w-full max-w-7xl mx-auto">
+        <!-- Logo 区域 -->
+        <div class="flex items-center gap-8">
+            <a href="/" data-logo-link class="text-xl font-bold tracking-tighter text-blue-700 dark:text-blue-500 font-headline hover:opacity-90 transition-opacity">
+                GEOrank
+            </a>
+
+            <!-- 桌面端导航菜单 -->
+            <div class="hidden md:flex items-center gap-5">
+                <a href="/"
+                   data-nav-link
+                   data-i18n="nav.companies"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    公司
+                </a>
+                <a href="/diagnostic"
+                   data-nav-link
+                   data-i18n="nav.diagnostic"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    诊断
+                </a>
+                <a href="/solutions"
+                   data-nav-link
+                   data-i18n="nav.solutions"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    问答
+                </a>
+                <a href="/plans"
+                   data-nav-link
+                   data-i18n="nav.plans"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    方案
+                </a>
+                <a href="/keywords"
+                   data-nav-link
+                   data-i18n="nav.keywords"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    拓词
+                </a>
+                <a href="/tools"
+                   data-nav-link
+                   data-i18n="nav.tools"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    工具
+                </a>
+                <a href="/experts"
+                   data-nav-link
+                   data-i18n="nav.experts"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    专家
+                </a>
+                <a href="/tutorial"
+                   data-nav-link
+                   data-i18n="nav.tutorial"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    教程
+                </a>
+            </div>
+        </div>
+
+        <!-- 右侧操作区 -->
+        <div class="header-actions flex items-center gap-2 md:gap-3">
+            <div class="header-language" data-language-switcher aria-label="语言切换" data-i18n-aria-label="language.label">
+                <button type="button" class="header-language__option" data-lang-option="zh-CN" aria-label="切换到中文" data-i18n-aria-label="language.switchToZh">中</button>
+                <button type="button" class="header-language__option" data-lang-option="en-US" aria-label="Switch to English" data-i18n-aria-label="language.switchToEn">EN</button>
+            </div>
+            <a
+                href="/profile"
+                data-auth-trigger
+                data-profile-link
+                class="auth-trigger header-profile-button"
+                aria-label="登录 / 个人中心"
+                data-i18n-aria-label="auth.triggerSignedOut"
+            >
+                <span class="header-profile-button__icon" aria-hidden="true">
+                    <span class="material-symbols-outlined">person</span>
+                </span>
+                <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
+            </a>
+
+            <!-- 移动端菜单按钮 -->
+            <button id="mobile-menu-toggle" class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-slate-800" aria-label="打开菜单" data-i18n-aria-label="header.mobileMenu">
+                <span class="material-symbols-outlined text-slate-600 dark:text-slate-400">menu</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 移动端导航菜单 -->
+    <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+        <div class="flex flex-col px-6 py-4 space-y-3">
+            <a href="/"
+               data-nav-link
+               data-i18n="nav.companies"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                公司
+            </a>
+            <a href="/diagnostic"
+               data-nav-link
+               data-i18n="nav.diagnostic"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                诊断
+            </a>
+            <a href="/solutions"
+               data-nav-link
+               data-i18n="nav.solutions"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                问答
+            </a>
+            <a href="/plans"
+               data-nav-link
+               data-i18n="nav.plans"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                方案
+            </a>
+            <a href="/keywords"
+               data-nav-link
+               data-i18n="nav.keywords"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                拓词
+            </a>
+            <a href="/tools"
+               data-nav-link
+               data-i18n="nav.tools"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                工具
+            </a>
+            <a href="/experts"
+               data-nav-link
+               data-i18n="nav.experts"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                专家
+            </a>
+            <a href="/tutorial"
+               data-nav-link
+               data-i18n="nav.tutorial"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                教程
+            </a>
+        </div>
+    </div>
+</nav>

@@ -1,0 +1,8 @@
+{
+  "name": "@georank/i18n",
+  "version": "1.3.0",
+  "private": true,
+  "dependencies": {
+    "next-intl": "^4.0.0"
+  }
+}

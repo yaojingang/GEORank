@@ -1,0 +1,9 @@
+{
+  "name": "@georank/auth",
+  "version": "1.3.0",
+  "private": true,
+  "dependencies": {
+    "@georank/api-sdk": "workspace:*",
+    "react": "^19.0.0"
+  }
+}

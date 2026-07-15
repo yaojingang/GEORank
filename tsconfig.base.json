@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["DOM", "DOM.Iterable", "ES2024"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node", "react", "react-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@georank/ui": ["packages/ui/src/index.ts"],
+      "@georank/ui/*": ["packages/ui/src/*"],
+      "@georank/i18n": ["packages/i18n/src/index.ts"],
+      "@georank/i18n/*": ["packages/i18n/src/*"],
+      "@georank/api-sdk": ["packages/api-sdk/src/index.ts"],
+      "@georank/api-sdk/*": ["packages/api-sdk/src/*"],
+      "@georank/auth": ["packages/auth/src/index.ts"],
+      "@georank/auth/*": ["packages/auth/src/*"]
+    }
+  }
+}

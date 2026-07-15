@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>用户管理 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main">
+            <div id="admin-topbar"></div>
+
+            <main class="p-6 lg:p-8 space-y-6">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-extrabold font-headline tracking-tight">用户管理</h1>
+                        <p class="text-sm text-on-surface-variant mt-1">管理平台注册用户与权限</p>
+                    </div>
+                    <button id="users-invite-button" class="btn btn-primary px-5 py-2.5 rounded-lg text-sm">
+                        <span class="material-symbols-outlined text-sm mr-1.5">person_add</span>
+                        邀请用户
+                    </button>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-card">
+                        <p class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">总用户</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="text-2xl font-extrabold tracking-tight text-green-600">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">活跃用户</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="text-2xl font-extrabold tracking-tight text-primary">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">管理员数</p>
+                    </div>
+                    <div class="stat-card">
+                        <p class="text-2xl font-extrabold tracking-tight text-orange-500">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">今日新增</p>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                    <div class="flex-1 flex items-center bg-slate-50 rounded-lg px-3">
+                        <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+                        <input type="text" placeholder="搜索用户名、邮箱..." class="bg-transparent border-none focus:ring-0 text-sm w-full py-2.5 placeholder:text-slate-400">
+                    </div>
+                    <select class="form-input w-auto text-sm py-2.5">
+                        <option>全部角色</option>
+                        <option>管理员</option>
+                        <option>企业用户</option>
+                        <option>普通用户</option>
+                    </select>
+                    <select class="form-input w-auto text-sm py-2.5">
+                        <option>全部状态</option>
+                        <option>活跃</option>
+                        <option>已停用</option>
+                        <option>待验证</option>
+                    </select>
+                </div>
+
+                <!-- Table -->
+                <div class="bg-white rounded-xl border border-slate-100">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>用户</th>
+                                <th>角色</th>
+                                <th>状态</th>
+                                <th>诊断次数</th>
+                                <th>注册时间</th>
+                                <th class="text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center py-12 text-slate-400 text-sm">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <!-- Pagination -->
+                    <div class="flex items-center justify-between px-6 py-4 border-t border-slate-50 text-sm">
+                        <span id="users-pagination-info" class="text-on-surface-variant">正在加载用户数据...</span>
+                        <div id="users-pagination" class="flex items-center gap-1"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="../js/admin.js?v=20260615-admin-entry-path"></script>
+</body>
+</html>

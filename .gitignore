@@ -1,0 +1,78 @@
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.venv-cli/
+venv/
+
+# Node
+node_modules/
+.next/
+.turbo/
+packages/api-sdk/openapi-ts-error-*.log
+coverage/
+playwright-report/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local agent and verification artifacts
+.longtask/
+
+# Runtime state
+backend/celerybeat-schedule
+backend/celerybeat.pid
+runtime/homepages/*
+!runtime/homepages/.gitkeep
+!runtime/homepages/releases/
+runtime/homepages/releases/*
+!runtime/homepages/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/
+!runtime/homepages/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/**
+!runtime/homepages/public/
+runtime/homepages/public/*
+!runtime/homepages/public/.gitkeep
+!runtime/homepages/public/active
+!runtime/homepages/public/active/
+!runtime/homepages/public/active/**
+!runtime/homepages/public/releases/
+runtime/homepages/public/releases/*
+!runtime/homepages/public/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/
+!runtime/homepages/public/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/**
+
+# Docker volumes
+pg_data/
+redis_data/
+qdrant_data/
+neo4j_data/
+minio_data/
+
+# Private content and local data exports
+data/private/
+content/private/
+docs/tutorial-wiki-private/
+dist/data/private/
+dist/private/
+exports/
+tmp/
+*.db
+*.sqlite
+*.dump
+*.sql
+*.backup
+*.jsonl
+*.parquet

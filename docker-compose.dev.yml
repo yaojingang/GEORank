@@ -1,0 +1,10 @@
+# Local development override. Production traffic remains gateway-only in the
+# base Compose file; browser-facing services are reachable on loopback.
+services:
+  frontend:
+    ports:
+      - "127.0.0.1:${GEORANK_FRONTEND_PORT:-3009}:80"
+
+  api:
+    ports:
+      - "127.0.0.1:${GEORANK_API_PORT:-8000}:8000"

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>GEO 专家频道 - GEOrank | 2026 GEO/SEO专家推荐、AI搜索优化顾问、出海SEO与品牌可见性咨询</title>
+    <meta name="description" content="GEOrank 2026 GEO 专家频道，收录 GEO 方法论、SEO 专家、AI 搜索优化顾问、出海 SEO、豆包 GEO、品牌 AI 可见性和企业 GEO 咨询相关专家画像。">
+    <meta name="keywords" content="GEO专家推荐,SEO专家推荐,AI搜索优化专家,生成式引擎优化顾问,出海SEO专家,豆包GEO顾问,企业GEO咨询,品牌AI可见性优化,GEO方法论专家">
+    <meta name="date" content="2026-06-17">
+    <link rel="canonical" href="/experts">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="GEO 专家频道 - GEOrank | 2026 GEO/SEO专家推荐、AI搜索优化顾问">
+    <meta property="og:description" content="收录 GEO 方法论、SEO 专家、AI 搜索优化顾问、出海 SEO、豆包 GEO 与企业 GEO 咨询相关专家画像。">
+    <meta property="og:url" content="/experts">
+    <script id="experts-jsonld" type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","@id":"/experts#webpage","url":"/experts","name":"GEO 专家频道","headline":"GEO 专家频道","inLanguage":"zh-CN"}</script>
+
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/experts.css?v=20260617-kami-polish">
+</head>
+<body class="bg-white text-on-surface antialiased">
+    <div id="header-container"></div>
+
+    <main class="experts-page pt-24 md:pt-28 pb-20 max-w-7xl mx-auto px-4 md:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        <div class="lg:col-span-8">
+            <div data-experts-list-view>
+            <section class="experts-hero">
+                <div class="experts-hero-copy-block">
+                    <p class="experts-eyebrow">GEO Expert Channel</p>
+                    <h1>GEO 专家频道</h1>
+                    <p class="experts-hero-copy">收录 GEO 与 AI 实践专家，把方法论、AI 工作流、出海 SEO、流量增长和企业咨询经验放到一个可进入详情的专家目录里。</p>
+                </div>
+                <div class="experts-hero-tabs" aria-label="专家频道排序">
+                    <button type="button" class="experts-hero-tab is-active" data-expert-sort="recommended" aria-pressed="true">推荐专家</button>
+                    <button type="button" class="experts-hero-tab" data-expert-sort="recent" aria-pressed="false">最近更新</button>
+                </div>
+            </section>
+
+            <section class="experts-toolbar" aria-label="专家筛选">
+                <div class="experts-search">
+                    <label class="expert-visually-hidden" for="expert-search">搜索专家</label>
+                    <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                    <input id="expert-search" type="search" placeholder="搜索专家、介绍、关键词标签...">
+                </div>
+                <div class="experts-filter-group" aria-label="专家方向筛选">
+                    <button type="button" class="expert-filter is-active" data-expert-filter="all" aria-pressed="true" aria-controls="expert-list">全部</button>
+                    <button type="button" class="expert-filter" data-expert-filter="methodology" aria-pressed="false" aria-controls="expert-list">方法论</button>
+                    <button type="button" class="expert-filter" data-expert-filter="ai-workflow" aria-pressed="false" aria-controls="expert-list">AI 工作流</button>
+                    <button type="button" class="expert-filter" data-expert-filter="seo-practice" aria-pressed="false" aria-controls="expert-list">SEO/GEO</button>
+                    <button type="button" class="expert-filter" data-expert-filter="traffic-growth" aria-pressed="false" aria-controls="expert-list">流量增长</button>
+                    <button type="button" class="expert-filter" data-expert-filter="overseas" aria-pressed="false" aria-controls="expert-list">出海 GEO</button>
+                </div>
+            </section>
+
+            <section id="expert-list" class="experts-list" aria-label="专家推荐列表">
+                <div class="experts-empty-state is-hidden" data-experts-empty role="status" aria-live="polite">
+                    <h2>没有匹配的专家</h2>
+                    <p>可以换一个关键词，或切回“全部”后重新筛选。</p>
+                </div>
+            </section>
+            </div>
+
+            <section class="expert-detail-view is-hidden" data-expert-detail-view aria-live="polite"></section>
+        </div>
+
+        <aside class="lg:col-span-4 experts-sidebar space-y-10">
+            <div class="experts-tip-card">
+                <div class="relative z-10">
+                    <span class="experts-sidebar-eyebrow">推荐逻辑</span>
+                    <h2>先看问题，再找专家</h2>
+                    <p>专家频道不是履历墙，而是把 GEO 方法论、搜索营销、AI 工作流、出海增长和企业服务经验拆成可扫描的人物资料。</p>
+                    <a href="/tools" class="experts-sidebar-link">
+                        先用工具自查
+                        <span class="material-symbols-outlined">arrow_forward</span>
+                    </a>
+                </div>
+                <span class="material-symbols-outlined experts-tip-watermark" aria-hidden="true">person_search</span>
+            </div>
+
+            <section>
+                <div class="experts-sidebar-heading">
+                    <h2>专家方向</h2>
+                    <button type="button" data-expert-filter="all">全部</button>
+                </div>
+                <div class="expert-direction-list">
+                    <button type="button" class="expert-direction-button is-active" data-expert-filter="all" aria-pressed="true">
+                        <span class="material-symbols-outlined">hub</span>
+                        <span>全部专家</span>
+                        <strong data-expert-count="all">0</strong>
+                    </button>
+                    <button type="button" class="expert-direction-button" data-expert-filter="methodology" aria-pressed="false">
+                        <span class="material-symbols-outlined">psychology</span>
+                        <span>方法论</span>
+                        <strong data-expert-count="methodology">0</strong>
+                    </button>
+                    <button type="button" class="expert-direction-button" data-expert-filter="ai-workflow" aria-pressed="false">
+                        <span class="material-symbols-outlined">auto_awesome</span>
+                        <span>AI 工作流</span>
+                        <strong data-expert-count="ai-workflow">0</strong>
+                    </button>
+                    <button type="button" class="expert-direction-button" data-expert-filter="seo-practice" aria-pressed="false">
+                        <span class="material-symbols-outlined">travel_explore</span>
+                        <span>SEO/GEO</span>
+                        <strong data-expert-count="seo-practice">0</strong>
+                    </button>
+                    <button type="button" class="expert-direction-button" data-expert-filter="traffic-growth" aria-pressed="false">
+                        <span class="material-symbols-outlined">monitoring</span>
+                        <span>流量增长</span>
+                        <strong data-expert-count="traffic-growth">0</strong>
+                    </button>
+                    <button type="button" class="expert-direction-button" data-expert-filter="overseas" aria-pressed="false">
+                        <span class="material-symbols-outlined">public</span>
+                        <span>出海 GEO</span>
+                        <strong data-expert-count="overseas">0</strong>
+                    </button>
+                </div>
+            </section>
+
+            <section>
+                <div class="experts-sidebar-heading">
+                    <h2>咨询前准备</h2>
+                </div>
+                <div class="experts-checklist">
+                    <div>
+                        <span>01</span>
+                        <p>当前官网或内容页最想解决的 AI 搜索问题。</p>
+                    </div>
+                    <div>
+                        <span>02</span>
+                        <p>已有诊断结果、竞品对象或目标关键词。</p>
+                    </div>
+                    <div>
+                        <span>03</span>
+                        <p>团队资源、技术限制和希望达成的时间节点。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <div class="experts-sidebar-heading">
+                    <h2>关联入口</h2>
+                </div>
+                <div class="experts-resource-links">
+                    <a href="/diagnostic">
+                        <span class="material-symbols-outlined">analytics</span>
+                        <strong>先做 GEO 诊断</strong>
+                    </a>
+                    <a href="/plans">
+                        <span class="material-symbols-outlined">checklist</span>
+                        <strong>生成 GEO 方案</strong>
+                    </a>
+                    <a href="/tutorial">
+                        <span class="material-symbols-outlined">menu_book</span>
+                        <strong>查看教程频道</strong>
+                    </a>
+                </div>
+            </section>
+        </aside>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/experts.js?v=20260712-api-source"></script>
+</body>
+</html>

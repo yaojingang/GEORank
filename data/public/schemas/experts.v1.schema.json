@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yaojingang/GEORank/blob/main/data/public/schemas/experts.v1.schema.json",
+  "title": "GEORank public expert fixture v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "authorization",
+    "provenance",
+    "distribution_basis",
+    "verification_scope",
+    "last_verified",
+    "migration_snapshot",
+    "experts"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "source": {"type": "string", "minLength": 1},
+    "authorization": {"type": "string", "minLength": 1},
+    "provenance": {"type": "string", "minLength": 1},
+    "distribution_basis": {"type": "string", "minLength": 1},
+    "verification_scope": {"type": "string", "minLength": 1},
+    "last_verified": {"type": "string", "format": "date"},
+    "migration_snapshot": {
+      "type": "string",
+      "pattern": "^backend/alembic/snapshots/[A-Za-z0-9_.-]+\\.json$"
+    },
+    "migration_chain": {
+      "type": "array",
+      "minItems": 1,
+      "allOf": [{"minItems": 2}],
+      "prefixItems": [{"$ref": "#/$defs/seedMigrationEntry"}],
+      "items": {"$ref": "#/$defs/stateMigrationEntry"}
+    },
+    "experts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/expert"}
+    }
+  },
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1},
+    "seedMigrationEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "snapshot"],
+      "properties": {
+        "kind": {"const": "seed"},
+        "snapshot": {
+          "type": "string",
+          "pattern": "^backend/alembic/snapshots/[A-Za-z0-9_.-]+\\.json$"
+        }
+      }
+    },
+    "stateMigrationEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "snapshot"],
+      "properties": {
+        "kind": {"const": "state"},
+        "snapshot": {
+          "type": "string",
+          "pattern": "^backend/alembic/snapshots/[A-Za-z0-9_.-]+\\.json$"
+        }
+      }
+    },
+    "stringList": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "publicLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "url"],
+      "properties": {
+        "label": {"$ref": "#/$defs/nonEmptyString"},
+        "url": {"type": "string", "format": "uri", "pattern": "^https://"}
+      }
+    },
+    "expert": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "slug",
+        "name",
+        "title",
+        "organization",
+        "summary",
+        "description",
+        "avatar_url",
+        "avatar_initials",
+        "social_links",
+        "public_links",
+        "category",
+        "specialty_label",
+        "expertise",
+        "keywords",
+        "sort_order",
+        "status",
+        "featured",
+        "source",
+        "authorization",
+        "provenance",
+        "distribution_basis",
+        "verification_scope",
+        "last_verified"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "name": {"$ref": "#/$defs/nonEmptyString"},
+        "title": {"$ref": "#/$defs/nonEmptyString"},
+        "organization": {"type": ["string", "null"]},
+        "summary": {"$ref": "#/$defs/nonEmptyString"},
+        "description": {"$ref": "#/$defs/nonEmptyString"},
+        "avatar_url": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "avatar_initials": {"$ref": "#/$defs/nonEmptyString"},
+        "social_links": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/publicLink"}
+        },
+        "public_links": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/publicLink"}
+        },
+        "category": {"$ref": "#/$defs/nonEmptyString"},
+        "specialty_label": {"$ref": "#/$defs/nonEmptyString"},
+        "expertise": {"$ref": "#/$defs/stringList"},
+        "keywords": {"$ref": "#/$defs/stringList"},
+        "sort_order": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["published", "hidden"]},
+        "featured": {"type": "boolean"},
+        "source": {"$ref": "#/$defs/nonEmptyString"},
+        "authorization": {"$ref": "#/$defs/nonEmptyString"},
+        "provenance": {"$ref": "#/$defs/nonEmptyString"},
+        "distribution_basis": {"$ref": "#/$defs/nonEmptyString"},
+        "verification_scope": {"$ref": "#/$defs/nonEmptyString"},
+        "last_verified": {"type": "string", "format": "date"}
+      }
+    }
+  }
+}

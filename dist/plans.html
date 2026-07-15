@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>GEO 方案生成器 - GEOrank</title>
+    <meta name="description" content="收集业务目标、网站现状、受众、资源和周期，生成可执行的 GEO 优化方案。">
+
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/plans.css">
+</head>
+<body class="bg-white text-on-surface antialiased">
+    <div id="header-container"></div>
+
+    <main class="plan-page mx-auto px-6 md:px-8 pt-24 md:pt-28 pb-16 md:pb-24">
+        <section class="plan-hero mb-6 md:mb-8">
+            <div class="max-w-3xl">
+                <div>
+                    <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary">GEO Action Plan</p>
+                    <h1 class="mt-3 text-3xl md:text-4xl font-extrabold tracking-tight font-headline">生成一份可执行的 GEO 方案</h1>
+                    <p class="mt-3 max-w-2xl text-sm leading-7 text-on-surface-variant">
+                        先补齐目标、网站、受众、资源和周期这些关键上下文，再生成适合团队落地的 GEO 优化方案。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="plan-layout grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <form id="geo-plan-form" class="plan-form rounded-2xl border border-slate-100 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.05)]">
+                <div class="plan-section">
+                    <div class="plan-section-header">
+                        <span>01</span>
+                        <div>
+                            <h2>目标与业务背景</h2>
+                            <p>先让 AI 知道你是谁、要解决什么问题。</p>
+                        </div>
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                    <label class="plan-field md:col-span-2">
+                        <span>核心问题 / 目标 <strong>必填</strong></span>
+                        <textarea id="plan-goal" name="goal" rows="3" placeholder="例如：让我们的 CRM 软件在 AI 搜索里更容易被推荐，并提升官网获客转化。" required></textarea>
+                    </label>
+
+                    <label class="plan-field">
+                        <span>品牌 / 公司 / 产品 <strong>二选一必填</strong></span>
+                        <input id="plan-brand" name="brand" type="text" placeholder="例如：某某 CRM / BrandOrbit">
+                    </label>
+
+                    <label class="plan-field">
+                        <span>目标网站 / 页面 <strong>二选一必填</strong></span>
+                        <input id="plan-url" name="url" type="text" placeholder="https://example.com 或 example.com">
+                    </label>
+
+                    <label class="plan-field">
+                        <span>行业 / 产品类型 <strong>必填</strong></span>
+                        <input id="plan-industry" name="industry" type="text" placeholder="例如：B2B SaaS、教育、本地服务、电商" required>
+                    </label>
+
+                    <label class="plan-field">
+                        <span>目标用户 <strong>必填</strong></span>
+                        <input id="plan-audience" name="audience" type="text" placeholder="例如：企业市场负责人、运营团队、采购决策人" required>
+                    </label>
+                    </div>
+                </div>
+
+                <div class="plan-section">
+                    <div class="plan-section-header">
+                        <span>02</span>
+                        <div>
+                            <h2>执行条件</h2>
+                            <p>周期、资源和市场决定方案颗粒度。</p>
+                        </div>
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                    <label class="plan-field">
+                        <span>当前阶段</span>
+                        <select id="plan-stage" name="stage">
+                            <option value="新站或新品牌，GEO 基础薄弱">新站 / 新品牌</option>
+                            <option value="已有 SEO 内容，需要转向 AI 搜索可见性">已有 SEO 内容</option>
+                            <option value="已有诊断报告，需要生成执行方案">已有诊断报告</option>
+                            <option value="已有内容团队，需要建立长期 GEO 机制">已有内容团队</option>
+                            <option value="品牌在 AI 答案里曝光不足，需要提升推荐率">AI 答案曝光不足</option>
+                        </select>
+                    </label>
+
+                    <label class="plan-field">
+                        <span>执行周期</span>
+                        <select id="plan-timeline" name="timeline">
+                            <option value="30 天快速启动">30 天快速启动</option>
+                            <option value="60 天建立基础能力">60 天建立基础能力</option>
+                            <option value="90 天完整推进">90 天完整推进</option>
+                            <option value="6 个月长期增长">6 个月长期增长</option>
+                        </select>
+                    </label>
+
+                    <label class="plan-field">
+                        <span>团队资源</span>
+                        <select id="plan-resources" name="resources">
+                            <option value="1-2 人兼职推进">1-2 人兼职推进</option>
+                            <option value="市场和内容团队共同推进">市场 + 内容团队</option>
+                            <option value="有技术支持，可以改页面和 Schema">有技术支持</option>
+                            <option value="外部服务商协同推进">外部服务商协同</option>
+                        </select>
+                    </label>
+
+                    <label class="plan-field">
+                        <span>主要市场 / 语言</span>
+                        <input id="plan-market" name="market" type="text" placeholder="例如：中国市场 / 中文，或 North America / English">
+                    </label>
+                    </div>
+                </div>
+
+                <div class="plan-section">
+                    <div class="plan-section-header">
+                        <span>03</span>
+                        <div>
+                            <h2>本次重点 <strong>必填</strong></h2>
+                            <p>至少选择 1 个重点，建议 2-4 个，避免生成过于发散的方案。</p>
+                        </div>
+                    </div>
+                    <div class="plan-checkbox-grid">
+                        <label><input type="checkbox" name="focus" value="AI 答案推荐率" checked>AI 答案推荐率</label>
+                        <label><input type="checkbox" name="focus" value="官网页面被引用">官网页面被引用</label>
+                        <label><input type="checkbox" name="focus" value="内容结构优化" checked>内容结构优化</label>
+                        <label><input type="checkbox" name="focus" value="Schema / 技术标记">Schema / 技术标记</label>
+                        <label><input type="checkbox" name="focus" value="关键词和问答长尾">关键词和问答长尾</label>
+                        <label><input type="checkbox" name="focus" value="获客转化路径">获客转化路径</label>
+                    </div>
+                </div>
+
+                <div class="plan-section">
+                    <div class="plan-section-header">
+                        <span>04</span>
+                        <div>
+                            <h2>边界与补充材料</h2>
+                            <p>补充竞品、限制和已有材料会让方案更落地。</p>
+                        </div>
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
+                    <label class="plan-field">
+                        <span>竞品 / 对标对象</span>
+                        <textarea id="plan-competitors" name="competitors" rows="3" placeholder="例如：HubSpot、Salesforce、国内同类工具"></textarea>
+                    </label>
+
+                    <label class="plan-field">
+                        <span>限制条件 / 已知问题</span>
+                        <textarea id="plan-constraints" name="constraints" rows="3" placeholder="例如：技术资源有限、内容不够、预算有限、官网暂时不能大改"></textarea>
+                    </label>
+
+                    <label class="plan-field md:col-span-2">
+                        <span>补充背景</span>
+                        <textarea id="plan-context" name="context" rows="4" placeholder="可以粘贴诊断结论、当前页面问题、团队目标、已有内容资产或你希望 AI 重点考虑的事项。"></textarea>
+                    </label>
+                    </div>
+                </div>
+
+                <div id="plan-context-note" class="hidden rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm leading-6 text-blue-800"></div>
+
+                <div class="plan-action-row flex flex-col gap-3 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between">
+                    <p id="plan-status" class="hidden text-sm text-slate-500"></p>
+                    <div class="plan-actions flex gap-3 sm:ml-auto">
+                        <button id="plan-reset-btn" type="button" class="btn btn-outline px-5 py-2.5 rounded-xl text-sm font-bold">清空</button>
+                        <button id="plan-generate-btn" type="submit" class="btn btn-primary px-6 py-2.5 rounded-xl text-sm font-bold inline-flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            生成 GEO 方案
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <aside class="plan-side space-y-4">
+                <div class="plan-hero-card rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                    <div class="flex items-start gap-3">
+                        <span class="material-symbols-outlined text-primary">checklist</span>
+                        <div>
+                            <p class="text-sm font-bold text-slate-900">必要信息完整度</p>
+                            <div class="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                                <div id="plan-completeness-bar" class="h-full w-[20%] rounded-full bg-primary transition-all"></div>
+                            </div>
+                            <p id="plan-completeness-text" class="mt-2 text-xs leading-5 text-blue-800">请先填写核心目标和当前问题。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                    <h2 class="text-sm font-extrabold font-headline tracking-tight">生成方案会覆盖</h2>
+                    <div class="mt-3 space-y-2">
+                        <div class="plan-scope-item"><span class="material-symbols-outlined">flag</span><p>目标判断与优先级</p></div>
+                        <div class="plan-scope-item"><span class="material-symbols-outlined">article</span><p>内容结构与页面改造</p></div>
+                        <div class="plan-scope-item"><span class="material-symbols-outlined">data_object</span><p>Schema 与技术标记</p></div>
+                        <div class="plan-scope-item"><span class="material-symbols-outlined">travel_explore</span><p>AI 搜索可见性建设</p></div>
+                        <div class="plan-scope-item"><span class="material-symbols-outlined">calendar_month</span><p>30/60/90 天执行节奏</p></div>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl border border-slate-100 bg-white p-4">
+                    <h2 class="text-sm font-extrabold font-headline tracking-tight">必要信息检查</h2>
+                    <ul id="plan-checklist" class="mt-4 space-y-3 text-sm">
+                        <li data-check="goal"><span class="material-symbols-outlined">radio_button_unchecked</span>核心目标</li>
+                        <li data-check="brand"><span class="material-symbols-outlined">radio_button_unchecked</span>品牌或网站</li>
+                        <li data-check="industry"><span class="material-symbols-outlined">radio_button_unchecked</span>行业类型</li>
+                        <li data-check="audience"><span class="material-symbols-outlined">radio_button_unchecked</span>目标用户</li>
+                        <li data-check="focus"><span class="material-symbols-outlined">radio_button_unchecked</span>本次重点</li>
+                    </ul>
+                </div>
+            </aside>
+        </section>
+
+        <section id="plan-result-panel" class="hidden mt-8 rounded-2xl border border-slate-100 bg-white p-5 md:p-6 shadow-[0_20px_70px_rgba(15,23,42,0.05)]">
+            <div class="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-start md:justify-between">
+                <div>
+                    <p class="text-[11px] font-extrabold uppercase tracking-[0.16em] text-primary">Generated Plan</p>
+                    <h2 class="mt-2 text-2xl font-black tracking-tight text-slate-900">GEO 方案结果</h2>
+                    <p id="plan-result-meta" class="mt-2 text-sm text-slate-500"></p>
+                </div>
+                <div id="plan-result-actions" class="flex flex-wrap gap-2">
+                    <button id="plan-copy-btn" type="button" class="btn btn-outline px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                        复制
+                    </button>
+                    <button id="plan-export-btn" type="button" class="btn btn-outline px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        导出 HTML
+                    </button>
+                    <a id="plan-open-chat" href="/solutions?channel=action-plan" class="btn btn-primary px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm">question_answer</span>
+                        继续追问
+                    </a>
+                </div>
+            </div>
+
+            <div id="plan-company-section" class="hidden mt-5 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                <p class="text-[11px] font-extrabold uppercase tracking-[0.14em] text-blue-700">关联公司</p>
+                <div id="plan-company-list" class="mt-3 grid gap-3 md:grid-cols-2"></div>
+            </div>
+
+            <article id="plan-output" class="plan-markdown mt-6"></article>
+        </section>
+    </main>
+
+    <div id="footer-container"></div>
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/plans.js"></script>
+</body>
+</html>

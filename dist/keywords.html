@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>GEO 拓词工具 - GEOrank</title>
+    <meta name="description" content="从种子关键词出发，按八大维度生成高价值 GEO 优化词包，提升 AI 搜索可见性。">
+
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/keywords.css">
+</head>
+<body class="bg-white text-on-surface antialiased">
+    <div id="header-container"></div>
+
+    <main class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-24 md:pt-32 pb-16 md:pb-24">
+        <!-- Hero -->
+        <section class="mb-10 md:mb-16 text-center">
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight font-headline mb-3 md:mb-4">GEO 拓词工具</h1>
+            <p class="text-on-surface-variant text-sm max-w-xl mx-auto mb-6 md:mb-10 px-2">
+                输入种子关键词，AI 将从八大维度生成高价值 GEO 优化词包。
+            </p>
+            <div class="max-w-2xl mx-auto flex flex-col sm:flex-row gap-3 sm:gap-0 sm:p-2 sm:rounded-xl sm:bg-white sm:border sm:border-slate-100">
+                <div class="flex items-center flex-wrap gap-2 px-3 py-3 sm:py-0 bg-white sm:bg-transparent border border-slate-100 sm:border-none rounded-xl sm:rounded-none flex-1 min-h-[44px]" id="tag-input-wrapper">
+                    <span class="material-symbols-outlined text-slate-400 mr-1 text-lg">search</span>
+                    <input id="keyword-input" class="flex-1 min-w-[120px] border-none focus:ring-0 bg-transparent placeholder:text-slate-400 py-1 sm:py-3 text-sm" placeholder="输入关键词，按 Enter 添加" type="text">
+                </div>
+                <button id="generate-btn" class="btn btn-primary w-full sm:w-auto px-6 py-3 sm:px-8 rounded-xl sm:rounded-lg text-sm font-bold">生成词包</button>
+            </div>
+            <p id="keyword-feedback" class="hidden max-w-2xl mx-auto mt-3 text-left text-sm text-rose-500"></p>
+        </section>
+
+        <!-- Results -->
+        <div id="results-panel" class="hidden">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-extrabold font-headline tracking-tight">拓词结果</h2>
+                    <p class="text-sm text-on-surface-variant mt-1">为 "<span id="seed-kw-display" class="font-medium text-on-surface"></span>" 生成了 <span id="total-kw-count" class="font-bold text-on-surface">0</span> 个拓展关键词</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="refine-btn" class="btn btn-outline px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">refresh</span>重新生成</button>
+                    <button id="download-csv-btn" class="btn btn-primary px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-1.5"><span class="material-symbols-outlined text-sm">download</span>批量导出</button>
+                </div>
+            </div>
+            <div id="keyword-profile-card" class="hidden mb-6 rounded-2xl border border-slate-100 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] p-5 md:p-6">
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div class="max-w-2xl">
+                        <p class="text-[11px] font-extrabold uppercase tracking-[0.14em] text-primary">AI 识别画像</p>
+                        <h3 id="keyword-profile-name" class="mt-2 text-xl font-extrabold tracking-tight text-slate-900">企业服务</h3>
+                        <p id="keyword-profile-hint" class="mt-2 text-sm leading-7 text-slate-600"></p>
+                        <p id="keyword-profile-strategy" class="mt-3 text-sm leading-7 text-slate-500"></p>
+                    </div>
+                    <div class="grid gap-3 sm:grid-cols-2 md:w-[26rem]">
+                        <div class="rounded-2xl border border-slate-100 bg-white px-4 py-4">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">业务模型</p>
+                            <p id="keyword-profile-model" class="mt-2 text-sm font-semibold text-slate-800"></p>
+                        </div>
+                        <div class="rounded-2xl border border-slate-100 bg-white px-4 py-4">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">目标用户</p>
+                            <div id="keyword-profile-audience" class="mt-2 flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Stat Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div class="rounded-xl border border-slate-100 bg-white p-5">
+                    <div class="flex items-center justify-between mb-2"><span class="text-xs text-on-surface-variant font-medium">总关键词</span><span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center"><span class="material-symbols-outlined text-primary text-sm">bar_chart</span></span></div>
+                    <p class="text-2xl font-extrabold font-headline" id="stat-total">0</p>
+                    <p class="text-xs text-green-600 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">trending_up</span>8 个维度覆盖</p>
+                </div>
+                <div class="rounded-xl border border-slate-100 bg-white p-5">
+                    <div class="flex items-center justify-between mb-2"><span class="text-xs text-on-surface-variant font-medium">平均推荐指数</span><span class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center"><span class="material-symbols-outlined text-primary text-sm">recommend</span></span></div>
+                    <p class="text-2xl font-extrabold font-headline"><span id="stat-avg-rec">0</span><span class="text-sm font-normal text-on-surface-variant">/100</span></p>
+                    <p class="text-xs text-green-600 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">trending_up</span>高价值词占比 <span id="stat-high-rec">0</span>%</p>
+                </div>
+                <div class="rounded-xl border border-slate-100 bg-white p-5">
+                    <div class="flex items-center justify-between mb-2"><span class="text-xs text-on-surface-variant font-medium">平均商业指数</span><span class="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center"><span class="material-symbols-outlined text-orange-500 text-sm">payments</span></span></div>
+                    <p class="text-2xl font-extrabold font-headline"><span id="stat-avg-biz">0</span><span class="text-sm font-normal text-on-surface-variant">/100</span></p>
+                    <p class="text-xs text-green-600 mt-1 flex items-center gap-1"><span class="material-symbols-outlined text-xs">trending_up</span>商业意图词占比 <span id="stat-high-biz">0</span>%</p>
+                </div>
+            </div>
+            <!-- Dimension Grid (JS renders here) -->
+            <div id="dim-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+        </div>
+
+        <!-- Skeleton -->
+        <div id="skeleton-loading" class="hidden">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div class="skeleton-pulse rounded-xl h-24"></div>
+                <div class="skeleton-pulse rounded-xl h-24"></div>
+                <div class="skeleton-pulse rounded-xl h-24"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+                <div class="skeleton-pulse rounded-xl h-64"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/keywords.js"></script>
+</body>
+</html>

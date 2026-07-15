@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>提交公司分析 - GEOrank</title>
+    <meta name="description" content="输入官网后，由 AI 解析一级目录并优选关键页面，再提交后台审核。">
+    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div id="header-container"></div>
+
+    <main class="pt-24 md:pt-28 pb-20 max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
+            <section class="lg:col-span-8 space-y-6">
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 md:p-8 shadow-[0_24px_80px_rgba(15,23,42,0.06)]">
+                    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div class="space-y-3">
+                            <div class="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-bold tracking-[0.16em] uppercase text-primary">
+                                <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                                AI 公司分析台
+                            </div>
+                            <div>
+                                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight font-headline text-slate-950">公司官网解析与提交</h1>
+                                <p class="mt-3 max-w-2xl text-sm md:text-base leading-7 text-slate-500">
+                                    系统会先抓取官网首页与一级目录，再由 AI 优选不超过 3 个关键页面做企业信息抽取。你确认结果后，才会正式提交后台审核。
+                                </p>
+                            </div>
+                        </div>
+                        <a href="/" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary transition-colors">
+                            <span class="material-symbols-outlined text-base">arrow_back</span>
+                            返回首页
+                        </a>
+                    </div>
+
+                    <div class="mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 md:flex-row md:items-center md:justify-between">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <div class="w-11 h-11 shrink-0 rounded-2xl bg-primary/10 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary">language</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400">目标官网</p>
+                                <p id="analysis-url" class="truncate text-sm md:text-base font-semibold text-slate-900">等待输入网址...</p>
+                            </div>
+                        </div>
+                        <div id="analysis-badge" class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
+                            <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                            待开始
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+                    <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <p class="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400">AI 分析动态</p>
+                            <h2 class="mt-2 text-xl font-bold font-headline text-slate-950">官网解析进度</h2>
+                            <p id="analysis-note" class="mt-2 text-sm text-slate-500">准备抓取首页并识别一级目录链接。</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 self-start mt-1">
+                            <span class="w-2 h-2 rounded-full bg-primary/70 animate-pulse"></span>
+                            <span class="w-2 h-2 rounded-full bg-primary/40 animate-pulse [animation-delay:0.2s]"></span>
+                            <span class="w-2 h-2 rounded-full bg-primary/25 animate-pulse [animation-delay:0.4s]"></span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                        <p id="analysis-activity" class="text-sm font-semibold text-slate-800">等待开始分析...</p>
+                        <div id="analysis-feed" class="mt-4 space-y-3"></div>
+                    </div>
+
+                    <div class="mt-5 grid gap-4" id="analysis-steps">
+                        <div class="flex items-center gap-4" data-step="crawl">
+                            <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-slate-400 text-lg">travel_explore</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-slate-900">解析官网入口</p>
+                                <p class="text-xs text-slate-500">抓取首页并提取一级目录 URL 与标题，交给 AI 判断优先级</p>
+                            </div>
+                            <span class="material-symbols-outlined text-slate-300 text-lg step-icon">circle</span>
+                        </div>
+                        <div class="flex items-center gap-4" data-step="clean">
+                            <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-slate-400 text-lg">data_object</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-slate-900">抽取企业信息</p>
+                                <p class="text-xs text-slate-500">抓取 AI 选中的关键页面并提炼介绍、产品与团队信息</p>
+                            </div>
+                            <span class="material-symbols-outlined text-slate-300 text-lg step-icon">circle</span>
+                        </div>
+                        <div class="flex items-center gap-4" data-step="graph">
+                            <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-slate-400 text-lg">hub</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-slate-900">知识图谱构建</p>
+                                <p class="text-xs text-slate-500">梳理实体关系、产品能力与结构化知识图谱</p>
+                            </div>
+                            <span class="material-symbols-outlined text-slate-300 text-lg step-icon">circle</span>
+                        </div>
+                        <div class="flex items-center gap-4" data-step="vector">
+                            <div class="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-slate-400 text-lg">neurology</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-slate-900">向量化知识库</p>
+                                <p class="text-xs text-slate-500">将内容映射到语义索引，支持检索与相似推荐</p>
+                            </div>
+                            <span class="material-symbols-outlined text-slate-300 text-lg step-icon">circle</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="selected-pages-panel" class="hidden rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400">AI 优选页面</p>
+                            <h2 class="mt-2 text-xl font-bold font-headline text-slate-950">已锁定的关键页面</h2>
+                        </div>
+                        <div id="selected-pages-count" class="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">0 页</div>
+                    </div>
+                    <p class="mt-3 text-sm text-slate-500">系统会从首页一级目录中选择不超过 3 个最适合构建企业知识库的页面，通常包含主页、公司介绍和团队或产品页。</p>
+                    <div id="selected-pages-list" class="mt-5 grid gap-3"></div>
+                </div>
+
+                <div id="company-preview-card" class="hidden rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+                    <p class="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400">分析结果摘要</p>
+                    <h2 id="preview-company-name" class="mt-2 text-2xl font-bold font-headline text-slate-950">正在生成企业摘要...</h2>
+                    <p id="preview-company-summary" class="mt-3 text-sm leading-7 text-slate-500">AI 正在整理官网信息，稍后这里会展示提炼后的企业简介。</p>
+                </div>
+            </section>
+
+            <aside class="lg:col-span-4 space-y-6">
+                <div class="rounded-3xl border border-slate-200 bg-white p-6">
+                    <p class="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400">当前状态</p>
+                    <div id="review-status-card" class="mt-4 rounded-2xl bg-slate-50 p-4">
+                        <p id="review-status-title" class="text-base font-bold text-slate-900">等待开始</p>
+                        <p id="review-status-copy" class="mt-2 text-sm leading-6 text-slate-500">提交网址后将开启一轮完整的官网解析与知识库构建流程。</p>
+                    </div>
+                    <div class="mt-5 grid gap-3">
+                        <button id="submit-review-btn" class="hidden w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white hover:bg-primary/90 transition-colors">
+                            提交审核
+                        </button>
+                        <a id="open-admin-review-btn" href="/admin/companies" target="_blank" rel="noreferrer" class="hidden inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors">
+                            前往后台审核
+                        </a>
+                        <button id="refresh-analysis-btn" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors">
+                            刷新进度
+                        </button>
+                        <a href="/" class="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors">
+                            返回公司首页
+                        </a>
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6">
+                    <p class="text-[11px] font-bold tracking-[0.16em] uppercase text-slate-400">提交流程</p>
+                    <ol class="mt-4 space-y-4 text-sm text-slate-600">
+                        <li class="flex items-start gap-3">
+                            <span class="inline-flex w-7 h-7 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">1</span>
+                            <span>AI 先分析官网首页与一级目录，锁定关键页面。</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="inline-flex w-7 h-7 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">2</span>
+                            <span>系统构建企业知识库，但仍保持草稿，不直接出现在前台。</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <span class="inline-flex w-7 h-7 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">3</span>
+                            <span>你确认分析结果后点击“提交审核”，后台审核通过才会正式展示。</span>
+                        </li>
+                    </ol>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <div id="footer-container"></div>
+
+    <script src="/js/common.js?v=20260616-analytics-inject"></script>
+    <script src="/js/company-submit-page.js"></script>
+</body>
+</html>

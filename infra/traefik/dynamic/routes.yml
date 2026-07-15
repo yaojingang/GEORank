@@ -1,0 +1,28 @@
+http:
+  routers:
+    # API 路由（高优先级，先匹配 /api）
+    api:
+      rule: "Path(`/api`) || PathPrefix(`/api/`)"
+      service: api-svc
+      priority: 10
+      entryPoints:
+        - web
+
+    # 前端静态服务（catch-all，低优先级）
+    frontend:
+      rule: "PathPrefix(`/`)"
+      service: frontend-svc
+      priority: 1
+      entryPoints:
+        - web
+
+  services:
+    frontend-svc:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
+
+    api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://api:8000"

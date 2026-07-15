@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <title>教程管理 - Admin | GEOrank</title>
+    <style>body{opacity:0}</style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <script src="../js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="../css/admin.css?v=20260615-admin-kami-controls">
+</head>
+<body class="bg-slate-50 text-on-surface antialiased">
+    <div class="admin-layout">
+        <aside id="admin-sidebar" class="admin-sidebar"></aside>
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <div class="admin-main">
+            <div id="admin-topbar"></div>
+
+            <main class="p-6 lg:p-8 space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-extrabold font-headline tracking-tight">教程管理</h1>
+                        <p class="text-sm text-on-surface-variant mt-1">管理前台教程、方案模板与白皮书等知识资产，并预览已发布内容</p>
+                    </div>
+                    <a id="btn-new-content" href="./tutorials-edit" class="btn btn-primary px-5 py-2.5 rounded-lg text-sm flex items-center gap-2 self-start">
+                        <span class="material-symbols-outlined text-sm">add</span>
+                        新建教程
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-xl">menu_book</span>
+                            </div>
+                            <span class="badge badge-info">教程</span>
+                        </div>
+                        <p id="content-stat-total" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">教程总数</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-green-600 text-xl">publish</span>
+                            </div>
+                            <span class="badge badge-success">发布</span>
+                        </div>
+                        <p id="content-stat-published" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">已发布教程</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-orange-500 text-xl">draft</span>
+                            </div>
+                            <span class="badge badge-warning">草稿</span>
+                        </div>
+                        <p id="content-stat-draft" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">待完善资产</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-purple-600 text-xl">visibility</span>
+                            </div>
+                            <span class="badge badge-neutral">曝光</span>
+                        </div>
+                        <p id="content-stat-views" class="text-2xl font-extrabold tracking-tight">--</p>
+                        <p class="text-xs text-on-surface-variant mt-1 font-medium">累计浏览量</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-100 p-4 flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                    <div class="admin-content-tabs flex items-center gap-1 bg-slate-50 rounded-lg p-1">
+                        <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-medium text-on-surface-variant hover:bg-white transition-colors" data-type="">全部</button>
+                        <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-semibold bg-white shadow-sm text-on-surface" data-type="tutorial">教程</button>
+                        <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-medium text-on-surface-variant hover:bg-white transition-colors" data-type="template">方案模板</button>
+                        <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-medium text-on-surface-variant hover:bg-white transition-colors" data-type="whitepaper">白皮书</button>
+                        <button class="tab-btn px-3 py-1.5 rounded-md text-sm font-medium text-on-surface-variant hover:bg-white transition-colors" data-type="announcement">公告</button>
+                    </div>
+                    <div class="flex-1 flex items-center bg-slate-50 rounded-lg px-3 border border-slate-100">
+                        <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
+                        <input id="content-search" type="text" placeholder="搜索标题、slug 或标签..." class="bg-transparent border-none focus:ring-0 text-sm w-full py-2.5 placeholder:text-slate-400">
+                    </div>
+                    <select id="content-status-filter" class="form-input w-auto text-sm py-2.5">
+                        <option value="">全部状态</option>
+                        <option value="published">已发布</option>
+                        <option value="draft">草稿</option>
+                        <option value="archived">已归档</option>
+                    </select>
+                    <button id="content-refresh" class="btn admin-btn-secondary px-4 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">refresh</span>
+                        刷新
+                    </button>
+                </div>
+
+                <div class="admin-list-layout">
+                    <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                        <div class="flex items-center justify-between px-6 py-5 border-b border-slate-50">
+                            <div>
+                                <h3 class="text-base font-bold font-headline">知识资产列表</h3>
+                                <p class="text-xs text-on-surface-variant mt-1">按教程、模板、白皮书与公告统一管理，点击预览按钮查看内容效果</p>
+                            </div>
+                        </div>
+                        <table id="content-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>标题</th>
+                                    <th>类型</th>
+                                    <th>状态</th>
+                                    <th>阅读时间</th>
+                                    <th>浏览量</th>
+                                    <th>更新时间</th>
+                                    <th class="text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="content-tbody">
+                                <tr><td colspan="7" class="text-center py-12 text-slate-400 text-sm">加载中...</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-50 text-sm">
+                            <span id="content-pagination-info" class="text-on-surface-variant">--</span>
+                            <div id="content-pagination" class="flex items-center gap-1"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-100 p-6 admin-detail-panel admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="content-preview-title" hidden>
+                        <div class="flex items-center justify-between mb-5">
+                            <h3 id="content-preview-title" class="text-base font-bold font-headline">内容预览</h3>
+                            <div class="flex items-center gap-2">
+                                <span id="content-detail-badge" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">未选中</span>
+                                <button type="button" class="admin-preview-close" data-preview-close title="关闭预览">
+                                    <span class="material-symbols-outlined text-base">close</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="content-detail" class="space-y-4">
+                            <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-6 text-sm text-slate-400">
+                                点击列表中的预览按钮，查看标签、阅读信息与渲染后的预览内容。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="../js/admin.js?v=20260615-admin-entry-path"></script>
+</body>
+</html>
