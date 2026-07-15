@@ -6,7 +6,7 @@ services:
 
   # ---------- 1. 反向代理 / API Gateway ----------
   traefik:
-    image: traefik:v3.1.7@sha256:74d72c7a1345984f186bddbabcc462b2128d0d8054177dc84afaeac4db1f0f56
+    image: traefik:v3.7.0@sha256:eb328e2c806c53aafbbace6c451fa54d268961261a85452fcf0fb752a30c17be
     restart: always
     ports:
       - "${GEORANK_HTTP_PORT:-80}:80"
