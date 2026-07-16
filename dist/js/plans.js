@@ -1,7 +1,8 @@
 /**
  * Plans Page - GEO 方案生成器
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = '';
@@ -631,4 +632,4 @@ ${state.companyId ? `已关联公司 ID：${state.companyId}` : ''}`;
         div.textContent = value == null ? '' : String(value);
         return div.innerHTML;
     }
-})();
+});

@@ -1,19 +1,30 @@
 """
 全局配置 — 从环境变量 / .env 文件加载
 """
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 from sqlalchemy.engine import URL
 from typing import List
 import hashlib
 import base64
+from urllib.parse import urlparse
 
 
 class Settings(BaseSettings):
     # ----- 基础 -----
     APP_NAME: str = "GEOrank"
-    DEBUG: bool = True
+    DEBUG: bool = False
     SECRET_KEY: str = "change-me-in-production"
     SETTINGS_ENCRYPTION_KEY: str = ""
+    PUBLIC_BASE_URL: str = "http://localhost:3009"
+    TRUSTED_HOSTS: List[str] = [
+        "localhost",
+        "127.0.0.1",
+        "testserver",
+        "api",
+        "app.georank.com",
+        "*.georank.com",
+    ]
 
     # ----- CORS -----
     CORS_ORIGINS: List[str] = ["http://localhost:8899", "http://localhost:80", "http://localhost", "http://127.0.0.1"]
@@ -61,8 +72,14 @@ class Settings(BaseSettings):
 
     # ----- MinIO 对象存储 -----
     MINIO_ENDPOINT: str = "minio:9000"
-    MINIO_ACCESS_KEY: str = "change-me-minio-access-key"
-    MINIO_SECRET_KEY: str = "change-me-minio-secret-key"
+    MINIO_ACCESS_KEY: str = Field(
+        default="change-me-minio-access-key",
+        validation_alias=AliasChoices("MINIO_ACCESS_KEY", "MINIO_USER"),
+    )
+    MINIO_SECRET_KEY: str = Field(
+        default="change-me-minio-secret-key",
+        validation_alias=AliasChoices("MINIO_SECRET_KEY", "MINIO_PASSWORD"),
+    )
     MINIO_BUCKET: str = "georank-assets"
 
     # ----- AI / LLM -----
@@ -115,6 +132,31 @@ class Settings(BaseSettings):
     @property
     def settings_encryption_key_b64(self) -> str:
         return base64.urlsafe_b64encode(self.settings_encryption_key_bytes).decode("ascii")
+
+    def validate_production_security(self) -> None:
+        """Fail closed when production is started with development secrets/origin."""
+        if self.DEBUG:
+            return
+
+        weak_values = {"", "change-me-in-production", "change-me-jwt-secret"}
+        problems: list[str] = []
+        if self.SECRET_KEY in weak_values or len(self.SECRET_KEY) < 32:
+            problems.append("SECRET_KEY 必须使用至少 32 字符的随机值")
+        if self.JWT_SECRET in weak_values or len(self.JWT_SECRET) < 32:
+            problems.append("JWT_SECRET 必须使用至少 32 字符的独立随机值")
+        if (
+            not self.SETTINGS_ENCRYPTION_KEY
+            or self.SETTINGS_ENCRYPTION_KEY.startswith("change-me")
+            or len(self.SETTINGS_ENCRYPTION_KEY) < 32
+            or self.SETTINGS_ENCRYPTION_KEY in {self.SECRET_KEY, self.JWT_SECRET}
+        ):
+            problems.append("SETTINGS_ENCRYPTION_KEY 必须使用至少 32 字符的独立随机值")
+
+        public_origin = urlparse(self.PUBLIC_BASE_URL)
+        if public_origin.scheme != "https" or not public_origin.hostname:
+            problems.append("PUBLIC_BASE_URL 在生产环境必须是完整的 HTTPS 地址")
+        if problems:
+            raise RuntimeError("生产环境安全配置无效：" + "；".join(problems))
 
     class Config:
         env_file = ".env"

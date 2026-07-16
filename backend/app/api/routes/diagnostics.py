@@ -3,22 +3,23 @@ GEO 诊断 API — 提交 URL → 爬取 → 分析 → 报告
 """
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 
 from app.core.deps import DbSession, CurrentUser, OptionalUser
 from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
 from app.services.company_ingest import normalize_company_url
-from app.services.ai_usage import resolve_async_ai_access
+from app.services.ai_usage import release_ai_access, resolve_async_ai_access
 from app.schemas.diagnostic import (
     DiagnoseRequest, DiagnoseResponse, DiagnosticReportResponse, DiagnosticHistoryItem,
 )
 
 router = APIRouter()
+_QUEUE_DISPATCH_ERROR = "诊断任务创建失败，请稍后重试。"
 
 
 @router.post("/", response_model=DiagnoseResponse)
-async def start_diagnosis(data: DiagnoseRequest, db: DbSession, current_user: OptionalUser):
+async def start_diagnosis(data: DiagnoseRequest, request: Request, db: DbSession, current_user: OptionalUser):
     """
     开始 GEO 诊断：
     1. 创建 DiagnosticReport 记录 (pending)
@@ -31,11 +32,12 @@ async def start_diagnosis(data: DiagnoseRequest, db: DbSession, current_user: Op
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     company_id = uuid.UUID(data.company_id) if data.company_id else None
-    await resolve_async_ai_access(
+    access = await resolve_async_ai_access(
         db=db,
         current_user=current_user,
         module="diagnostics",
         prompt_text=f"{normalized_url}\n{data.company_id or ''}",
+        request=request,
     )
 
     report = DiagnosticReport(
@@ -43,19 +45,37 @@ async def start_diagnosis(data: DiagnoseRequest, db: DbSession, current_user: Op
         company_id=company_id,
         status=DiagnosticStatus.PENDING,
         user_id=current_user.id if current_user else None,
+        ai_reservation_id=access.reservation_id,
     )
     db.add(report)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        await release_ai_access(db, access, error_code="diagnostic_record_create_failed")
+        await db.commit()
+        raise
     await db.refresh(report)
 
     # 触发 Celery 任务：先爬取页面，再进入 analyze_page
+    queue_failed = False
     try:
         from app.core.celery_app import celery_app
-        celery_app.send_task("app.tasks.crawl.crawl_diagnostic_page", args=[str(report.id), normalized_url])
+        celery_app.send_task(
+            "app.tasks.crawl.crawl_diagnostic_page",
+            args=[str(report.id), normalized_url, str(access.reservation_id)],
+        )
     except Exception:
-        pass
+        queue_failed = True
+        report.status = DiagnosticStatus.FAILED
+        report.error_message = _QUEUE_DISPATCH_ERROR
+        await release_ai_access(db, access, error_code="queue_dispatch_failed")
+        await db.commit()
 
-    return DiagnoseResponse(report_id=str(report.id), status="pending")
+    return DiagnoseResponse(
+        report_id=str(report.id),
+        status="failed" if queue_failed else "pending",
+    )
 
 
 @router.get("/history")

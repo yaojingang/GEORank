@@ -4,23 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="canonical" href="/companies">
     <title>GEOrank - GEO 智搜优化引擎</title>
     <meta name="description" content="追踪生成式人工智能搜索引擎优化领域的顶尖创新者与技术先锋。">
 
-    <!-- Tailwind CSS -->
-    <!-- 防止 FOUC：Tailwind CDN 是 JS 运行时生成 CSS，加载期间先隐藏 -->
-    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 
-    <!-- Tailwind Configuration -->
-    <script src="/js/tailwind.config.js"></script>
-
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <!-- 首屏样式必须在绘制前可用，避免 Tailwind 运行时注入造成布局闪跳 -->
+    <link rel="stylesheet" href="/css/common.css?v=20260716-first-paint-lifecycle">
+    <link rel="stylesheet" href="/css/index-tailwind.css?v=20260716-first-paint">
 </head>
 <body class="bg-white text-on-surface antialiased">
     <!-- Header Container -->
@@ -38,11 +32,14 @@
                         <p class="text-on-surface-variant max-w-md" data-site-description>追踪生成式人工智能搜索引擎优化领域的顶尖创新者与技术先锋。</p>
                     </div>
                     <div class="flex items-center gap-4 sm:justify-end">
-                        <button id="company-sort-newest" data-company-sort="newest" class="text-sm font-semibold text-primary flex items-center gap-1">
+                        <button id="company-sort-newest" data-company-sort="newest" type="button" aria-pressed="true" class="company-sort-control text-sm font-semibold text-primary flex items-center gap-1">
                             最新发布
-                            <span class="material-symbols-outlined text-sm">expand_more</span>
+                            <span data-company-sort-indicator class="material-symbols-outlined text-sm" aria-hidden="true">check</span>
                         </button>
-                        <button id="company-sort-upvotes" data-company-sort="upvotes" class="text-sm font-semibold text-neutral-400 hover:text-neutral-900 transition-colors">历史热门</button>
+                        <button id="company-sort-views" data-company-sort="views" type="button" aria-pressed="false" class="company-sort-control text-sm font-semibold text-neutral-400 hover:text-neutral-900 transition-colors">
+                            历史热门
+                            <span data-company-sort-indicator class="material-symbols-outlined hidden text-sm" aria-hidden="true">check</span>
+                        </button>
                     </div>
                 </div>
             </section>
@@ -132,7 +129,7 @@
             <section>
                 <div class="flex justify-between items-center mb-4 px-2">
                     <h5 class="text-xs font-bold tracking-widest uppercase text-slate-400">热门公司</h5>
-                    <a href="/company" class="text-[10px] font-bold text-primary uppercase">全部</a>
+                    <a href="/companies" class="text-[10px] font-bold text-primary uppercase">全部</a>
                 </div>
                 <div id="hot-companies-list" class="space-y-3">
                     <span class="px-3 py-4 text-sm text-slate-400 border border-dashed border-slate-200 rounded-xl block">正在加载热门公司...</span>
@@ -279,8 +276,8 @@
     <div id="footer-container"></div>
 
     <!-- Scripts -->
-    <script src="/js/common.js?v=20260616-analytics-inject"></script>
-    <script src="/js/index.js"></script>
-    <script src="/js/submit-company.js"></script>
+    <script src="/js/common.js?v=20260716-first-paint-lifecycle"></script>
+    <script src="/js/index.js?v=20260716-first-paint-lifecycle"></script>
+    <script src="/js/submit-company.js?v=20260716-first-paint-lifecycle"></script>
 </body>
 </html>

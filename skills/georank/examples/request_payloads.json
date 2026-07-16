@@ -1,0 +1,39 @@
+{
+  "evidence_label": "file-backed fixture",
+  "input_files": {
+    "user_diagnosis": {
+      "url": "https://example.com"
+    },
+    "user_keyword_expand": {
+      "seeds": [
+        "GEO software",
+        "AI search visibility"
+      ]
+    },
+    "admin_frontend_modules": {
+      "default_module": "companies",
+      "modules": [
+        {
+          "key": "companies",
+          "enabled": true
+        },
+        {
+          "key": "diagnostic",
+          "enabled": true
+        },
+        {
+          "key": "solutions",
+          "enabled": true
+        },
+        {
+          "key": "keywords",
+          "enabled": true
+        }
+      ]
+    }
+  },
+  "notes": [
+    "Copy one named object into a separate JSON file before sending it as an API body.",
+    "Fixtures contain no credentials, private user data, or production identifiers."
+  ]
+}

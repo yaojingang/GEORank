@@ -1,0 +1,2704 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "generated_at": "2026-07-16",
+  "skill_dir": "[workspace]/skills/georank",
+  "summary": {
+    "target_count": 5,
+    "pass_count": 5,
+    "warn_count": 0,
+    "block_count": 0,
+    "failure_count": 0,
+    "warning_count": 0
+  },
+  "targets": [
+    {
+      "schema_version": "1.0",
+      "target": "openai",
+      "status": "pass",
+      "compiler": {
+        "name": "yao-skill-ir-compiler",
+        "schema_version": "1.0",
+        "source": "skill-ir",
+        "ir_source": "reports/skill-ir.json",
+        "ir_schema_version": "2.0.0"
+      },
+      "source": {
+        "skill_dir": "[workspace]/skills/georank",
+        "canonical_metadata": "agents/interface.yaml",
+        "declared_targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ]
+      },
+      "compiled_contract": {
+        "name": "georank",
+        "title": "GEOrank 管理助手",
+        "version": "0.1.0",
+        "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+        "job_to_be_done": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+        "trigger": {
+          "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "should_trigger": [
+            "登录我的 GEOrank 账号，然后查看当前用户信息。",
+            "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+            "用 GEOrank 跑一次网站诊断并读取报告。",
+            "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+            "在 GEOrank 里扩展这组关键词。",
+            "列出 GEOrank 后台待审核的公司。",
+            "把这个 GEOrank 用户停用，先给我看变更预检。",
+            "更新 GEOrank 的模型 Provider 配置。"
+          ],
+          "should_not_trigger": [
+            "解释 GEO 和 SEO 有什么区别。",
+            "为这个品牌写一篇 GEO 排名文章。",
+            "给我制定生成式引擎优化策略。",
+            "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+            "修复 GEOrank 后端测试失败。",
+            "重构 GEOrank 的管理员前端组件。",
+            "Review this GEOrank pull request.",
+            "Deploy an unrelated FastAPI service.",
+            "general GEO or SEO explanation",
+            "GEO strategy creation"
+          ],
+          "edge_cases": [
+            "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+            "帮我设计一个类似 GEOrank 的 GEO 产品。",
+            "读取 GEOrank 仓库并给架构建议。",
+            "生成一份可以手工导入 GEOrank 的关键词清单。",
+            "写 GEOrank 的发布说明。",
+            "帮我安装 GEOrank，但先不要登录或管理实例。"
+          ]
+        },
+        "workflow": {
+          "steps": [
+            "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+            "Resolve authentication:",
+            "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+            "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+            "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.",
+            "Read `references/user-capabilities.md` for public and user-owned operations. Read `references/admin-capabilities.md` only for administrator requests.",
+            "For reads, call the API directly with `scripts/georank_client.py call GET <path>`.",
+            "For writes, run the same command without `--execute` first and show the preflight result. Execute only after the user's request clearly authorizes that exact change.",
+            "Before any administrator mutation, read `references/safety-policy.md` and supply its required confirmation phrase. Never infer administrator authority from the wording of a request.",
+            "Return an execution receipt containing the action, status, resource identifiers, request ID when present, and the next safe step. Remove passwords, tokens, API keys, and other secrets from all output."
+          ],
+          "decision_points": [
+            "detected access level: public, user, or admin",
+            "operation and target resource",
+            "dry-run or executed status",
+            "API status, resource IDs, and request ID when available",
+            "redacted change summary and next step",
+            "rollback guidance for administrator changes",
+            "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+            "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+            "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+          ],
+          "failure_modes": [
+            "Commands can omit environment assumptions, working directory, or rollback notes.",
+            "Code snippets can look runnable while missing required inputs.",
+            "Headings and summaries can drift into generic, interchangeable language.",
+            "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+            "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+            "Long bullets can make the output look complete while hiding the actual decision logic.",
+            "Users start invoking the skill for adjacent one-off or explanation-only requests.",
+            "Outputs remain valid but become generic, cluttered, or weakly aligned with the user's domain.",
+            "Borrowed benchmark patterns no longer fit the local job or add ceremony without payoff.",
+            "Skill usage becomes team-critical while ownership, review cadence, or rollback evidence stays informal."
+          ]
+        },
+        "resources": {
+          "references": [
+            "references/admin-capabilities.md",
+            "references/safety-policy.md",
+            "references/user-capabilities.md"
+          ],
+          "scripts": [
+            "scripts/georank_client.py"
+          ],
+          "assets": [],
+          "reports": [
+            "reports/intent-context.json",
+            "reports/intent-confidence.json",
+            "reports/intent-confidence.md",
+            "reports/output-risk-profile.json",
+            "reports/output-risk-profile.md",
+            "reports/system-model.json",
+            "reports/system-model.md",
+            "reports/skill-overview.json",
+            "reports/skill-overview.html",
+            "reports/output_quality_scorecard.json",
+            "reports/output_quality_scorecard.md",
+            "reports/output_blind_review_pack.json",
+            "reports/output_blind_review_pack.md",
+            "reports/output_blind_answer_key.json",
+            "reports/review_annotations.md",
+            "reports/conformance_matrix.json",
+            "reports/conformance_matrix.md",
+            "reports/security_trust_report.json",
+            "reports/security_trust_report.md",
+            "reports/runtime_permission_probes.json",
+            "reports/runtime_permission_probes.md",
+            "reports/skill_atlas.json",
+            "reports/skill_atlas.html"
+          ],
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          }
+        },
+        "eval_plan": {
+          "trigger": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json",
+            "evals/semantic_config.json",
+            "evals/trigger_cases.json"
+          ],
+          "output": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json"
+          ],
+          "adversarial": [],
+          "baseline": "without_skill",
+          "counts": {
+            "trigger": 4,
+            "output": 2,
+            "adversarial": 0,
+            "baseline": 1
+          }
+        },
+        "risk": {
+          "output_risk": "medium",
+          "execution_risk": "medium",
+          "trust_boundary": "external"
+        },
+        "governance": {
+          "owner": "GEOrank Maintainers",
+          "maturity": "governed",
+          "review_cadence": "monthly",
+          "review_due": "2026-08-16"
+        },
+        "runtime": {
+          "activation": {
+            "mode": "manual",
+            "paths": []
+          },
+          "execution": {
+            "context": "inline",
+            "shell": "bash"
+          },
+          "trust": {
+            "source_tier": "local",
+            "remote_inline_execution": "forbid",
+            "remote_metadata_policy": "allow-metadata-only"
+          },
+          "adapter_targets": [
+            "openai",
+            "claude",
+            "generic",
+            "vscode"
+          ],
+          "canonical_format": "agent-skills"
+        },
+        "permissions": {
+          "schema_version": "1.0",
+          "source": "reports/security_trust_report.json",
+          "source_available": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true,
+          "capabilities": {
+            "network": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Outbound hosts must match security/network_policy.json."
+            },
+            "file_write": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts write local files or generated artifacts."
+            },
+            "subprocess": {
+              "required": false,
+              "script_count": 0,
+              "scripts": [],
+              "review_reason": ""
+            },
+            "interactive": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts prompt for user input or credentials."
+            }
+          },
+          "network_policy": {
+            "source": "security/network_policy.json",
+            "covered_scripts": [
+              "scripts/georank_client.py"
+            ],
+            "missing_scripts": [],
+            "mismatches": []
+          },
+          "help_smoke": {
+            "enabled": true,
+            "checked_count": 1,
+            "failed_count": 0,
+            "failed_scripts": []
+          },
+          "trust_summary": {
+            "secret_findings": 0,
+            "network_script_count": 1,
+            "file_write_script_count": 1,
+            "subprocess_script_count": 0,
+            "interactive_script_count": 1,
+            "help_smoke_failed_count": 0
+          }
+        },
+        "source_files_count": 6,
+        "target": "openai",
+        "target_permission_contract": {
+          "schema_version": "1.0",
+          "target": "openai",
+          "permission_model": "metadata-only",
+          "native_enforcement": false,
+          "representation": "targets/openai/agents/openai.yaml::compatibility.permission_contract plus adapter.json",
+          "review_required": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "capability_counts": {
+            "network": 1,
+            "file_write": 1,
+            "subprocess": 0,
+            "interactive": 1
+          },
+          "evidence": "reports/security_trust_report.json",
+          "operator_note": "OpenAI target carries permission metadata for reviewer visibility; host enforcement remains outside the package."
+        },
+        "target_native_contract": {
+          "schema_version": "1.0",
+          "target": "openai",
+          "native_surface": "OpenAI-style interface metadata plus neutral Agent Skills source",
+          "activation": {
+            "policy": "Use frontmatter description for catalog routing and targets/openai/agents/openai.yaml for display name, default prompt, and compatibility metadata.",
+            "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+            "manual_activation_supported": true,
+            "automatic_activation_note": "Depends on the target client route/catalog implementation."
+          },
+          "resources": {
+            "strategy": "Ship the neutral source tree and expose OpenAI-facing interface metadata as a generated companion file.",
+            "counts": {
+              "references": 3,
+              "scripts": 1,
+              "assets": 0,
+              "reports": 23
+            },
+            "generated_files": [
+              "targets/openai/adapter.json",
+              "targets/openai/agents/openai.yaml"
+            ]
+          },
+          "scripts": {
+            "strategy": "Keep scripts as local package resources; expose help-smoke and permission metadata for reviewer approval before execution.",
+            "script_count": 1,
+            "help_smoke_failed_count": 0
+          },
+          "permissions": {
+            "enforcement": "metadata-only",
+            "native_enforcement": false,
+            "declared_capabilities": [
+              "network",
+              "file_write",
+              "interactive"
+            ],
+            "review_required": true
+          },
+          "review": {
+            "artifacts": [
+              "targets/openai/agents/openai.yaml",
+              "targets/openai/adapter.json",
+              "reports/review-studio.html"
+            ],
+            "fallback_behavior": "If OpenAI-native metadata is ignored, the package remains readable as neutral Agent Skills source.",
+            "unsupported_native_features": [
+              "client-native permission prompts",
+              "provider-executed scripts",
+              "client-native script permission prompts are represented as permission contract metadata"
+            ]
+          },
+          "install_scope": "plugin or skill package consumer"
+        },
+        "degradation_strategy": "metadata-adapter",
+        "target_runtime": {
+          "adapter_mode": "metadata-adapter",
+          "generated_files": [
+            "targets/openai/adapter.json",
+            "targets/openai/agents/openai.yaml"
+          ],
+          "metadata_mapping": {
+            "display_name": "targets/openai/agents/openai.yaml::interface.display_name",
+            "default_prompt": "targets/openai/agents/openai.yaml::interface.default_prompt",
+            "activation": "targets/openai/agents/openai.yaml::compatibility.activation_mode",
+            "execution": "targets/openai/agents/openai.yaml::compatibility.execution_context",
+            "trust": "targets/openai/agents/openai.yaml::compatibility.trust_level",
+            "permissions": "targets/openai/agents/openai.yaml::compatibility.permission_contract",
+            "degradation": "targets/openai/agents/openai.yaml::compatibility.degradation_strategy"
+          },
+          "preserved_semantics": [
+            "trigger",
+            "workflow-counts",
+            "resources",
+            "eval-plan",
+            "risk",
+            "governance",
+            "runtime",
+            "trust",
+            "permissions"
+          ],
+          "native_surface": "OpenAI-style interface metadata plus neutral Agent Skills source"
+        }
+      },
+      "permission_contract": {
+        "schema_version": "1.0",
+        "source": "reports/security_trust_report.json",
+        "source_available": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "review_required": true,
+        "capabilities": {
+          "network": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Outbound hosts must match security/network_policy.json."
+          },
+          "file_write": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts write local files or generated artifacts."
+          },
+          "subprocess": {
+            "required": false,
+            "script_count": 0,
+            "scripts": [],
+            "review_reason": ""
+          },
+          "interactive": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts prompt for user input or credentials."
+          }
+        },
+        "network_policy": {
+          "source": "security/network_policy.json",
+          "covered_scripts": [
+            "scripts/georank_client.py"
+          ],
+          "missing_scripts": [],
+          "mismatches": []
+        },
+        "help_smoke": {
+          "enabled": true,
+          "checked_count": 1,
+          "failed_count": 0,
+          "failed_scripts": []
+        },
+        "trust_summary": {
+          "secret_findings": 0,
+          "network_script_count": 1,
+          "file_write_script_count": 1,
+          "subprocess_script_count": 0,
+          "interactive_script_count": 1,
+          "help_smoke_failed_count": 0
+        }
+      },
+      "target_permission_contract": {
+        "schema_version": "1.0",
+        "target": "openai",
+        "permission_model": "metadata-only",
+        "native_enforcement": false,
+        "representation": "targets/openai/agents/openai.yaml::compatibility.permission_contract plus adapter.json",
+        "review_required": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "capability_counts": {
+          "network": 1,
+          "file_write": 1,
+          "subprocess": 0,
+          "interactive": 1
+        },
+        "evidence": "reports/security_trust_report.json",
+        "operator_note": "OpenAI target carries permission metadata for reviewer visibility; host enforcement remains outside the package."
+      },
+      "target_native_contract": {
+        "schema_version": "1.0",
+        "target": "openai",
+        "native_surface": "OpenAI-style interface metadata plus neutral Agent Skills source",
+        "activation": {
+          "policy": "Use frontmatter description for catalog routing and targets/openai/agents/openai.yaml for display name, default prompt, and compatibility metadata.",
+          "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "manual_activation_supported": true,
+          "automatic_activation_note": "Depends on the target client route/catalog implementation."
+        },
+        "resources": {
+          "strategy": "Ship the neutral source tree and expose OpenAI-facing interface metadata as a generated companion file.",
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          },
+          "generated_files": [
+            "targets/openai/adapter.json",
+            "targets/openai/agents/openai.yaml"
+          ]
+        },
+        "scripts": {
+          "strategy": "Keep scripts as local package resources; expose help-smoke and permission metadata for reviewer approval before execution.",
+          "script_count": 1,
+          "help_smoke_failed_count": 0
+        },
+        "permissions": {
+          "enforcement": "metadata-only",
+          "native_enforcement": false,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true
+        },
+        "review": {
+          "artifacts": [
+            "targets/openai/agents/openai.yaml",
+            "targets/openai/adapter.json",
+            "reports/review-studio.html"
+          ],
+          "fallback_behavior": "If OpenAI-native metadata is ignored, the package remains readable as neutral Agent Skills source.",
+          "unsupported_native_features": [
+            "client-native permission prompts",
+            "provider-executed scripts",
+            "client-native script permission prompts are represented as permission contract metadata"
+          ]
+        },
+        "install_scope": "plugin or skill package consumer"
+      },
+      "target_transform": {
+        "target": "openai",
+        "adapter_mode": "metadata-adapter",
+        "generated_files": [
+          "targets/openai/adapter.json",
+          "targets/openai/agents/openai.yaml"
+        ],
+        "metadata_mapping": {
+          "display_name": "targets/openai/agents/openai.yaml::interface.display_name",
+          "default_prompt": "targets/openai/agents/openai.yaml::interface.default_prompt",
+          "activation": "targets/openai/agents/openai.yaml::compatibility.activation_mode",
+          "execution": "targets/openai/agents/openai.yaml::compatibility.execution_context",
+          "trust": "targets/openai/agents/openai.yaml::compatibility.trust_level",
+          "permissions": "targets/openai/agents/openai.yaml::compatibility.permission_contract",
+          "degradation": "targets/openai/agents/openai.yaml::compatibility.degradation_strategy"
+        },
+        "preserved_semantics": [
+          "trigger",
+          "workflow-counts",
+          "resources",
+          "eval-plan",
+          "risk",
+          "governance",
+          "runtime",
+          "trust",
+          "permissions"
+        ],
+        "degradation_strategy": "metadata-adapter",
+        "permission_representation": "targets/openai/agents/openai.yaml::compatibility.permission_contract plus adapter.json",
+        "native_surface": "OpenAI-style interface metadata plus neutral Agent Skills source",
+        "activation_policy": "Use frontmatter description for catalog routing and targets/openai/agents/openai.yaml for display name, default prompt, and compatibility metadata.",
+        "resource_strategy": "Ship the neutral source tree and expose OpenAI-facing interface metadata as a generated companion file.",
+        "script_strategy": "Keep scripts as local package resources; expose help-smoke and permission metadata for reviewer approval before execution.",
+        "permission_enforcement": "metadata-only"
+      },
+      "unsupported_features": [
+        "client-native script permission prompts are represented as permission contract metadata"
+      ],
+      "warnings": [],
+      "failures": []
+    },
+    {
+      "schema_version": "1.0",
+      "target": "claude",
+      "status": "pass",
+      "compiler": {
+        "name": "yao-skill-ir-compiler",
+        "schema_version": "1.0",
+        "source": "skill-ir",
+        "ir_source": "reports/skill-ir.json",
+        "ir_schema_version": "2.0.0"
+      },
+      "source": {
+        "skill_dir": "[workspace]/skills/georank",
+        "canonical_metadata": "agents/interface.yaml",
+        "declared_targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ]
+      },
+      "compiled_contract": {
+        "name": "georank",
+        "title": "GEOrank 管理助手",
+        "version": "0.1.0",
+        "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+        "job_to_be_done": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+        "trigger": {
+          "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "should_trigger": [
+            "登录我的 GEOrank 账号，然后查看当前用户信息。",
+            "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+            "用 GEOrank 跑一次网站诊断并读取报告。",
+            "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+            "在 GEOrank 里扩展这组关键词。",
+            "列出 GEOrank 后台待审核的公司。",
+            "把这个 GEOrank 用户停用，先给我看变更预检。",
+            "更新 GEOrank 的模型 Provider 配置。"
+          ],
+          "should_not_trigger": [
+            "解释 GEO 和 SEO 有什么区别。",
+            "为这个品牌写一篇 GEO 排名文章。",
+            "给我制定生成式引擎优化策略。",
+            "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+            "修复 GEOrank 后端测试失败。",
+            "重构 GEOrank 的管理员前端组件。",
+            "Review this GEOrank pull request.",
+            "Deploy an unrelated FastAPI service.",
+            "general GEO or SEO explanation",
+            "GEO strategy creation"
+          ],
+          "edge_cases": [
+            "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+            "帮我设计一个类似 GEOrank 的 GEO 产品。",
+            "读取 GEOrank 仓库并给架构建议。",
+            "生成一份可以手工导入 GEOrank 的关键词清单。",
+            "写 GEOrank 的发布说明。",
+            "帮我安装 GEOrank，但先不要登录或管理实例。"
+          ]
+        },
+        "workflow": {
+          "steps": [
+            "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+            "Resolve authentication:",
+            "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+            "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+            "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.",
+            "Read `references/user-capabilities.md` for public and user-owned operations. Read `references/admin-capabilities.md` only for administrator requests.",
+            "For reads, call the API directly with `scripts/georank_client.py call GET <path>`.",
+            "For writes, run the same command without `--execute` first and show the preflight result. Execute only after the user's request clearly authorizes that exact change.",
+            "Before any administrator mutation, read `references/safety-policy.md` and supply its required confirmation phrase. Never infer administrator authority from the wording of a request.",
+            "Return an execution receipt containing the action, status, resource identifiers, request ID when present, and the next safe step. Remove passwords, tokens, API keys, and other secrets from all output."
+          ],
+          "decision_points": [
+            "detected access level: public, user, or admin",
+            "operation and target resource",
+            "dry-run or executed status",
+            "API status, resource IDs, and request ID when available",
+            "redacted change summary and next step",
+            "rollback guidance for administrator changes",
+            "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+            "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+            "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+          ],
+          "failure_modes": [
+            "Commands can omit environment assumptions, working directory, or rollback notes.",
+            "Code snippets can look runnable while missing required inputs.",
+            "Headings and summaries can drift into generic, interchangeable language.",
+            "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+            "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+            "Long bullets can make the output look complete while hiding the actual decision logic.",
+            "Users start invoking the skill for adjacent one-off or explanation-only requests.",
+            "Outputs remain valid but become generic, cluttered, or weakly aligned with the user's domain.",
+            "Borrowed benchmark patterns no longer fit the local job or add ceremony without payoff.",
+            "Skill usage becomes team-critical while ownership, review cadence, or rollback evidence stays informal."
+          ]
+        },
+        "resources": {
+          "references": [
+            "references/admin-capabilities.md",
+            "references/safety-policy.md",
+            "references/user-capabilities.md"
+          ],
+          "scripts": [
+            "scripts/georank_client.py"
+          ],
+          "assets": [],
+          "reports": [
+            "reports/intent-context.json",
+            "reports/intent-confidence.json",
+            "reports/intent-confidence.md",
+            "reports/output-risk-profile.json",
+            "reports/output-risk-profile.md",
+            "reports/system-model.json",
+            "reports/system-model.md",
+            "reports/skill-overview.json",
+            "reports/skill-overview.html",
+            "reports/output_quality_scorecard.json",
+            "reports/output_quality_scorecard.md",
+            "reports/output_blind_review_pack.json",
+            "reports/output_blind_review_pack.md",
+            "reports/output_blind_answer_key.json",
+            "reports/review_annotations.md",
+            "reports/conformance_matrix.json",
+            "reports/conformance_matrix.md",
+            "reports/security_trust_report.json",
+            "reports/security_trust_report.md",
+            "reports/runtime_permission_probes.json",
+            "reports/runtime_permission_probes.md",
+            "reports/skill_atlas.json",
+            "reports/skill_atlas.html"
+          ],
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          }
+        },
+        "eval_plan": {
+          "trigger": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json",
+            "evals/semantic_config.json",
+            "evals/trigger_cases.json"
+          ],
+          "output": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json"
+          ],
+          "adversarial": [],
+          "baseline": "without_skill",
+          "counts": {
+            "trigger": 4,
+            "output": 2,
+            "adversarial": 0,
+            "baseline": 1
+          }
+        },
+        "risk": {
+          "output_risk": "medium",
+          "execution_risk": "medium",
+          "trust_boundary": "external"
+        },
+        "governance": {
+          "owner": "GEOrank Maintainers",
+          "maturity": "governed",
+          "review_cadence": "monthly",
+          "review_due": "2026-08-16"
+        },
+        "runtime": {
+          "activation": {
+            "mode": "manual",
+            "paths": []
+          },
+          "execution": {
+            "context": "inline",
+            "shell": "bash"
+          },
+          "trust": {
+            "source_tier": "local",
+            "remote_inline_execution": "forbid",
+            "remote_metadata_policy": "allow-metadata-only"
+          },
+          "adapter_targets": [
+            "openai",
+            "claude",
+            "generic",
+            "vscode"
+          ],
+          "canonical_format": "agent-skills"
+        },
+        "permissions": {
+          "schema_version": "1.0",
+          "source": "reports/security_trust_report.json",
+          "source_available": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true,
+          "capabilities": {
+            "network": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Outbound hosts must match security/network_policy.json."
+            },
+            "file_write": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts write local files or generated artifacts."
+            },
+            "subprocess": {
+              "required": false,
+              "script_count": 0,
+              "scripts": [],
+              "review_reason": ""
+            },
+            "interactive": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts prompt for user input or credentials."
+            }
+          },
+          "network_policy": {
+            "source": "security/network_policy.json",
+            "covered_scripts": [
+              "scripts/georank_client.py"
+            ],
+            "missing_scripts": [],
+            "mismatches": []
+          },
+          "help_smoke": {
+            "enabled": true,
+            "checked_count": 1,
+            "failed_count": 0,
+            "failed_scripts": []
+          },
+          "trust_summary": {
+            "secret_findings": 0,
+            "network_script_count": 1,
+            "file_write_script_count": 1,
+            "subprocess_script_count": 0,
+            "interactive_script_count": 1,
+            "help_smoke_failed_count": 0
+          }
+        },
+        "source_files_count": 6,
+        "target": "claude",
+        "target_permission_contract": {
+          "schema_version": "1.0",
+          "target": "claude",
+          "permission_model": "neutral-source-plus-adapter",
+          "native_enforcement": false,
+          "representation": "targets/claude/adapter.json::target_permission_contract and README notes",
+          "review_required": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "capability_counts": {
+            "network": 1,
+            "file_write": 1,
+            "subprocess": 0,
+            "interactive": 1
+          },
+          "evidence": "reports/security_trust_report.json",
+          "operator_note": "Claude-compatible package keeps permission intent in adapter metadata for install review."
+        },
+        "target_native_contract": {
+          "schema_version": "1.0",
+          "target": "claude",
+          "native_surface": "Claude-compatible neutral source folder with adapter notes",
+          "activation": {
+            "policy": "Use SKILL.md frontmatter description as the primary activation contract and adapter.json for review metadata.",
+            "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+            "manual_activation_supported": true,
+            "automatic_activation_note": "Depends on the target client route/catalog implementation."
+          },
+          "resources": {
+            "strategy": "Preserve the source tree directly; write target notes in targets/claude/README.md.",
+            "counts": {
+              "references": 3,
+              "scripts": 1,
+              "assets": 0,
+              "reports": 23
+            },
+            "generated_files": [
+              "targets/claude/adapter.json",
+              "targets/claude/README.md"
+            ]
+          },
+          "scripts": {
+            "strategy": "Scripts remain local package resources and must be reviewed through trust and permission reports before use.",
+            "script_count": 1,
+            "help_smoke_failed_count": 0
+          },
+          "permissions": {
+            "enforcement": "metadata-fallback",
+            "native_enforcement": false,
+            "declared_capabilities": [
+              "network",
+              "file_write",
+              "interactive"
+            ],
+            "review_required": true
+          },
+          "review": {
+            "artifacts": [
+              "targets/claude/README.md",
+              "targets/claude/adapter.json",
+              "reports/review-studio.html"
+            ],
+            "fallback_behavior": "If Claude-specific metadata is not consumed, SKILL.md and references remain the source of truth.",
+            "unsupported_native_features": [
+              "vendor-native permission enforcement",
+              "provider-specific execution transforms",
+              "vendor-native metadata fields are carried as adapter JSON and README notes"
+            ]
+          },
+          "install_scope": "user or project skill directory"
+        },
+        "degradation_strategy": "neutral-source-plus-adapter",
+        "target_runtime": {
+          "adapter_mode": "neutral-source-plus-adapter",
+          "generated_files": [
+            "targets/claude/adapter.json",
+            "targets/claude/README.md"
+          ],
+          "metadata_mapping": {
+            "display_name": "targets/claude/adapter.json::display_name",
+            "default_prompt": "targets/claude/adapter.json::default_prompt",
+            "activation": "targets/claude/adapter.json::activation_mode",
+            "execution": "targets/claude/adapter.json::execution_context",
+            "trust": "targets/claude/adapter.json::trust_level",
+            "permissions": "targets/claude/adapter.json::target_permission_contract",
+            "degradation": "targets/claude/adapter.json::degradation_strategy"
+          },
+          "preserved_semantics": [
+            "trigger",
+            "workflow-counts",
+            "resources",
+            "eval-plan",
+            "risk",
+            "governance",
+            "runtime",
+            "trust",
+            "permissions"
+          ],
+          "native_surface": "Claude-compatible neutral source folder with adapter notes"
+        }
+      },
+      "permission_contract": {
+        "schema_version": "1.0",
+        "source": "reports/security_trust_report.json",
+        "source_available": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "review_required": true,
+        "capabilities": {
+          "network": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Outbound hosts must match security/network_policy.json."
+          },
+          "file_write": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts write local files or generated artifacts."
+          },
+          "subprocess": {
+            "required": false,
+            "script_count": 0,
+            "scripts": [],
+            "review_reason": ""
+          },
+          "interactive": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts prompt for user input or credentials."
+          }
+        },
+        "network_policy": {
+          "source": "security/network_policy.json",
+          "covered_scripts": [
+            "scripts/georank_client.py"
+          ],
+          "missing_scripts": [],
+          "mismatches": []
+        },
+        "help_smoke": {
+          "enabled": true,
+          "checked_count": 1,
+          "failed_count": 0,
+          "failed_scripts": []
+        },
+        "trust_summary": {
+          "secret_findings": 0,
+          "network_script_count": 1,
+          "file_write_script_count": 1,
+          "subprocess_script_count": 0,
+          "interactive_script_count": 1,
+          "help_smoke_failed_count": 0
+        }
+      },
+      "target_permission_contract": {
+        "schema_version": "1.0",
+        "target": "claude",
+        "permission_model": "neutral-source-plus-adapter",
+        "native_enforcement": false,
+        "representation": "targets/claude/adapter.json::target_permission_contract and README notes",
+        "review_required": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "capability_counts": {
+          "network": 1,
+          "file_write": 1,
+          "subprocess": 0,
+          "interactive": 1
+        },
+        "evidence": "reports/security_trust_report.json",
+        "operator_note": "Claude-compatible package keeps permission intent in adapter metadata for install review."
+      },
+      "target_native_contract": {
+        "schema_version": "1.0",
+        "target": "claude",
+        "native_surface": "Claude-compatible neutral source folder with adapter notes",
+        "activation": {
+          "policy": "Use SKILL.md frontmatter description as the primary activation contract and adapter.json for review metadata.",
+          "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "manual_activation_supported": true,
+          "automatic_activation_note": "Depends on the target client route/catalog implementation."
+        },
+        "resources": {
+          "strategy": "Preserve the source tree directly; write target notes in targets/claude/README.md.",
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          },
+          "generated_files": [
+            "targets/claude/adapter.json",
+            "targets/claude/README.md"
+          ]
+        },
+        "scripts": {
+          "strategy": "Scripts remain local package resources and must be reviewed through trust and permission reports before use.",
+          "script_count": 1,
+          "help_smoke_failed_count": 0
+        },
+        "permissions": {
+          "enforcement": "metadata-fallback",
+          "native_enforcement": false,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true
+        },
+        "review": {
+          "artifacts": [
+            "targets/claude/README.md",
+            "targets/claude/adapter.json",
+            "reports/review-studio.html"
+          ],
+          "fallback_behavior": "If Claude-specific metadata is not consumed, SKILL.md and references remain the source of truth.",
+          "unsupported_native_features": [
+            "vendor-native permission enforcement",
+            "provider-specific execution transforms",
+            "vendor-native metadata fields are carried as adapter JSON and README notes"
+          ]
+        },
+        "install_scope": "user or project skill directory"
+      },
+      "target_transform": {
+        "target": "claude",
+        "adapter_mode": "neutral-source-plus-adapter",
+        "generated_files": [
+          "targets/claude/adapter.json",
+          "targets/claude/README.md"
+        ],
+        "metadata_mapping": {
+          "display_name": "targets/claude/adapter.json::display_name",
+          "default_prompt": "targets/claude/adapter.json::default_prompt",
+          "activation": "targets/claude/adapter.json::activation_mode",
+          "execution": "targets/claude/adapter.json::execution_context",
+          "trust": "targets/claude/adapter.json::trust_level",
+          "permissions": "targets/claude/adapter.json::target_permission_contract",
+          "degradation": "targets/claude/adapter.json::degradation_strategy"
+        },
+        "preserved_semantics": [
+          "trigger",
+          "workflow-counts",
+          "resources",
+          "eval-plan",
+          "risk",
+          "governance",
+          "runtime",
+          "trust",
+          "permissions"
+        ],
+        "degradation_strategy": "neutral-source-plus-adapter",
+        "permission_representation": "targets/claude/adapter.json::target_permission_contract and README notes",
+        "native_surface": "Claude-compatible neutral source folder with adapter notes",
+        "activation_policy": "Use SKILL.md frontmatter description as the primary activation contract and adapter.json for review metadata.",
+        "resource_strategy": "Preserve the source tree directly; write target notes in targets/claude/README.md.",
+        "script_strategy": "Scripts remain local package resources and must be reviewed through trust and permission reports before use.",
+        "permission_enforcement": "metadata-fallback"
+      },
+      "unsupported_features": [
+        "vendor-native metadata fields are carried as adapter JSON and README notes"
+      ],
+      "warnings": [],
+      "failures": []
+    },
+    {
+      "schema_version": "1.0",
+      "target": "generic",
+      "status": "pass",
+      "compiler": {
+        "name": "yao-skill-ir-compiler",
+        "schema_version": "1.0",
+        "source": "skill-ir",
+        "ir_source": "reports/skill-ir.json",
+        "ir_schema_version": "2.0.0"
+      },
+      "source": {
+        "skill_dir": "[workspace]/skills/georank",
+        "canonical_metadata": "agents/interface.yaml",
+        "declared_targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ]
+      },
+      "compiled_contract": {
+        "name": "georank",
+        "title": "GEOrank 管理助手",
+        "version": "0.1.0",
+        "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+        "job_to_be_done": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+        "trigger": {
+          "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "should_trigger": [
+            "登录我的 GEOrank 账号，然后查看当前用户信息。",
+            "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+            "用 GEOrank 跑一次网站诊断并读取报告。",
+            "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+            "在 GEOrank 里扩展这组关键词。",
+            "列出 GEOrank 后台待审核的公司。",
+            "把这个 GEOrank 用户停用，先给我看变更预检。",
+            "更新 GEOrank 的模型 Provider 配置。"
+          ],
+          "should_not_trigger": [
+            "解释 GEO 和 SEO 有什么区别。",
+            "为这个品牌写一篇 GEO 排名文章。",
+            "给我制定生成式引擎优化策略。",
+            "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+            "修复 GEOrank 后端测试失败。",
+            "重构 GEOrank 的管理员前端组件。",
+            "Review this GEOrank pull request.",
+            "Deploy an unrelated FastAPI service.",
+            "general GEO or SEO explanation",
+            "GEO strategy creation"
+          ],
+          "edge_cases": [
+            "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+            "帮我设计一个类似 GEOrank 的 GEO 产品。",
+            "读取 GEOrank 仓库并给架构建议。",
+            "生成一份可以手工导入 GEOrank 的关键词清单。",
+            "写 GEOrank 的发布说明。",
+            "帮我安装 GEOrank，但先不要登录或管理实例。"
+          ]
+        },
+        "workflow": {
+          "steps": [
+            "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+            "Resolve authentication:",
+            "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+            "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+            "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.",
+            "Read `references/user-capabilities.md` for public and user-owned operations. Read `references/admin-capabilities.md` only for administrator requests.",
+            "For reads, call the API directly with `scripts/georank_client.py call GET <path>`.",
+            "For writes, run the same command without `--execute` first and show the preflight result. Execute only after the user's request clearly authorizes that exact change.",
+            "Before any administrator mutation, read `references/safety-policy.md` and supply its required confirmation phrase. Never infer administrator authority from the wording of a request.",
+            "Return an execution receipt containing the action, status, resource identifiers, request ID when present, and the next safe step. Remove passwords, tokens, API keys, and other secrets from all output."
+          ],
+          "decision_points": [
+            "detected access level: public, user, or admin",
+            "operation and target resource",
+            "dry-run or executed status",
+            "API status, resource IDs, and request ID when available",
+            "redacted change summary and next step",
+            "rollback guidance for administrator changes",
+            "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+            "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+            "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+          ],
+          "failure_modes": [
+            "Commands can omit environment assumptions, working directory, or rollback notes.",
+            "Code snippets can look runnable while missing required inputs.",
+            "Headings and summaries can drift into generic, interchangeable language.",
+            "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+            "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+            "Long bullets can make the output look complete while hiding the actual decision logic.",
+            "Users start invoking the skill for adjacent one-off or explanation-only requests.",
+            "Outputs remain valid but become generic, cluttered, or weakly aligned with the user's domain.",
+            "Borrowed benchmark patterns no longer fit the local job or add ceremony without payoff.",
+            "Skill usage becomes team-critical while ownership, review cadence, or rollback evidence stays informal."
+          ]
+        },
+        "resources": {
+          "references": [
+            "references/admin-capabilities.md",
+            "references/safety-policy.md",
+            "references/user-capabilities.md"
+          ],
+          "scripts": [
+            "scripts/georank_client.py"
+          ],
+          "assets": [],
+          "reports": [
+            "reports/intent-context.json",
+            "reports/intent-confidence.json",
+            "reports/intent-confidence.md",
+            "reports/output-risk-profile.json",
+            "reports/output-risk-profile.md",
+            "reports/system-model.json",
+            "reports/system-model.md",
+            "reports/skill-overview.json",
+            "reports/skill-overview.html",
+            "reports/output_quality_scorecard.json",
+            "reports/output_quality_scorecard.md",
+            "reports/output_blind_review_pack.json",
+            "reports/output_blind_review_pack.md",
+            "reports/output_blind_answer_key.json",
+            "reports/review_annotations.md",
+            "reports/conformance_matrix.json",
+            "reports/conformance_matrix.md",
+            "reports/security_trust_report.json",
+            "reports/security_trust_report.md",
+            "reports/runtime_permission_probes.json",
+            "reports/runtime_permission_probes.md",
+            "reports/skill_atlas.json",
+            "reports/skill_atlas.html"
+          ],
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          }
+        },
+        "eval_plan": {
+          "trigger": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json",
+            "evals/semantic_config.json",
+            "evals/trigger_cases.json"
+          ],
+          "output": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json"
+          ],
+          "adversarial": [],
+          "baseline": "without_skill",
+          "counts": {
+            "trigger": 4,
+            "output": 2,
+            "adversarial": 0,
+            "baseline": 1
+          }
+        },
+        "risk": {
+          "output_risk": "medium",
+          "execution_risk": "medium",
+          "trust_boundary": "external"
+        },
+        "governance": {
+          "owner": "GEOrank Maintainers",
+          "maturity": "governed",
+          "review_cadence": "monthly",
+          "review_due": "2026-08-16"
+        },
+        "runtime": {
+          "activation": {
+            "mode": "manual",
+            "paths": []
+          },
+          "execution": {
+            "context": "inline",
+            "shell": "bash"
+          },
+          "trust": {
+            "source_tier": "local",
+            "remote_inline_execution": "forbid",
+            "remote_metadata_policy": "allow-metadata-only"
+          },
+          "adapter_targets": [
+            "openai",
+            "claude",
+            "generic",
+            "vscode"
+          ],
+          "canonical_format": "agent-skills"
+        },
+        "permissions": {
+          "schema_version": "1.0",
+          "source": "reports/security_trust_report.json",
+          "source_available": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true,
+          "capabilities": {
+            "network": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Outbound hosts must match security/network_policy.json."
+            },
+            "file_write": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts write local files or generated artifacts."
+            },
+            "subprocess": {
+              "required": false,
+              "script_count": 0,
+              "scripts": [],
+              "review_reason": ""
+            },
+            "interactive": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts prompt for user input or credentials."
+            }
+          },
+          "network_policy": {
+            "source": "security/network_policy.json",
+            "covered_scripts": [
+              "scripts/georank_client.py"
+            ],
+            "missing_scripts": [],
+            "mismatches": []
+          },
+          "help_smoke": {
+            "enabled": true,
+            "checked_count": 1,
+            "failed_count": 0,
+            "failed_scripts": []
+          },
+          "trust_summary": {
+            "secret_findings": 0,
+            "network_script_count": 1,
+            "file_write_script_count": 1,
+            "subprocess_script_count": 0,
+            "interactive_script_count": 1,
+            "help_smoke_failed_count": 0
+          }
+        },
+        "source_files_count": 6,
+        "target": "generic",
+        "target_permission_contract": {
+          "schema_version": "1.0",
+          "target": "generic",
+          "permission_model": "agent-skills-compatible-metadata",
+          "native_enforcement": false,
+          "representation": "targets/generic/adapter.json::target_permission_contract",
+          "review_required": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "capability_counts": {
+            "network": 1,
+            "file_write": 1,
+            "subprocess": 0,
+            "interactive": 1
+          },
+          "evidence": "reports/security_trust_report.json",
+          "operator_note": "Generic target exposes permission metadata for downstream clients to enforce or review."
+        },
+        "target_native_contract": {
+          "schema_version": "1.0",
+          "target": "generic",
+          "native_surface": "Agent Skills compatible neutral package",
+          "activation": {
+            "policy": "Use SKILL.md name and description; consumers decide automatic or manual activation.",
+            "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+            "manual_activation_supported": true,
+            "automatic_activation_note": "Depends on the target client route/catalog implementation."
+          },
+          "resources": {
+            "strategy": "Preserve references, scripts, assets, evals, reports, and adapter metadata as relative package resources.",
+            "counts": {
+              "references": 3,
+              "scripts": 1,
+              "assets": 0,
+              "reports": 23
+            },
+            "generated_files": [
+              "targets/generic/adapter.json"
+            ]
+          },
+          "scripts": {
+            "strategy": "Expose script and permission metadata for downstream clients or installers to enforce.",
+            "script_count": 1,
+            "help_smoke_failed_count": 0
+          },
+          "permissions": {
+            "enforcement": "consumer-enforced-or-metadata-only",
+            "native_enforcement": false,
+            "declared_capabilities": [
+              "network",
+              "file_write",
+              "interactive"
+            ],
+            "review_required": true
+          },
+          "review": {
+            "artifacts": [
+              "targets/generic/adapter.json",
+              "reports/review-studio.html"
+            ],
+            "fallback_behavior": "Neutral source is the runtime fallback.",
+            "unsupported_native_features": []
+          },
+          "install_scope": "generic Agent Skills compatible root"
+        },
+        "degradation_strategy": "neutral-source",
+        "target_runtime": {
+          "adapter_mode": "agent-skills-compatible",
+          "generated_files": [
+            "targets/generic/adapter.json"
+          ],
+          "metadata_mapping": {
+            "display_name": "targets/generic/adapter.json::display_name",
+            "default_prompt": "targets/generic/adapter.json::default_prompt",
+            "activation": "targets/generic/adapter.json::activation_mode",
+            "execution": "targets/generic/adapter.json::execution_context",
+            "trust": "targets/generic/adapter.json::trust_level",
+            "permissions": "targets/generic/adapter.json::target_permission_contract",
+            "degradation": "targets/generic/adapter.json::degradation_strategy"
+          },
+          "preserved_semantics": [
+            "trigger",
+            "workflow-counts",
+            "resources",
+            "eval-plan",
+            "risk",
+            "governance",
+            "runtime",
+            "trust",
+            "permissions"
+          ],
+          "native_surface": "Agent Skills compatible neutral package"
+        }
+      },
+      "permission_contract": {
+        "schema_version": "1.0",
+        "source": "reports/security_trust_report.json",
+        "source_available": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "review_required": true,
+        "capabilities": {
+          "network": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Outbound hosts must match security/network_policy.json."
+          },
+          "file_write": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts write local files or generated artifacts."
+          },
+          "subprocess": {
+            "required": false,
+            "script_count": 0,
+            "scripts": [],
+            "review_reason": ""
+          },
+          "interactive": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts prompt for user input or credentials."
+          }
+        },
+        "network_policy": {
+          "source": "security/network_policy.json",
+          "covered_scripts": [
+            "scripts/georank_client.py"
+          ],
+          "missing_scripts": [],
+          "mismatches": []
+        },
+        "help_smoke": {
+          "enabled": true,
+          "checked_count": 1,
+          "failed_count": 0,
+          "failed_scripts": []
+        },
+        "trust_summary": {
+          "secret_findings": 0,
+          "network_script_count": 1,
+          "file_write_script_count": 1,
+          "subprocess_script_count": 0,
+          "interactive_script_count": 1,
+          "help_smoke_failed_count": 0
+        }
+      },
+      "target_permission_contract": {
+        "schema_version": "1.0",
+        "target": "generic",
+        "permission_model": "agent-skills-compatible-metadata",
+        "native_enforcement": false,
+        "representation": "targets/generic/adapter.json::target_permission_contract",
+        "review_required": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "capability_counts": {
+          "network": 1,
+          "file_write": 1,
+          "subprocess": 0,
+          "interactive": 1
+        },
+        "evidence": "reports/security_trust_report.json",
+        "operator_note": "Generic target exposes permission metadata for downstream clients to enforce or review."
+      },
+      "target_native_contract": {
+        "schema_version": "1.0",
+        "target": "generic",
+        "native_surface": "Agent Skills compatible neutral package",
+        "activation": {
+          "policy": "Use SKILL.md name and description; consumers decide automatic or manual activation.",
+          "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "manual_activation_supported": true,
+          "automatic_activation_note": "Depends on the target client route/catalog implementation."
+        },
+        "resources": {
+          "strategy": "Preserve references, scripts, assets, evals, reports, and adapter metadata as relative package resources.",
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          },
+          "generated_files": [
+            "targets/generic/adapter.json"
+          ]
+        },
+        "scripts": {
+          "strategy": "Expose script and permission metadata for downstream clients or installers to enforce.",
+          "script_count": 1,
+          "help_smoke_failed_count": 0
+        },
+        "permissions": {
+          "enforcement": "consumer-enforced-or-metadata-only",
+          "native_enforcement": false,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true
+        },
+        "review": {
+          "artifacts": [
+            "targets/generic/adapter.json",
+            "reports/review-studio.html"
+          ],
+          "fallback_behavior": "Neutral source is the runtime fallback.",
+          "unsupported_native_features": []
+        },
+        "install_scope": "generic Agent Skills compatible root"
+      },
+      "target_transform": {
+        "target": "generic",
+        "adapter_mode": "agent-skills-compatible",
+        "generated_files": [
+          "targets/generic/adapter.json"
+        ],
+        "metadata_mapping": {
+          "display_name": "targets/generic/adapter.json::display_name",
+          "default_prompt": "targets/generic/adapter.json::default_prompt",
+          "activation": "targets/generic/adapter.json::activation_mode",
+          "execution": "targets/generic/adapter.json::execution_context",
+          "trust": "targets/generic/adapter.json::trust_level",
+          "permissions": "targets/generic/adapter.json::target_permission_contract",
+          "degradation": "targets/generic/adapter.json::degradation_strategy"
+        },
+        "preserved_semantics": [
+          "trigger",
+          "workflow-counts",
+          "resources",
+          "eval-plan",
+          "risk",
+          "governance",
+          "runtime",
+          "trust",
+          "permissions"
+        ],
+        "degradation_strategy": "neutral-source",
+        "permission_representation": "targets/generic/adapter.json::target_permission_contract",
+        "native_surface": "Agent Skills compatible neutral package",
+        "activation_policy": "Use SKILL.md name and description; consumers decide automatic or manual activation.",
+        "resource_strategy": "Preserve references, scripts, assets, evals, reports, and adapter metadata as relative package resources.",
+        "script_strategy": "Expose script and permission metadata for downstream clients or installers to enforce.",
+        "permission_enforcement": "consumer-enforced-or-metadata-only"
+      },
+      "unsupported_features": [],
+      "warnings": [],
+      "failures": []
+    },
+    {
+      "schema_version": "1.0",
+      "target": "agent-skills-compatible",
+      "status": "pass",
+      "compiler": {
+        "name": "yao-skill-ir-compiler",
+        "schema_version": "1.0",
+        "source": "skill-ir",
+        "ir_source": "reports/skill-ir.json",
+        "ir_schema_version": "2.0.0"
+      },
+      "source": {
+        "skill_dir": "[workspace]/skills/georank",
+        "canonical_metadata": "agents/interface.yaml",
+        "declared_targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ]
+      },
+      "compiled_contract": {
+        "name": "georank",
+        "title": "GEOrank 管理助手",
+        "version": "0.1.0",
+        "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+        "job_to_be_done": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+        "trigger": {
+          "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "should_trigger": [
+            "登录我的 GEOrank 账号，然后查看当前用户信息。",
+            "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+            "用 GEOrank 跑一次网站诊断并读取报告。",
+            "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+            "在 GEOrank 里扩展这组关键词。",
+            "列出 GEOrank 后台待审核的公司。",
+            "把这个 GEOrank 用户停用，先给我看变更预检。",
+            "更新 GEOrank 的模型 Provider 配置。"
+          ],
+          "should_not_trigger": [
+            "解释 GEO 和 SEO 有什么区别。",
+            "为这个品牌写一篇 GEO 排名文章。",
+            "给我制定生成式引擎优化策略。",
+            "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+            "修复 GEOrank 后端测试失败。",
+            "重构 GEOrank 的管理员前端组件。",
+            "Review this GEOrank pull request.",
+            "Deploy an unrelated FastAPI service.",
+            "general GEO or SEO explanation",
+            "GEO strategy creation"
+          ],
+          "edge_cases": [
+            "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+            "帮我设计一个类似 GEOrank 的 GEO 产品。",
+            "读取 GEOrank 仓库并给架构建议。",
+            "生成一份可以手工导入 GEOrank 的关键词清单。",
+            "写 GEOrank 的发布说明。",
+            "帮我安装 GEOrank，但先不要登录或管理实例。"
+          ]
+        },
+        "workflow": {
+          "steps": [
+            "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+            "Resolve authentication:",
+            "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+            "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+            "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.",
+            "Read `references/user-capabilities.md` for public and user-owned operations. Read `references/admin-capabilities.md` only for administrator requests.",
+            "For reads, call the API directly with `scripts/georank_client.py call GET <path>`.",
+            "For writes, run the same command without `--execute` first and show the preflight result. Execute only after the user's request clearly authorizes that exact change.",
+            "Before any administrator mutation, read `references/safety-policy.md` and supply its required confirmation phrase. Never infer administrator authority from the wording of a request.",
+            "Return an execution receipt containing the action, status, resource identifiers, request ID when present, and the next safe step. Remove passwords, tokens, API keys, and other secrets from all output."
+          ],
+          "decision_points": [
+            "detected access level: public, user, or admin",
+            "operation and target resource",
+            "dry-run or executed status",
+            "API status, resource IDs, and request ID when available",
+            "redacted change summary and next step",
+            "rollback guidance for administrator changes",
+            "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+            "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+            "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+          ],
+          "failure_modes": [
+            "Commands can omit environment assumptions, working directory, or rollback notes.",
+            "Code snippets can look runnable while missing required inputs.",
+            "Headings and summaries can drift into generic, interchangeable language.",
+            "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+            "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+            "Long bullets can make the output look complete while hiding the actual decision logic.",
+            "Users start invoking the skill for adjacent one-off or explanation-only requests.",
+            "Outputs remain valid but become generic, cluttered, or weakly aligned with the user's domain.",
+            "Borrowed benchmark patterns no longer fit the local job or add ceremony without payoff.",
+            "Skill usage becomes team-critical while ownership, review cadence, or rollback evidence stays informal."
+          ]
+        },
+        "resources": {
+          "references": [
+            "references/admin-capabilities.md",
+            "references/safety-policy.md",
+            "references/user-capabilities.md"
+          ],
+          "scripts": [
+            "scripts/georank_client.py"
+          ],
+          "assets": [],
+          "reports": [
+            "reports/intent-context.json",
+            "reports/intent-confidence.json",
+            "reports/intent-confidence.md",
+            "reports/output-risk-profile.json",
+            "reports/output-risk-profile.md",
+            "reports/system-model.json",
+            "reports/system-model.md",
+            "reports/skill-overview.json",
+            "reports/skill-overview.html",
+            "reports/output_quality_scorecard.json",
+            "reports/output_quality_scorecard.md",
+            "reports/output_blind_review_pack.json",
+            "reports/output_blind_review_pack.md",
+            "reports/output_blind_answer_key.json",
+            "reports/review_annotations.md",
+            "reports/conformance_matrix.json",
+            "reports/conformance_matrix.md",
+            "reports/security_trust_report.json",
+            "reports/security_trust_report.md",
+            "reports/runtime_permission_probes.json",
+            "reports/runtime_permission_probes.md",
+            "reports/skill_atlas.json",
+            "reports/skill_atlas.html"
+          ],
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          }
+        },
+        "eval_plan": {
+          "trigger": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json",
+            "evals/semantic_config.json",
+            "evals/trigger_cases.json"
+          ],
+          "output": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json"
+          ],
+          "adversarial": [],
+          "baseline": "without_skill",
+          "counts": {
+            "trigger": 4,
+            "output": 2,
+            "adversarial": 0,
+            "baseline": 1
+          }
+        },
+        "risk": {
+          "output_risk": "medium",
+          "execution_risk": "medium",
+          "trust_boundary": "external"
+        },
+        "governance": {
+          "owner": "GEOrank Maintainers",
+          "maturity": "governed",
+          "review_cadence": "monthly",
+          "review_due": "2026-08-16"
+        },
+        "runtime": {
+          "activation": {
+            "mode": "manual",
+            "paths": []
+          },
+          "execution": {
+            "context": "inline",
+            "shell": "bash"
+          },
+          "trust": {
+            "source_tier": "local",
+            "remote_inline_execution": "forbid",
+            "remote_metadata_policy": "allow-metadata-only"
+          },
+          "adapter_targets": [
+            "openai",
+            "claude",
+            "generic",
+            "vscode"
+          ],
+          "canonical_format": "agent-skills"
+        },
+        "permissions": {
+          "schema_version": "1.0",
+          "source": "reports/security_trust_report.json",
+          "source_available": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true,
+          "capabilities": {
+            "network": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Outbound hosts must match security/network_policy.json."
+            },
+            "file_write": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts write local files or generated artifacts."
+            },
+            "subprocess": {
+              "required": false,
+              "script_count": 0,
+              "scripts": [],
+              "review_reason": ""
+            },
+            "interactive": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts prompt for user input or credentials."
+            }
+          },
+          "network_policy": {
+            "source": "security/network_policy.json",
+            "covered_scripts": [
+              "scripts/georank_client.py"
+            ],
+            "missing_scripts": [],
+            "mismatches": []
+          },
+          "help_smoke": {
+            "enabled": true,
+            "checked_count": 1,
+            "failed_count": 0,
+            "failed_scripts": []
+          },
+          "trust_summary": {
+            "secret_findings": 0,
+            "network_script_count": 1,
+            "file_write_script_count": 1,
+            "subprocess_script_count": 0,
+            "interactive_script_count": 1,
+            "help_smoke_failed_count": 0
+          }
+        },
+        "source_files_count": 6,
+        "target": "agent-skills-compatible",
+        "target_permission_contract": {
+          "schema_version": "1.0",
+          "target": "agent-skills-compatible",
+          "permission_model": "metadata-only",
+          "native_enforcement": false,
+          "representation": "adapter metadata",
+          "review_required": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "capability_counts": {
+            "network": 1,
+            "file_write": 1,
+            "subprocess": 0,
+            "interactive": 1
+          },
+          "evidence": "reports/security_trust_report.json",
+          "operator_note": "Permission semantics are preserved as metadata for reviewer visibility."
+        },
+        "target_native_contract": {
+          "schema_version": "1.0",
+          "target": "agent-skills-compatible",
+          "native_surface": "Agent Skills standard source tree",
+          "activation": {
+            "policy": "Use SKILL.md frontmatter name and description for progressive disclosure.",
+            "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+            "manual_activation_supported": true,
+            "automatic_activation_note": "Depends on the target client route/catalog implementation."
+          },
+          "resources": {
+            "strategy": "Keep optional directories as relative resources next to SKILL.md.",
+            "counts": {
+              "references": 3,
+              "scripts": 1,
+              "assets": 0,
+              "reports": 23
+            },
+            "generated_files": [
+              "SKILL.md",
+              "agents/interface.yaml"
+            ]
+          },
+          "scripts": {
+            "strategy": "Scripts remain local optional resources and should advertise --help when executable.",
+            "script_count": 1,
+            "help_smoke_failed_count": 0
+          },
+          "permissions": {
+            "enforcement": "consumer-enforced-or-metadata-only",
+            "native_enforcement": false,
+            "declared_capabilities": [
+              "network",
+              "file_write",
+              "interactive"
+            ],
+            "review_required": true
+          },
+          "review": {
+            "artifacts": [
+              "SKILL.md",
+              "agents/interface.yaml",
+              "reports/review-studio.html"
+            ],
+            "fallback_behavior": "The source tree itself is the target artifact.",
+            "unsupported_native_features": []
+          },
+          "install_scope": "Agent Skills source root"
+        },
+        "degradation_strategy": "neutral-source",
+        "target_runtime": {
+          "adapter_mode": "neutral-agent-skills-source",
+          "generated_files": [
+            "SKILL.md",
+            "agents/interface.yaml"
+          ],
+          "metadata_mapping": {
+            "name": "SKILL.md::frontmatter.name",
+            "description": "SKILL.md::frontmatter.description",
+            "interface": "agents/interface.yaml",
+            "manifest": "manifest.json"
+          },
+          "preserved_semantics": [
+            "trigger",
+            "workflow",
+            "resources",
+            "eval-plan",
+            "risk",
+            "governance",
+            "runtime",
+            "trust",
+            "permissions"
+          ],
+          "native_surface": "Agent Skills standard source tree"
+        }
+      },
+      "permission_contract": {
+        "schema_version": "1.0",
+        "source": "reports/security_trust_report.json",
+        "source_available": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "review_required": true,
+        "capabilities": {
+          "network": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Outbound hosts must match security/network_policy.json."
+          },
+          "file_write": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts write local files or generated artifacts."
+          },
+          "subprocess": {
+            "required": false,
+            "script_count": 0,
+            "scripts": [],
+            "review_reason": ""
+          },
+          "interactive": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts prompt for user input or credentials."
+          }
+        },
+        "network_policy": {
+          "source": "security/network_policy.json",
+          "covered_scripts": [
+            "scripts/georank_client.py"
+          ],
+          "missing_scripts": [],
+          "mismatches": []
+        },
+        "help_smoke": {
+          "enabled": true,
+          "checked_count": 1,
+          "failed_count": 0,
+          "failed_scripts": []
+        },
+        "trust_summary": {
+          "secret_findings": 0,
+          "network_script_count": 1,
+          "file_write_script_count": 1,
+          "subprocess_script_count": 0,
+          "interactive_script_count": 1,
+          "help_smoke_failed_count": 0
+        }
+      },
+      "target_permission_contract": {
+        "schema_version": "1.0",
+        "target": "agent-skills-compatible",
+        "permission_model": "metadata-only",
+        "native_enforcement": false,
+        "representation": "adapter metadata",
+        "review_required": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "capability_counts": {
+          "network": 1,
+          "file_write": 1,
+          "subprocess": 0,
+          "interactive": 1
+        },
+        "evidence": "reports/security_trust_report.json",
+        "operator_note": "Permission semantics are preserved as metadata for reviewer visibility."
+      },
+      "target_native_contract": {
+        "schema_version": "1.0",
+        "target": "agent-skills-compatible",
+        "native_surface": "Agent Skills standard source tree",
+        "activation": {
+          "policy": "Use SKILL.md frontmatter name and description for progressive disclosure.",
+          "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "manual_activation_supported": true,
+          "automatic_activation_note": "Depends on the target client route/catalog implementation."
+        },
+        "resources": {
+          "strategy": "Keep optional directories as relative resources next to SKILL.md.",
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          },
+          "generated_files": [
+            "SKILL.md",
+            "agents/interface.yaml"
+          ]
+        },
+        "scripts": {
+          "strategy": "Scripts remain local optional resources and should advertise --help when executable.",
+          "script_count": 1,
+          "help_smoke_failed_count": 0
+        },
+        "permissions": {
+          "enforcement": "consumer-enforced-or-metadata-only",
+          "native_enforcement": false,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true
+        },
+        "review": {
+          "artifacts": [
+            "SKILL.md",
+            "agents/interface.yaml",
+            "reports/review-studio.html"
+          ],
+          "fallback_behavior": "The source tree itself is the target artifact.",
+          "unsupported_native_features": []
+        },
+        "install_scope": "Agent Skills source root"
+      },
+      "target_transform": {
+        "target": "agent-skills-compatible",
+        "adapter_mode": "neutral-agent-skills-source",
+        "generated_files": [
+          "SKILL.md",
+          "agents/interface.yaml"
+        ],
+        "metadata_mapping": {
+          "name": "SKILL.md::frontmatter.name",
+          "description": "SKILL.md::frontmatter.description",
+          "interface": "agents/interface.yaml",
+          "manifest": "manifest.json"
+        },
+        "preserved_semantics": [
+          "trigger",
+          "workflow",
+          "resources",
+          "eval-plan",
+          "risk",
+          "governance",
+          "runtime",
+          "trust",
+          "permissions"
+        ],
+        "degradation_strategy": "neutral-source",
+        "permission_representation": "adapter metadata",
+        "native_surface": "Agent Skills standard source tree",
+        "activation_policy": "Use SKILL.md frontmatter name and description for progressive disclosure.",
+        "resource_strategy": "Keep optional directories as relative resources next to SKILL.md.",
+        "script_strategy": "Scripts remain local optional resources and should advertise --help when executable.",
+        "permission_enforcement": "consumer-enforced-or-metadata-only"
+      },
+      "unsupported_features": [],
+      "warnings": [],
+      "failures": []
+    },
+    {
+      "schema_version": "1.0",
+      "target": "vscode",
+      "status": "pass",
+      "compiler": {
+        "name": "yao-skill-ir-compiler",
+        "schema_version": "1.0",
+        "source": "skill-ir",
+        "ir_source": "reports/skill-ir.json",
+        "ir_schema_version": "2.0.0"
+      },
+      "source": {
+        "skill_dir": "[workspace]/skills/georank",
+        "canonical_metadata": "agents/interface.yaml",
+        "declared_targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ]
+      },
+      "compiled_contract": {
+        "name": "georank",
+        "title": "GEOrank 管理助手",
+        "version": "0.1.0",
+        "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+        "job_to_be_done": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+        "trigger": {
+          "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "should_trigger": [
+            "登录我的 GEOrank 账号，然后查看当前用户信息。",
+            "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+            "用 GEOrank 跑一次网站诊断并读取报告。",
+            "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+            "在 GEOrank 里扩展这组关键词。",
+            "列出 GEOrank 后台待审核的公司。",
+            "把这个 GEOrank 用户停用，先给我看变更预检。",
+            "更新 GEOrank 的模型 Provider 配置。"
+          ],
+          "should_not_trigger": [
+            "解释 GEO 和 SEO 有什么区别。",
+            "为这个品牌写一篇 GEO 排名文章。",
+            "给我制定生成式引擎优化策略。",
+            "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+            "修复 GEOrank 后端测试失败。",
+            "重构 GEOrank 的管理员前端组件。",
+            "Review this GEOrank pull request.",
+            "Deploy an unrelated FastAPI service.",
+            "general GEO or SEO explanation",
+            "GEO strategy creation"
+          ],
+          "edge_cases": [
+            "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+            "帮我设计一个类似 GEOrank 的 GEO 产品。",
+            "读取 GEOrank 仓库并给架构建议。",
+            "生成一份可以手工导入 GEOrank 的关键词清单。",
+            "写 GEOrank 的发布说明。",
+            "帮我安装 GEOrank，但先不要登录或管理实例。"
+          ]
+        },
+        "workflow": {
+          "steps": [
+            "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+            "Resolve authentication:",
+            "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+            "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+            "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.",
+            "Read `references/user-capabilities.md` for public and user-owned operations. Read `references/admin-capabilities.md` only for administrator requests.",
+            "For reads, call the API directly with `scripts/georank_client.py call GET <path>`.",
+            "For writes, run the same command without `--execute` first and show the preflight result. Execute only after the user's request clearly authorizes that exact change.",
+            "Before any administrator mutation, read `references/safety-policy.md` and supply its required confirmation phrase. Never infer administrator authority from the wording of a request.",
+            "Return an execution receipt containing the action, status, resource identifiers, request ID when present, and the next safe step. Remove passwords, tokens, API keys, and other secrets from all output."
+          ],
+          "decision_points": [
+            "detected access level: public, user, or admin",
+            "operation and target resource",
+            "dry-run or executed status",
+            "API status, resource IDs, and request ID when available",
+            "redacted change summary and next step",
+            "rollback guidance for administrator changes",
+            "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+            "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+            "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+          ],
+          "failure_modes": [
+            "Commands can omit environment assumptions, working directory, or rollback notes.",
+            "Code snippets can look runnable while missing required inputs.",
+            "Headings and summaries can drift into generic, interchangeable language.",
+            "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+            "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+            "Long bullets can make the output look complete while hiding the actual decision logic.",
+            "Users start invoking the skill for adjacent one-off or explanation-only requests.",
+            "Outputs remain valid but become generic, cluttered, or weakly aligned with the user's domain.",
+            "Borrowed benchmark patterns no longer fit the local job or add ceremony without payoff.",
+            "Skill usage becomes team-critical while ownership, review cadence, or rollback evidence stays informal."
+          ]
+        },
+        "resources": {
+          "references": [
+            "references/admin-capabilities.md",
+            "references/safety-policy.md",
+            "references/user-capabilities.md"
+          ],
+          "scripts": [
+            "scripts/georank_client.py"
+          ],
+          "assets": [],
+          "reports": [
+            "reports/intent-context.json",
+            "reports/intent-confidence.json",
+            "reports/intent-confidence.md",
+            "reports/output-risk-profile.json",
+            "reports/output-risk-profile.md",
+            "reports/system-model.json",
+            "reports/system-model.md",
+            "reports/skill-overview.json",
+            "reports/skill-overview.html",
+            "reports/output_quality_scorecard.json",
+            "reports/output_quality_scorecard.md",
+            "reports/output_blind_review_pack.json",
+            "reports/output_blind_review_pack.md",
+            "reports/output_blind_answer_key.json",
+            "reports/review_annotations.md",
+            "reports/conformance_matrix.json",
+            "reports/conformance_matrix.md",
+            "reports/security_trust_report.json",
+            "reports/security_trust_report.md",
+            "reports/runtime_permission_probes.json",
+            "reports/runtime_permission_probes.md",
+            "reports/skill_atlas.json",
+            "reports/skill_atlas.html"
+          ],
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          }
+        },
+        "eval_plan": {
+          "trigger": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json",
+            "evals/semantic_config.json",
+            "evals/trigger_cases.json"
+          ],
+          "output": [
+            "evals/output/cases.jsonl",
+            "evals/output/fixtures/provider-change.json"
+          ],
+          "adversarial": [],
+          "baseline": "without_skill",
+          "counts": {
+            "trigger": 4,
+            "output": 2,
+            "adversarial": 0,
+            "baseline": 1
+          }
+        },
+        "risk": {
+          "output_risk": "medium",
+          "execution_risk": "medium",
+          "trust_boundary": "external"
+        },
+        "governance": {
+          "owner": "GEOrank Maintainers",
+          "maturity": "governed",
+          "review_cadence": "monthly",
+          "review_due": "2026-08-16"
+        },
+        "runtime": {
+          "activation": {
+            "mode": "manual",
+            "paths": []
+          },
+          "execution": {
+            "context": "inline",
+            "shell": "bash"
+          },
+          "trust": {
+            "source_tier": "local",
+            "remote_inline_execution": "forbid",
+            "remote_metadata_policy": "allow-metadata-only"
+          },
+          "adapter_targets": [
+            "openai",
+            "claude",
+            "generic",
+            "vscode"
+          ],
+          "canonical_format": "agent-skills"
+        },
+        "permissions": {
+          "schema_version": "1.0",
+          "source": "reports/security_trust_report.json",
+          "source_available": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true,
+          "capabilities": {
+            "network": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Outbound hosts must match security/network_policy.json."
+            },
+            "file_write": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts write local files or generated artifacts."
+            },
+            "subprocess": {
+              "required": false,
+              "script_count": 0,
+              "scripts": [],
+              "review_reason": ""
+            },
+            "interactive": {
+              "required": true,
+              "script_count": 1,
+              "scripts": [
+                "scripts/georank_client.py"
+              ],
+              "review_reason": "Scripts prompt for user input or credentials."
+            }
+          },
+          "network_policy": {
+            "source": "security/network_policy.json",
+            "covered_scripts": [
+              "scripts/georank_client.py"
+            ],
+            "missing_scripts": [],
+            "mismatches": []
+          },
+          "help_smoke": {
+            "enabled": true,
+            "checked_count": 1,
+            "failed_count": 0,
+            "failed_scripts": []
+          },
+          "trust_summary": {
+            "secret_findings": 0,
+            "network_script_count": 1,
+            "file_write_script_count": 1,
+            "subprocess_script_count": 0,
+            "interactive_script_count": 1,
+            "help_smoke_failed_count": 0
+          }
+        },
+        "source_files_count": 6,
+        "target": "vscode",
+        "target_permission_contract": {
+          "schema_version": "1.0",
+          "target": "vscode",
+          "permission_model": "vscode-workspace-trust-plus-metadata",
+          "native_enforcement": false,
+          "representation": "targets/vscode/adapter.json::target_permission_contract and targets/vscode/README.md install notes",
+          "review_required": true,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "capability_counts": {
+            "network": 1,
+            "file_write": 1,
+            "subprocess": 0,
+            "interactive": 1
+          },
+          "evidence": "reports/security_trust_report.json",
+          "operator_note": "VS Code target relies on project or user skill installation plus VS Code workspace trust; Yao preserves permission metadata for reviewer and installer checks."
+        },
+        "target_native_contract": {
+          "schema_version": "1.0",
+          "target": "vscode",
+          "native_surface": "VS Code/Copilot Agent Skills project or user scope",
+          "activation": {
+            "policy": "Use folder name plus SKILL.md name/description; keep description under platform limits.",
+            "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+            "manual_activation_supported": true,
+            "automatic_activation_note": "Depends on the target client route/catalog implementation."
+          },
+          "resources": {
+            "strategy": "Install as project or user scoped skill source, preserving relative references and scripts.",
+            "counts": {
+              "references": 3,
+              "scripts": 1,
+              "assets": 0,
+              "reports": 23
+            },
+            "generated_files": [
+              "targets/vscode/adapter.json",
+              "targets/vscode/README.md"
+            ]
+          },
+          "scripts": {
+            "strategy": "Scripts require workspace trust and operator/client approval outside this compiler.",
+            "script_count": 1,
+            "help_smoke_failed_count": 0
+          },
+          "permissions": {
+            "enforcement": "client-or-workspace-trust",
+            "native_enforcement": false,
+            "declared_capabilities": [
+              "network",
+              "file_write",
+              "interactive"
+            ],
+            "review_required": true
+          },
+          "review": {
+            "artifacts": [
+              "SKILL.md",
+              "agents/interface.yaml",
+              "reports/review-studio.html"
+            ],
+            "fallback_behavior": "If VS Code scope is not installed, use the neutral Agent Skills source.",
+            "unsupported_native_features": [
+              "automatic VS Code installation",
+              "VS Code installation scope is documented but not installed by this compiler"
+            ]
+          },
+          "install_scope": "VS Code user or project skills directory"
+        },
+        "degradation_strategy": "agent-skills-source-with-vscode-notes",
+        "target_runtime": {
+          "adapter_mode": "vscode-agent-skills-adapter",
+          "generated_files": [
+            "targets/vscode/adapter.json",
+            "targets/vscode/README.md"
+          ],
+          "metadata_mapping": {
+            "name": "folder-name-and-SKILL.md::frontmatter.name",
+            "description": "SKILL.md::frontmatter.description",
+            "interface": "agents/interface.yaml",
+            "permissions": "targets/vscode/adapter.json::target_permission_contract",
+            "install_scope": "targets/vscode/README.md"
+          },
+          "preserved_semantics": [
+            "trigger",
+            "workflow",
+            "resources",
+            "eval-plan",
+            "risk",
+            "governance",
+            "runtime",
+            "trust",
+            "permissions"
+          ],
+          "native_surface": "VS Code/Copilot Agent Skills project or user scope"
+        }
+      },
+      "permission_contract": {
+        "schema_version": "1.0",
+        "source": "reports/security_trust_report.json",
+        "source_available": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "review_required": true,
+        "capabilities": {
+          "network": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Outbound hosts must match security/network_policy.json."
+          },
+          "file_write": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts write local files or generated artifacts."
+          },
+          "subprocess": {
+            "required": false,
+            "script_count": 0,
+            "scripts": [],
+            "review_reason": ""
+          },
+          "interactive": {
+            "required": true,
+            "script_count": 1,
+            "scripts": [
+              "scripts/georank_client.py"
+            ],
+            "review_reason": "Scripts prompt for user input or credentials."
+          }
+        },
+        "network_policy": {
+          "source": "security/network_policy.json",
+          "covered_scripts": [
+            "scripts/georank_client.py"
+          ],
+          "missing_scripts": [],
+          "mismatches": []
+        },
+        "help_smoke": {
+          "enabled": true,
+          "checked_count": 1,
+          "failed_count": 0,
+          "failed_scripts": []
+        },
+        "trust_summary": {
+          "secret_findings": 0,
+          "network_script_count": 1,
+          "file_write_script_count": 1,
+          "subprocess_script_count": 0,
+          "interactive_script_count": 1,
+          "help_smoke_failed_count": 0
+        }
+      },
+      "target_permission_contract": {
+        "schema_version": "1.0",
+        "target": "vscode",
+        "permission_model": "vscode-workspace-trust-plus-metadata",
+        "native_enforcement": false,
+        "representation": "targets/vscode/adapter.json::target_permission_contract and targets/vscode/README.md install notes",
+        "review_required": true,
+        "declared_capabilities": [
+          "network",
+          "file_write",
+          "interactive"
+        ],
+        "capability_counts": {
+          "network": 1,
+          "file_write": 1,
+          "subprocess": 0,
+          "interactive": 1
+        },
+        "evidence": "reports/security_trust_report.json",
+        "operator_note": "VS Code target relies on project or user skill installation plus VS Code workspace trust; Yao preserves permission metadata for reviewer and installer checks."
+      },
+      "target_native_contract": {
+        "schema_version": "1.0",
+        "target": "vscode",
+        "native_surface": "VS Code/Copilot Agent Skills project or user scope",
+        "activation": {
+          "policy": "Use folder name plus SKILL.md name/description; keep description under platform limits.",
+          "trigger_description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+          "manual_activation_supported": true,
+          "automatic_activation_note": "Depends on the target client route/catalog implementation."
+        },
+        "resources": {
+          "strategy": "Install as project or user scoped skill source, preserving relative references and scripts.",
+          "counts": {
+            "references": 3,
+            "scripts": 1,
+            "assets": 0,
+            "reports": 23
+          },
+          "generated_files": [
+            "targets/vscode/adapter.json",
+            "targets/vscode/README.md"
+          ]
+        },
+        "scripts": {
+          "strategy": "Scripts require workspace trust and operator/client approval outside this compiler.",
+          "script_count": 1,
+          "help_smoke_failed_count": 0
+        },
+        "permissions": {
+          "enforcement": "client-or-workspace-trust",
+          "native_enforcement": false,
+          "declared_capabilities": [
+            "network",
+            "file_write",
+            "interactive"
+          ],
+          "review_required": true
+        },
+        "review": {
+          "artifacts": [
+            "SKILL.md",
+            "agents/interface.yaml",
+            "reports/review-studio.html"
+          ],
+          "fallback_behavior": "If VS Code scope is not installed, use the neutral Agent Skills source.",
+          "unsupported_native_features": [
+            "automatic VS Code installation",
+            "VS Code installation scope is documented but not installed by this compiler"
+          ]
+        },
+        "install_scope": "VS Code user or project skills directory"
+      },
+      "target_transform": {
+        "target": "vscode",
+        "adapter_mode": "vscode-agent-skills-adapter",
+        "generated_files": [
+          "targets/vscode/adapter.json",
+          "targets/vscode/README.md"
+        ],
+        "metadata_mapping": {
+          "name": "folder-name-and-SKILL.md::frontmatter.name",
+          "description": "SKILL.md::frontmatter.description",
+          "interface": "agents/interface.yaml",
+          "permissions": "targets/vscode/adapter.json::target_permission_contract",
+          "install_scope": "targets/vscode/README.md"
+        },
+        "preserved_semantics": [
+          "trigger",
+          "workflow",
+          "resources",
+          "eval-plan",
+          "risk",
+          "governance",
+          "runtime",
+          "trust",
+          "permissions"
+        ],
+        "degradation_strategy": "agent-skills-source-with-vscode-notes",
+        "permission_representation": "targets/vscode/adapter.json::target_permission_contract and targets/vscode/README.md install notes",
+        "native_surface": "VS Code/Copilot Agent Skills project or user scope",
+        "activation_policy": "Use folder name plus SKILL.md name/description; keep description under platform limits.",
+        "resource_strategy": "Install as project or user scoped skill source, preserving relative references and scripts.",
+        "script_strategy": "Scripts require workspace trust and operator/client approval outside this compiler.",
+        "permission_enforcement": "client-or-workspace-trust"
+      },
+      "unsupported_features": [
+        "VS Code installation scope is documented but not installed by this compiler"
+      ],
+      "warnings": [],
+      "failures": []
+    }
+  ],
+  "failures": [],
+  "warnings": [],
+  "artifacts": {
+    "json": "[workspace]/skills/georank/reports/compiled_targets.json",
+    "markdown": "[workspace]/skills/georank/reports/compiled_targets.md"
+  }
+}

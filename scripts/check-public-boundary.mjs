@@ -30,6 +30,9 @@ const absoluteBlockedExtensions = new Set([
   '.sqlite', '.sqlite3', '.xls', '.xlsx',
 ]);
 const publicSampleExtensions = new Set(['.csv', '.jsonl']);
+const publicSamplePathAllowlist = new Set([
+  'skills/georank/evals/output/cases.jsonl',
+]);
 const homepageSourceExtensions = new Set([
   '.css', '.gif', '.htm', '.html', '.ico', '.jpeg', '.jpg', '.js', '.json', '.mjs',
   '.otf', '.png', '.svg', '.ttf', '.txt', '.webp', '.woff', '.woff2', '.xml',
@@ -114,7 +117,7 @@ function forbiddenPathReason(path) {
     'public/assets/',
     'public/data/',
     'runtime/homepages/public/',
-  ].some((prefix) => normalized.startsWith(prefix));
+  ].some((prefix) => normalized.startsWith(prefix)) || publicSamplePathAllowlist.has(normalized);
   if (normalized.startsWith('runtime/') && slashNormalized !== normalized) {
     return 'noncanonical runtime path casing';
   }

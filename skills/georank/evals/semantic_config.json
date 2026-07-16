@@ -1,0 +1,154 @@
+{
+  "optimizer_hints": {
+    "capability": "Operate and administer a running self-hosted GEOrank instance",
+    "inputs": [
+      "GEOrank base URL",
+      "account identity",
+      "company URL",
+      "diagnostic report ID",
+      "conversation ID",
+      "administrator resource ID"
+    ],
+    "trigger_actions": [
+      "log in to GEOrank",
+      "inspect a GEOrank account",
+      "submit or manage a company",
+      "run or read a GEOrank diagnosis",
+      "manage GEOrank conversations or keywords",
+      "inspect GEOrank usage",
+      "manage GEOrank users, content, providers, modules, homepage, or settings"
+    ],
+    "exclusions": [
+      "general GEO strategy",
+      "GEO or SEO explanation",
+      "article writing",
+      "GEOrank code development",
+      "repository review",
+      "installation without instance operation"
+    ],
+    "artifacts": [
+      "GEOrank API response",
+      "diagnostic report",
+      "company record",
+      "keyword pack",
+      "administrator execution receipt"
+    ]
+  },
+  "fallback_positive_concepts": [
+    "georank_instance",
+    "user_operations",
+    "admin_operations",
+    "execution_receipt"
+  ],
+  "positive_concepts": {
+    "georank_instance": {
+      "weight": 0.32,
+      "phrases": [
+        "GEOrank",
+        "GEORankHub",
+        "self-hosted GEOrank",
+        "GEOrank instance",
+        "GEOrank API",
+        "GEOrank 后台",
+        "GEOrank 平台"
+      ]
+    },
+    "user_operations": {
+      "weight": 0.28,
+      "phrases": [
+        "log in",
+        "登录",
+        "who I am",
+        "当前用户",
+        "submit company",
+        "提交公司",
+        "提交到 GEOrank",
+        "入库进度",
+        "run diagnosis",
+        "网站诊断",
+        "诊断历史",
+        "AI 用量",
+        "expand keywords",
+        "扩展关键词",
+        "扩展这组关键词"
+      ]
+    },
+    "admin_operations": {
+      "weight": 0.28,
+      "phrases": [
+        "administrator",
+        "admin",
+        "管理员",
+        "待审核公司",
+        "待审核",
+        "停用用户",
+        "用户停用",
+        "用户角色",
+        "模型 Provider",
+        "发布教程",
+        "发布 GEOrank 教程",
+        "自定义首页",
+        "系统设置",
+        "delete report",
+        "删除诊断报告"
+      ]
+    },
+    "execution_receipt": {
+      "weight": 0.12,
+      "phrases": [
+        "execute",
+        "manage",
+        "执行",
+        "管理",
+        "操作",
+        "变更预检",
+        "执行回执",
+        "安全检查"
+      ]
+    }
+  },
+  "negative_concepts": {
+    "general_geo": {
+      "weight": 0.4,
+      "exclusive": true,
+      "phrases": [
+        "GEO 和 SEO",
+        "GEO strategy",
+        "GEO 策略",
+        "GEO 排名文章",
+        "写一篇 GEO",
+        "SEO advice",
+        "SEO 问题",
+        "不要调用 GEOrank"
+      ]
+    },
+    "code_development": {
+      "weight": 0.42,
+      "exclusive": true,
+      "phrases": [
+        "修复 GEOrank",
+        "重构 GEOrank",
+        "GEOrank pull request",
+        "GEOrank repository",
+        "GEOrank 仓库",
+        "backend tests",
+        "前端组件",
+        "架构建议"
+      ]
+    },
+    "explain_or_design_only": {
+      "weight": 0.34,
+      "exclusive": true,
+      "phrases": [
+        "介绍 GEOrank",
+        "有哪些功能",
+        "设计一个类似 GEOrank",
+        "产品设计",
+        "发布说明",
+        "手工导入",
+        "先不要登录",
+        "安装 GEOrank"
+      ]
+    }
+  }
+}

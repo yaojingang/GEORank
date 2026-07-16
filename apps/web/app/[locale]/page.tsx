@@ -1,8 +1,7 @@
-import {LegacyStaticPage, getLegacyMetadata} from './_legacy-page';
+import {notFound} from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
-export const metadata = getLegacyMetadata('index');
 
 export default function HomePage() {
-  return <LegacyStaticPage page="index" />;
+  notFound();
 }

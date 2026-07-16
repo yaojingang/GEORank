@@ -2,6 +2,8 @@ import sys
 import unittest
 from pathlib import Path
 
+from bs4 import BeautifulSoup
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services.content_render import render_markdown  # noqa: E402
@@ -34,7 +36,10 @@ class ContentRenderTests(unittest.TestCase):
         self.assertIn('rel="noopener noreferrer"', html)
         self.assertIn("<table>", html)
         self.assertIn("<code", html)
-        self.assertIn("&lt;script&gt;example only&lt;/script&gt;", html)
+        code = BeautifulSoup(html, "html.parser").find("code")
+        self.assertIsNotNone(code)
+        self.assertEqual(code.get_text().strip(), "<script>example only</script>")
+        self.assertNotIn("<script>example only</script>", html)
 
 
 if __name__ == "__main__":

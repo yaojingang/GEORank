@@ -1,17 +1,19 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {useLocale, useTranslations} from 'next-intl';
 
-import type {AdminUserSummary} from '@georank/api-sdk';
+import type {AdminUserQuota, AdminUserSummary} from '@georank/api-sdk';
 import {
   createAdminUser,
   deleteAdminUser,
   getAdminDashboard,
+  getAdminUserQuota,
   listAdminUsers,
   resetAdminUserPassword,
   toggleAdminUserActive,
-  updateAdminUser
+  updateAdminUser,
+  updateAdminUserQuota
 } from '@georank/api-sdk';
 
 type AdminUsersProps = {
@@ -94,6 +96,13 @@ export function AdminUsers({token}: AdminUsersProps) {
   const [editDraft, setEditDraft] = useState<UserDraft | null>(null);
   const [createDraft, setCreateDraft] = useState<UserCreateDraft>(emptyCreateDraft);
   const [passwordDraft, setPasswordDraft] = useState('');
+  const [quota, setQuota] = useState<AdminUserQuota | null>(null);
+  const [quotaDraft, setQuotaDraft] = useState({
+    grantedTokens: 10000,
+    consumedTokens: 0,
+    frozen: false,
+    reason: ''
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
@@ -105,6 +114,11 @@ export function AdminUsers({token}: AdminUsersProps) {
   const [actionMessage, setActionMessage] = useState('');
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const selectedUserIdRef = useRef(selectedUserId);
+
+  useEffect(() => {
+    selectedUserIdRef.current = selectedUserId;
+  }, [selectedUserId]);
 
   useEffect(() => {
     let active = true;
@@ -132,7 +146,7 @@ export function AdminUsers({token}: AdminUsersProps) {
             page: users.page,
             pages: users.pages
           });
-          const preferredUser = users.items.find((item) => item.id === selectedUserId) || users.items[0] || null;
+          const preferredUser = users.items.find((item) => item.id === selectedUserIdRef.current) || users.items[0] || null;
           setSelectedUserId(preferredUser?.id || '');
           setDetail(preferredUser);
           setEditDraft(preferredUser ? userToDraft(preferredUser) : null);
@@ -155,6 +169,31 @@ export function AdminUsers({token}: AdminUsersProps) {
     };
   }, [token, page, query, role, statusFilter, t, reloadKey]);
 
+  useEffect(() => {
+    if (!selectedUserId || showCreate) {
+      setQuota(null);
+      return;
+    }
+    let active = true;
+    getAdminUserQuota(token, selectedUserId)
+      .then((payload) => {
+        if (!active) return;
+        setQuota(payload);
+        setQuotaDraft({
+          grantedTokens: payload.granted_tokens,
+          consumedTokens: payload.consumed_tokens,
+          frozen: payload.frozen,
+          reason: ''
+        });
+      })
+      .catch((quotaError: unknown) => {
+        if (active) setActionMessage(quotaError instanceof Error ? quotaError.message : t('quotaLoadFailed'));
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, selectedUserId, showCreate, t]);
+
   const topStats = useMemo(() => {
     return [
       {label: t('totalUsers'), value: stats.total, tone: 'brand'},
@@ -171,7 +210,6 @@ export function AdminUsers({token}: AdminUsersProps) {
     setPasswordDraft('');
     setShowCreate(false);
   }
-
   async function refreshUsers(nextUserId?: string) {
     const [usersResult, dashboardResult] = await Promise.allSettled([
       listAdminUsers(token, {
@@ -268,6 +306,32 @@ export function AdminUsers({token}: AdminUsersProps) {
       setPasswordDraft('');
     } catch (actionError: unknown) {
       setActionMessage(actionError instanceof Error ? actionError.message : t('passwordResetFailed'));
+    }
+  }
+
+  async function handleQuotaSave() {
+    if (!detail) return;
+    if (quotaDraft.reason.trim().length < 2) {
+      setActionMessage(t('quotaReasonRequired'));
+      return;
+    }
+    try {
+      const updated = await updateAdminUserQuota(token, detail.id, {
+        granted_tokens: Math.max(0, quotaDraft.grantedTokens),
+        consumed_tokens: Math.max(0, quotaDraft.consumedTokens),
+        frozen: quotaDraft.frozen,
+        reason: quotaDraft.reason.trim()
+      });
+      setQuota(updated);
+      setQuotaDraft({
+        grantedTokens: updated.granted_tokens,
+        consumedTokens: updated.consumed_tokens,
+        frozen: updated.frozen,
+        reason: ''
+      });
+      setActionMessage(t('quotaSaved'));
+    } catch (quotaError: unknown) {
+      setActionMessage(quotaError instanceof Error ? quotaError.message : t('quotaSaveFailed'));
     }
   }
 
@@ -541,6 +605,58 @@ export function AdminUsers({token}: AdminUsersProps) {
                   <strong>{detail.role}</strong>
                 </div>
               </div>
+
+              <section className="admin-detail-list__item">
+                <div className="admin-panel__header">
+                  <div>
+                    <p className="admin-panel__eyebrow">AI quota</p>
+                    <h3>{t('aiQuotaTitle')}</h3>
+                  </div>
+                  {quota ? (
+                    <span className={`admin-pill admin-pill--${quota.frozen ? 'warning' : 'success'}`}>
+                      {quota.frozen ? t('quotaFrozen') : t('quotaAvailable')}
+                    </span>
+                  ) : null}
+                </div>
+
+                {quota ? (
+                  <div className="admin-stack">
+                    <div className="admin-detail-grid admin-detail-grid--compact" style={{fontVariantNumeric: 'tabular-nums'}}>
+                      <div className="admin-detail-card"><span>{t('quotaGranted')}</span><strong>{quota.granted_tokens.toLocaleString()}</strong></div>
+                      <div className="admin-detail-card"><span>{t('quotaConsumed')}</span><strong>{quota.consumed_tokens.toLocaleString()}</strong></div>
+                      <div className="admin-detail-card"><span>{t('quotaReserved')}</span><strong>{quota.reserved_tokens.toLocaleString()}</strong></div>
+                      <div className="admin-detail-card"><span>{t('quotaRemaining')}</span><strong>{quota.remaining_tokens.toLocaleString()}</strong></div>
+                    </div>
+                    <div className="admin-inline-notes">
+                      <span>{t('linkedAccounts', {count: quota.linked_user_count})}</span>
+                      <span>{t('linkedDevices', {count: quota.linked_device_count})}</span>
+                    </div>
+                    <div className="admin-form-grid admin-form-grid--two">
+                      <label className="admin-field">
+                        <span>{t('quotaGranted')}</span>
+                        <input className="admin-input" min={0} type="number" value={quotaDraft.grantedTokens} onChange={(event) => setQuotaDraft((current) => ({...current, grantedTokens: Number(event.target.value || 0)}))} />
+                      </label>
+                      <label className="admin-field">
+                        <span>{t('quotaConsumed')}</span>
+                        <input className="admin-input" min={0} type="number" value={quotaDraft.consumedTokens} onChange={(event) => setQuotaDraft((current) => ({...current, consumedTokens: Number(event.target.value || 0)}))} />
+                      </label>
+                      <label className="admin-field admin-field--wide">
+                        <span>{t('quotaReason')}</span>
+                        <input className="admin-input" maxLength={500} value={quotaDraft.reason} onChange={(event) => setQuotaDraft((current) => ({...current, reason: event.target.value}))} placeholder={t('quotaReasonPlaceholder')} />
+                      </label>
+                    </div>
+                    <label className="admin-checkbox-row">
+                      <span>{t('freezeQuota')}</span>
+                      <input checked={quotaDraft.frozen} type="checkbox" onChange={(event) => setQuotaDraft((current) => ({...current, frozen: event.target.checked}))} />
+                    </label>
+                    <div className="admin-detail-list__actions">
+                      <button className="admin-button admin-button--primary admin-button--small" type="button" onClick={handleQuotaSave}>{t('saveQuota')}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="admin-detail-card">{t('quotaLoading')}</div>
+                )}
+              </section>
 
               <div className="admin-form-grid admin-form-grid--two">
                 <label className="admin-field">

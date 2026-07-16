@@ -2,6 +2,7 @@
 AI 问答 API — 基于 GEO 知识、诊断上下文和公司知识库回答用户问题
 对话持久化至 PostgreSQL，AI 部分支持流式输出（SSE）
 """
+import asyncio
 import json
 import uuid
 from typing import Optional, AsyncGenerator
@@ -12,16 +13,18 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 
 from app.core.deps import DbSession, CurrentUser, OptionalUser
+from app.core.database import async_session
 from app.models.conversation import Conversation, Message, MessageRole
-from app.services.ai_usage import record_ai_usage, resolve_ai_access
+from app.models.diagnostic import DiagnosticReport
+from app.services.ai_usage import record_ai_usage, release_ai_access, resolve_ai_access
 
 router = APIRouter()
 
 
 class ChatRequest(BaseModel):
     message: str
-    conversation_id: Optional[str] = None  # 继续已有对话
-    diagnostic_report_id: Optional[str] = None  # 携带诊断报告上下文
+    conversation_id: Optional[uuid.UUID] = None  # 继续已有对话
+    diagnostic_report_id: Optional[uuid.UUID] = None  # 携带诊断报告上下文
     channel_key: Optional[str] = None  # 问答频道，如 geo-basics / diagnostic-explain
 
 
@@ -62,6 +65,10 @@ async def chat(data: ChatRequest, request: Request, db: DbSession, current_user:
     4. 保存 AI 回复
     5. 返回完整响应
     """
+    diagnostic_report_id = str(data.diagnostic_report_id) if data.diagnostic_report_id else None
+    user_id = current_user.id if current_user else None
+    conversation = await _get_requested_conversation(db, data.conversation_id, user_id)
+    await _validate_diagnostic_report_access(db, data.diagnostic_report_id, user_id)
     access = await resolve_ai_access(
         db=db,
         request=request,
@@ -69,55 +76,63 @@ async def chat(data: ChatRequest, request: Request, db: DbSession, current_user:
         module="solutions",
         prompt_text=data.message,
     )
-    conversation = await _get_or_create_conversation(db, data, current_user.id if current_user else None)
+    try:
+        if conversation is None:
+            conversation = await _create_conversation(db, user_id)
 
-    # 保存用户消息
-    user_msg = Message(
-        conversation_id=conversation.id,
-        role=MessageRole.USER,
-        content=data.message,
-        diagnostic_context_id=uuid.UUID(data.diagnostic_report_id) if data.diagnostic_report_id else None,
-    )
-    db.add(user_msg)
-    await db.flush()
-
-    # 执行 AI 问答
-    reply_text, recommended_companies = await _run_rag(
-        data.message,
-        data.diagnostic_report_id,
-        db,
-        data.channel_key,
-        provider_override=access.provider_override,
-    )
-
-    # 保存 AI 回复
-    ai_msg = Message(
-        conversation_id=conversation.id,
-        role=MessageRole.ASSISTANT,
-        content=reply_text,
-        recommended_companies=recommended_companies,
-    )
-    db.add(ai_msg)
-
-    # 更新对话标题（取首条用户消息前 30 字）
-    if not conversation.title:
-        await db.execute(
-            update(Conversation)
-            .where(Conversation.id == conversation.id)
-            .values(title=data.message[:30])
+        # 保存用户消息
+        user_msg = Message(
+            conversation_id=conversation.id,
+            role=MessageRole.USER,
+            content=data.message,
+            diagnostic_context_id=data.diagnostic_report_id,
         )
+        db.add(user_msg)
+        await db.flush()
 
-    await record_ai_usage(
-        db,
-        access,
-        output_text=reply_text,
-        metadata={
-            "channel_key": data.channel_key,
-            "diagnostic_report_id": data.diagnostic_report_id,
-            "conversation_id": str(conversation.id),
-        },
-    )
-    await db.commit()
+        # 执行 AI 问答
+        reply_text, recommended_companies, provider_succeeded = await _run_rag(
+            data.message,
+            diagnostic_report_id,
+            db,
+            data.channel_key,
+            provider_override=access.provider_override,
+        )
+        # 保存 AI 回复
+        ai_msg = Message(
+            conversation_id=conversation.id,
+            role=MessageRole.ASSISTANT,
+            content=reply_text,
+            recommended_companies=recommended_companies,
+        )
+        db.add(ai_msg)
+
+        # 更新对话标题（取首条用户消息前 30 字）
+        if not conversation.title:
+            await db.execute(
+                update(Conversation)
+                .where(Conversation.id == conversation.id)
+                .values(title=data.message[:30])
+            )
+
+        await record_ai_usage(
+            db,
+            access,
+            output_text=reply_text,
+            status_value="success" if provider_succeeded else "error",
+            error_code=None if provider_succeeded else "platform_ai_unavailable",
+            metadata={
+                "channel_key": data.channel_key,
+                "diagnostic_report_id": diagnostic_report_id,
+                "conversation_id": str(conversation.id),
+            },
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        await release_ai_access(db, access, error_code="solution_generation_failed")
+        await db.commit()
+        raise
 
     return {
         "conversation_id": str(conversation.id),
@@ -129,6 +144,10 @@ async def chat(data: ChatRequest, request: Request, db: DbSession, current_user:
 @router.post("/chat/stream")
 async def chat_stream(data: ChatRequest, request: Request, db: DbSession, current_user: OptionalUser):
     """SSE 流式 AI 问答版本"""
+    diagnostic_report_id = str(data.diagnostic_report_id) if data.diagnostic_report_id else None
+    user_id = current_user.id if current_user else None
+    conversation = await _get_requested_conversation(db, data.conversation_id, user_id)
+    await _validate_diagnostic_report_access(db, data.diagnostic_report_id, user_id)
     access = await resolve_ai_access(
         db=db,
         request=request,
@@ -136,16 +155,22 @@ async def chat_stream(data: ChatRequest, request: Request, db: DbSession, curren
         module="solutions",
         prompt_text=data.message,
     )
-    conversation = await _get_or_create_conversation(db, data, current_user.id if current_user else None)
-
-    user_msg = Message(
-        conversation_id=conversation.id,
-        role=MessageRole.USER,
-        content=data.message,
-        diagnostic_context_id=uuid.UUID(data.diagnostic_report_id) if data.diagnostic_report_id else None,
-    )
-    db.add(user_msg)
-    await db.commit()
+    try:
+        if conversation is None:
+            conversation = await _create_conversation(db, user_id)
+        user_msg = Message(
+            conversation_id=conversation.id,
+            role=MessageRole.USER,
+            content=data.message,
+            diagnostic_context_id=data.diagnostic_report_id,
+        )
+        db.add(user_msg)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        await release_ai_access(db, access, error_code="solution_stream_setup_failed")
+        await db.commit()
+        raise
 
     async def event_generator() -> AsyncGenerator[str, None]:
         full_reply = ""
@@ -156,7 +181,7 @@ async def chat_stream(data: ChatRequest, request: Request, db: DbSession, curren
         try:
             async for chunk in _stream_rag(
                 data.message,
-                data.diagnostic_report_id,
+                diagnostic_report_id,
                 db,
                 data.channel_key,
                 provider_override=access.provider_override,
@@ -164,44 +189,64 @@ async def chat_stream(data: ChatRequest, request: Request, db: DbSession, curren
                 if chunk["type"] == "text":
                     full_reply += chunk["content"]
                     yield f"data: {json.dumps({'type': 'text', 'content': chunk['content']})}\n\n"
+                elif chunk["type"] == "fallback":
+                    status_value = "error"
+                    error_code = "platform_ai_unavailable"
+                    full_reply += chunk["content"]
+                    yield f"data: {json.dumps({'type': 'text', 'content': chunk['content']})}\n\n"
                 elif chunk["type"] == "companies":
                     recommended = chunk["content"]
                     yield f"data: {json.dumps({'type': 'companies', 'content': recommended})}\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            status_value = "error"
+            error_code = "client_disconnected"
+            raise
         except Exception as e:
             status_value = "error"
             error_code = "ai_generation_failed"
             error_content = e.detail if isinstance(e, HTTPException) else str(e)
             yield f"data: {json.dumps({'type': 'error', 'content': error_content})}\n\n"
         finally:
-            # 保存完整 AI 回复
-            async with db:
-                ai_msg = Message(
-                    conversation_id=conversation.id,
-                    role=MessageRole.ASSISTANT,
-                    content=full_reply,
-                    recommended_companies=recommended,
-                )
-                db.add(ai_msg)
-                if not conversation.title:
-                    await db.execute(
-                        update(Conversation)
-                        .where(Conversation.id == conversation.id)
-                        .values(title=data.message[:30])
+            async def finalize_stream() -> None:
+                # Use a response-independent session so client cancellation does
+                # not roll back the provider cost that has already been incurred.
+                async with async_session() as settlement_db:
+                    ai_msg = Message(
+                        conversation_id=conversation.id,
+                        role=MessageRole.ASSISTANT,
+                        content=full_reply,
+                        recommended_companies=recommended,
                     )
-                await record_ai_usage(
-                    db,
-                    access,
-                    output_text=full_reply,
-                    status_value=status_value,
-                    error_code=error_code,
-                    metadata={
-                        "channel_key": data.channel_key,
-                        "diagnostic_report_id": data.diagnostic_report_id,
-                        "conversation_id": str(conversation.id),
-                        "stream": True,
-                    },
-                )
-                await db.commit()
+                    settlement_db.add(ai_msg)
+                    if not conversation.title:
+                        await settlement_db.execute(
+                            update(Conversation)
+                            .where(Conversation.id == conversation.id)
+                            .values(title=data.message[:30])
+                        )
+                    await record_ai_usage(
+                        settlement_db,
+                        access,
+                        output_text=full_reply,
+                        status_value=status_value,
+                        error_code=error_code,
+                        metadata={
+                            "channel_key": data.channel_key,
+                            "diagnostic_report_id": diagnostic_report_id,
+                            "conversation_id": str(conversation.id),
+                            "stream": True,
+                        },
+                        charge_reserved_tokens_on_error=error_code == "client_disconnected",
+                    )
+                    await settlement_db.commit()
+
+            finalize_task = asyncio.create_task(finalize_stream())
+            try:
+                await asyncio.shield(finalize_task)
+            except asyncio.CancelledError:
+                # Keep settlement alive after the response task is cancelled.
+                await finalize_task
+                raise
             yield f"data: {json.dumps({'type': 'done', 'conversation_id': str(conversation.id)})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -301,11 +346,15 @@ async def claim_conversation(conversation_id: str, db: DbSession, current_user: 
 # 内部工具函数
 # ============================================================
 
-async def _get_or_create_conversation(db, data: ChatRequest, user_id: Optional[uuid.UUID]) -> Conversation:
-    """获取已有对话或创建新对话"""
-    if data.conversation_id:
+async def _get_requested_conversation(
+    db,
+    conversation_id: Optional[uuid.UUID],
+    user_id: Optional[uuid.UUID],
+) -> Conversation | None:
+    """在额度预占前校验客户端传入的会话。"""
+    if conversation_id:
         result = await db.execute(
-            select(Conversation).where(Conversation.id == uuid.UUID(data.conversation_id))
+            select(Conversation).where(Conversation.id == conversation_id)
         )
         conversation = result.scalar_one_or_none()
         if not conversation:
@@ -313,11 +362,28 @@ async def _get_or_create_conversation(db, data: ChatRequest, user_id: Optional[u
         if conversation.user_id is not None and conversation.user_id != user_id:
             raise HTTPException(status_code=404, detail="对话不存在")
         return conversation
+    return None
 
+
+async def _create_conversation(db, user_id: Optional[uuid.UUID]) -> Conversation:
     conversation = Conversation(user_id=user_id)
     db.add(conversation)
     await db.flush()
     return conversation
+
+
+async def _validate_diagnostic_report_access(
+    db,
+    report_id: Optional[uuid.UUID],
+    user_id: Optional[uuid.UUID],
+) -> None:
+    if not report_id:
+        return
+    report = (
+        await db.execute(select(DiagnosticReport).where(DiagnosticReport.id == report_id))
+    ).scalar_one_or_none()
+    if not report or (report.user_id is not None and report.user_id != user_id):
+        raise HTTPException(status_code=404, detail="诊断报告不存在")
 
 
 async def _run_rag(
@@ -326,7 +392,7 @@ async def _run_rag(
     db,
     channel_key: Optional[str] = None,
     provider_override=None,
-) -> tuple[str, list]:
+) -> tuple[str, list, bool]:
     """
     RAG 问答管道：
     1. 将用户问题向量化
@@ -337,13 +403,14 @@ async def _run_rag(
     """
     try:
         from app.services.ai_client import ai_client
-        return await ai_client.rag_recommend(
+        reply, companies = await ai_client.rag_recommend(
             message,
             diagnostic_report_id,
             db,
             channel_key=channel_key,
             provider_override=provider_override,
         )
+        return reply, companies, True
     except Exception as e:
         if provider_override is not None:
             raise HTTPException(
@@ -357,7 +424,7 @@ async def _run_rag(
             "请在后台设置中填入有效的 `openai_api_key`，或联系管理员。\n\n"
             "您也可以先浏览教程和诊断报告，手动梳理 GEO 优化问题。"
         )
-        return reply, []
+        return reply, [], False
 
 
 async def _stream_rag(
@@ -390,4 +457,4 @@ async def _stream_rag(
         )
         # 逐词流式输出降级提示
         for word in text.split("，"):
-            yield {"type": "text", "content": word + "，"}
+            yield {"type": "fallback", "content": word + "，"}

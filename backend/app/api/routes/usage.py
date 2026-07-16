@@ -3,7 +3,7 @@
 """
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.deps import DbSession, OptionalUser
@@ -33,8 +33,8 @@ async def get_usage_policy():
 
 
 @router.get("/me")
-async def get_my_usage(db: DbSession, current_user: OptionalUser):
-    return await build_user_usage_payload(db, current_user)
+async def get_my_usage(request: Request, db: DbSession, current_user: OptionalUser):
+    return await build_user_usage_payload(db, current_user, request)
 
 
 @router.post("/browser-direct")
@@ -50,6 +50,8 @@ async def report_browser_direct_usage(
     daily quota.
     """
     policy = await get_ai_usage_policy_config()
+    if not current_user and not policy.get("allow_anonymous_ai_usage", False):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后再上报 AI 用量")
     if not policy.get("allow_user_byok", True):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前后台策略不允许使用用户自定义 API Key")
     if policy.get("byok_transport_mode") != "browser_direct":

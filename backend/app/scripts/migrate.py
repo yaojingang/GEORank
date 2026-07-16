@@ -42,6 +42,13 @@ ALEMBIC_MANAGED_TABLES = frozenset(
         "expert_profiles",
         "ai_usage_events",
         "user_daily_usage",
+        "ai_quota_principals",
+        "ai_principal_users",
+        "ai_principal_devices",
+        "ai_credit_wallets",
+        "ai_global_daily_budgets",
+        "ai_token_reservations",
+        "ai_quota_audit_logs",
         "homepage_releases",
     }
 )

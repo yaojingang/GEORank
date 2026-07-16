@@ -1,7 +1,8 @@
 /**
  * GEOrank - 专家频道
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const $ = (selector, root = document) => root.querySelector(selector);
@@ -579,9 +580,7 @@
 
     document.addEventListener('georank:site-settings-applied', refreshCurrentMeta);
 
-    document.addEventListener('DOMContentLoaded', () => {
-        state.activeExpertKey = getRequestedExpertKey();
-        bindFilters();
-        loadPublishedExperts();
-    });
-})();
+    state.activeExpertKey = getRequestedExpertKey();
+    bindFilters();
+    loadPublishedExperts();
+});

@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "skill_dir": "[workspace]/skills/georank",
+  "source": "reports/review_annotations_input.json",
+  "summary": {
+    "annotation_count": 0,
+    "open_count": 0,
+    "resolved_count": 0,
+    "deferred_count": 0,
+    "open_blocker_count": 0,
+    "open_warning_count": 0,
+    "linked_gate_count": 0,
+    "target_missing_count": 0,
+    "failure_count": 0
+  },
+  "annotations": [],
+  "failures": [],
+  "template_written": false,
+  "artifacts": {
+    "json": "reports/review_annotations.json",
+    "markdown": "reports/review_annotations.md"
+  }
+}

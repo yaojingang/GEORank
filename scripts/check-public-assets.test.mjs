@@ -80,7 +80,7 @@ test('future tombstone projection satisfies versioned fixture and state schemas'
     schema_version: 1,
     contract: 'expert-state-transition',
     revision: '015_unpublish_yao_jingang',
-    down_revision: '014_builtin_homepage_release',
+    down_revision: '016_merge_platform_iterations',
     effective_date: '2026-07-16',
     downgrade_policy: 'preserve_target_state',
     operations: [{
@@ -209,7 +209,7 @@ test('public data docs identify canonical expert and homepage sources', () => {
   assert.equal(existsSync(docsPath), true, 'docs/public-data.md must exist');
   const content = readFileSync(docsPath, 'utf8');
   assert.match(content, /data\/public\/experts\.json/);
-  assert.match(content, /43a461f6-6be2-4931-9dbb-f1d56576292a/);
+  assert.match(content, /9fe4a087-42bc-423a-bc59-fc020018a6f9/);
   assert.match(content, /runtime\/homepages\/releases\/<release-id>\/source/);
   assert.match(content, /build_zip_homepage_release/);
   assert.match(content, /\/tutorial/);

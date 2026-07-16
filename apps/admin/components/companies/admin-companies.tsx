@@ -714,13 +714,15 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
                   >
                     {actions('reject')}
                   </button>
-                  <button
-                    className="admin-button admin-button--ghost admin-button--small"
-                    onClick={() => void runAction('retry', detail.id)}
-                    type="button"
-                  >
-                    {actions('retry')}
-                  </button>
+                  {['failed', 'completed'].includes(detail.pipeline_status) ? (
+                    <button
+                      className="admin-button admin-button--ghost admin-button--small"
+                      onClick={() => void runAction('retry', detail.id)}
+                      type="button"
+                    >
+                      {actions('retry')}
+                    </button>
+                  ) : null}
                   <button
                     className="admin-button admin-button--danger admin-button--small"
                     onClick={() => void runAction('delete', detail.id)}

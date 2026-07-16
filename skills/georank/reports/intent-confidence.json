@@ -1,0 +1,58 @@
+{
+  "score": 100,
+  "band": "high",
+  "gate_passed": true,
+  "strengths": [
+    "The recurring job is concrete enough to anchor the package.",
+    "Real input shape is explicit.",
+    "The hand-back output is concrete.",
+    "Boundary exclusions are already explicit.",
+    "Operational constraints are visible."
+  ],
+  "gaps": [],
+  "follow_up_questions": [],
+  "anchor_sentence": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill. Primary output: A redacted execution receipt containing detected access level, operation, target, dry-run or executed status, API status, resource identifiers, request ID, next safe step, and rollback guidance when applicable.. Exclusions: general GEO or SEO explanation, GEO strategy creation, article writing, GEOrank repository development or review, GEOrank installation without instance operation.",
+  "recommended_action": "Intent is clear enough to package the first routeable version.",
+  "context": {
+    "job": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+    "real_inputs": [
+      "GEOrank base URL",
+      "account or phone identity",
+      "password supplied through a hidden prompt or named environment variable",
+      "relative /api path and HTTP method",
+      "optional protected JSON request body",
+      "company, report, conversation, user, content, or release identifier"
+    ],
+    "primary_output": "A redacted execution receipt containing detected access level, operation, target, dry-run or executed status, API status, resource identifiers, request ID, next safe step, and rollback guidance when applicable.",
+    "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API with ordinary-user login guidance, live role detection, administrator safety gates, and redacted receipts.",
+    "exclusions": [
+      "general GEO or SEO explanation",
+      "GEO strategy creation",
+      "article writing",
+      "GEOrank repository development or review",
+      "GEOrank installation without instance operation"
+    ],
+    "constraints": [
+      "remote instances require HTTPS",
+      "passwords and tokens stay out of argv and receipts",
+      "non-read requests default to dry-run",
+      "administrator actions require a live /api/auth/me role check",
+      "destructive actions use an exact canonical path-and-query confirmation phrase",
+      "request, response, and session sizes are bounded",
+      "session replacement and removal require a recognized GEOrank format marker",
+      "uncertain write state requires a confirming read before retry"
+    ],
+    "standards": [
+      "deterministic CLI behavior",
+      "recursive secret redaction",
+      "owner-only session storage",
+      "explicit missing-evidence labels",
+      "cross-target packaging and isolated install verification"
+    ],
+    "correction": "The design was consolidated into one skill, and login guidance was fixed to start with an ordinary-user flow before live role detection.",
+    "user_references": [
+      "GEOrank repository API routes and schemas",
+      "The approved unified-skill and ordinary-user-login decisions in this task"
+    ]
+  }
+}

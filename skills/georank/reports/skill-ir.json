@@ -1,0 +1,152 @@
+{
+  "schema_version": "2.0.0",
+  "name": "georank",
+  "title": "GEOrank 管理助手",
+  "job_to_be_done": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+  "trigger_surface": {
+    "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+    "should_trigger": [
+      "登录我的 GEOrank 账号，然后查看当前用户信息。",
+      "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+      "用 GEOrank 跑一次网站诊断并读取报告。",
+      "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+      "在 GEOrank 里扩展这组关键词。",
+      "列出 GEOrank 后台待审核的公司。",
+      "把这个 GEOrank 用户停用，先给我看变更预检。",
+      "更新 GEOrank 的模型 Provider 配置。"
+    ],
+    "should_not_trigger": [
+      "解释 GEO 和 SEO 有什么区别。",
+      "为这个品牌写一篇 GEO 排名文章。",
+      "给我制定生成式引擎优化策略。",
+      "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+      "修复 GEOrank 后端测试失败。",
+      "重构 GEOrank 的管理员前端组件。",
+      "Review this GEOrank pull request.",
+      "Deploy an unrelated FastAPI service.",
+      "general GEO or SEO explanation",
+      "GEO strategy creation"
+    ],
+    "edge_cases": [
+      "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+      "帮我设计一个类似 GEOrank 的 GEO 产品。",
+      "读取 GEOrank 仓库并给架构建议。",
+      "生成一份可以手工导入 GEOrank 的关键词清单。",
+      "写 GEOrank 的发布说明。",
+      "帮我安装 GEOrank，但先不要登录或管理实例。"
+    ]
+  },
+  "workflow": {
+    "steps": [
+      "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+      "Resolve authentication:",
+      "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+      "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+      "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.",
+      "Read `references/user-capabilities.md` for public and user-owned operations. Read `references/admin-capabilities.md` only for administrator requests.",
+      "For reads, call the API directly with `scripts/georank_client.py call GET <path>`.",
+      "For writes, run the same command without `--execute` first and show the preflight result. Execute only after the user's request clearly authorizes that exact change.",
+      "Before any administrator mutation, read `references/safety-policy.md` and supply its required confirmation phrase. Never infer administrator authority from the wording of a request.",
+      "Return an execution receipt containing the action, status, resource identifiers, request ID when present, and the next safe step. Remove passwords, tokens, API keys, and other secrets from all output."
+    ],
+    "decision_points": [
+      "detected access level: public, user, or admin",
+      "operation and target resource",
+      "dry-run or executed status",
+      "API status, resource IDs, and request ID when available",
+      "redacted change summary and next step",
+      "rollback guidance for administrator changes",
+      "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+      "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+      "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+    ],
+    "failure_modes": [
+      "Commands can omit environment assumptions, working directory, or rollback notes.",
+      "Code snippets can look runnable while missing required inputs.",
+      "Headings and summaries can drift into generic, interchangeable language.",
+      "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+      "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+      "Long bullets can make the output look complete while hiding the actual decision logic.",
+      "Users start invoking the skill for adjacent one-off or explanation-only requests.",
+      "Outputs remain valid but become generic, cluttered, or weakly aligned with the user's domain.",
+      "Borrowed benchmark patterns no longer fit the local job or add ceremony without payoff.",
+      "Skill usage becomes team-critical while ownership, review cadence, or rollback evidence stays informal."
+    ]
+  },
+  "resources": {
+    "references": [
+      "references/admin-capabilities.md",
+      "references/safety-policy.md",
+      "references/user-capabilities.md"
+    ],
+    "scripts": [
+      "scripts/georank_client.py"
+    ],
+    "assets": [],
+    "reports": [
+      "reports/intent-context.json",
+      "reports/intent-confidence.json",
+      "reports/intent-confidence.md",
+      "reports/output-risk-profile.json",
+      "reports/output-risk-profile.md",
+      "reports/system-model.json",
+      "reports/system-model.md",
+      "reports/skill-overview.json",
+      "reports/skill-overview.html",
+      "reports/output_quality_scorecard.json",
+      "reports/output_quality_scorecard.md",
+      "reports/output_blind_review_pack.json",
+      "reports/output_blind_review_pack.md",
+      "reports/output_blind_answer_key.json",
+      "reports/review_annotations.md",
+      "reports/conformance_matrix.json",
+      "reports/conformance_matrix.md",
+      "reports/security_trust_report.json",
+      "reports/security_trust_report.md",
+      "reports/runtime_permission_probes.json",
+      "reports/runtime_permission_probes.md",
+      "reports/skill_atlas.json",
+      "reports/skill_atlas.html"
+    ]
+  },
+  "eval_plan": {
+    "trigger": [
+      "evals/output/cases.jsonl",
+      "evals/output/fixtures/provider-change.json",
+      "evals/semantic_config.json",
+      "evals/trigger_cases.json"
+    ],
+    "output": [
+      "evals/output/cases.jsonl",
+      "evals/output/fixtures/provider-change.json"
+    ],
+    "adversarial": [],
+    "baseline": "without_skill"
+  },
+  "risk": {
+    "output_risk": "medium",
+    "execution_risk": "medium",
+    "trust_boundary": "external"
+  },
+  "governance": {
+    "owner": "GEOrank Maintainers",
+    "maturity": "governed",
+    "review_cadence": "monthly",
+    "review_due": "2026-08-16"
+  },
+  "targets": [
+    "openai",
+    "claude",
+    "generic",
+    "agent-skills-compatible",
+    "vscode"
+  ],
+  "source_files": [
+    "SKILL.md",
+    "manifest.json",
+    "agents/interface.yaml",
+    "reports/intent-context.json",
+    "reports/output-risk-profile.json",
+    "reports/system-model.json"
+  ]
+}

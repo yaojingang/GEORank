@@ -4,7 +4,8 @@ import { useState } from 'react';
 import {useTranslations} from 'next-intl';
 
 import type { KeywordDimension, KeywordExpandResponse } from '@georank/api-sdk';
-import { expandKeywords } from '@georank/api-sdk';
+import { ApiRequestError, expandKeywords } from '@georank/api-sdk';
+import {localizeHref} from '@georank/i18n/routing';
 
 import { SessionGuard } from '../auth/session-guard';
 
@@ -23,12 +24,13 @@ function parseSeeds(raw: string) {
   );
 }
 
-function KeywordsWorkbenchInner({ token }: { token: string }) {
+function KeywordsWorkbenchInner({ locale, token }: { locale: string; token: string }) {
   const t = useTranslations('web.keywords');
   const [rawInput, setRawInput] = useState('');
   const [result, setResult] = useState<KeywordExpandResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showApiGuidance, setShowApiGuidance] = useState(false);
 
   async function handleExpand(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,11 +42,13 @@ function KeywordsWorkbenchInner({ token }: { token: string }) {
 
     setLoading(true);
     setError('');
+    setShowApiGuidance(false);
     try {
       const nextResult = await expandKeywords({ seeds }, token);
       setResult(nextResult);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('failed'));
+      setShowApiGuidance(reason instanceof ApiRequestError && Boolean(reason.guidance));
     } finally {
       setLoading(false);
     }
@@ -78,6 +82,11 @@ function KeywordsWorkbenchInner({ token }: { token: string }) {
             </button>
           </div>
           {error ? <p className="tool-error">{error}</p> : null}
+          {showApiGuidance ? (
+            <a className="tool-chip" href={`${localizeHref(locale, '/profile')}#model-api`}>
+              {t('configureApi')}
+            </a>
+          ) : null}
         </form>
       </section>
 
@@ -188,7 +197,7 @@ export function KeywordsWorkbench({ locale }: KeywordsWorkbenchProps) {
       title={t('guardTitle')}
       description={t('guardDescription')}
     >
-      {({ token }) => <KeywordsWorkbenchInner token={token} />}
+      {({ token }) => <KeywordsWorkbenchInner locale={locale} token={token} />}
     </SessionGuard>
   );
 }

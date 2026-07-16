@@ -1,6 +1,261 @@
 {
   "components": {
     "schemas": {
+      "AdminApiPolicyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "access_mode": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Mode"
+          },
+          "allow_anonymous_ai_usage": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow Anonymous Ai Usage"
+          },
+          "allow_user_byok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow User Byok"
+          },
+          "allowed_byok_providers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Byok Providers"
+          },
+          "byok_guidance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminByokGuidanceRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "byok_transport_mode": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Byok Transport Mode"
+          },
+          "daily_token_limit": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Token Limit"
+          },
+          "emergency_byok_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergency Byok Only"
+          },
+          "global_budget_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Budget Enabled"
+          },
+          "global_daily_token_limit": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Global Daily Token Limit"
+          },
+          "lifetime_token_grant": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifetime Token Grant"
+          },
+          "metered_modules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metered Modules"
+          },
+          "quota_reset_timezone": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota Reset Timezone"
+          }
+        },
+        "title": "AdminApiPolicyRequest",
+        "type": "object"
+      },
+      "AdminByokGuidanceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "cta_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Label"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "official_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Official Url"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "AdminByokGuidanceRequest",
+        "type": "object"
+      },
       "AdminCompanyRequest": {
         "properties": {
           "category": {
@@ -299,6 +554,59 @@
         "title": "AdminUserCreateRequest",
         "type": "object"
       },
+      "AdminUserQuotaUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "consumed_tokens": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consumed Tokens"
+          },
+          "frozen": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozen"
+          },
+          "granted_tokens": {
+            "anyOf": [
+              {
+                "maximum": 1000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted Tokens"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AdminUserQuotaUpdateRequest",
+        "type": "object"
+      },
       "AdminUserUpdateRequest": {
         "properties": {
           "email": {
@@ -518,6 +826,7 @@
           "conversation_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
@@ -529,6 +838,7 @@
           "diagnostic_report_id": {
             "anyOf": [
               {
+                "format": "uuid",
                 "type": "string"
               },
               {
@@ -672,6 +982,11 @@
           "url": {
             "title": "Url",
             "type": "string"
+          },
+          "view_count": {
+            "default": 0,
+            "title": "View Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -873,6 +1188,11 @@
           "url": {
             "title": "Url",
             "type": "string"
+          },
+          "view_count": {
+            "default": 0,
+            "title": "View Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -1167,6 +1487,29 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HomepageSourceUpdateRequest": {
+        "properties": {
+          "expected_sha256": {
+            "maxLength": 64,
+            "minLength": 64,
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Sha256",
+            "type": "string"
+          },
+          "html": {
+            "maxLength": 83886080,
+            "minLength": 1,
+            "title": "Html",
+            "type": "string"
+          }
+        },
+        "required": [
+          "html",
+          "expected_sha256"
+        ],
+        "title": "HomepageSourceUpdateRequest",
         "type": "object"
       },
       "KeywordDimensionResponse": {
@@ -2234,8 +2577,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "title": "Request",
-                "type": "object"
+                "$ref": "#/components/schemas/AdminApiPolicyRequest"
               }
             }
           },
@@ -4084,6 +4426,52 @@
         ]
       }
     },
+    "/api/admin/homepage/releases/{release_id}/clone": {
+      "post": {
+        "operationId": "clone_homepage_release_admin_api_admin_homepage_releases__release_id__clone_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "release_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Release Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Clone Homepage Release Admin",
+        "tags": [
+          "后台管理"
+        ]
+      }
+    },
     "/api/admin/homepage/releases/{release_id}/preview": {
       "get": {
         "operationId": "preview_homepage_release_admin_api_admin_homepage_releases__release_id__preview_get",
@@ -4127,6 +4515,106 @@
           }
         ],
         "summary": "Preview Homepage Release Admin",
+        "tags": [
+          "后台管理"
+        ]
+      }
+    },
+    "/api/admin/homepage/releases/{release_id}/source": {
+      "get": {
+        "operationId": "get_homepage_release_source_admin_api_admin_homepage_releases__release_id__source_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "release_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Release Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Homepage Release Source Admin",
+        "tags": [
+          "后台管理"
+        ]
+      },
+      "put": {
+        "operationId": "update_homepage_release_source_admin_api_admin_homepage_releases__release_id__source_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "release_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Release Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomepageSourceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Homepage Release Source Admin",
         "tags": [
           "后台管理"
         ]
@@ -5701,6 +6189,106 @@
         ]
       }
     },
+    "/api/admin/users/{user_id}/ai-quota": {
+      "get": {
+        "description": "读取用户所属风险主体的终身 AI 额度。",
+        "operationId": "get_user_ai_quota_admin_api_admin_users__user_id__ai_quota_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get User Ai Quota Admin",
+        "tags": [
+          "后台管理"
+        ]
+      },
+      "put": {
+        "description": "调整用户风险主体额度或冻结状态，并写入审计日志。",
+        "operationId": "update_user_ai_quota_admin_api_admin_users__user_id__ai_quota_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserQuotaUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update User Ai Quota Admin",
+        "tags": [
+          "后台管理"
+        ]
+      }
+    },
     "/api/admin/users/{user_id}/password": {
       "put": {
         "description": "管理员重置用户密码",
@@ -6110,7 +6698,7 @@
             "required": false,
             "schema": {
               "default": "newest",
-              "pattern": "^(newest|geo_score|upvotes)$",
+              "pattern": "^(newest|geo_score|views|upvotes)$",
               "title": "Sort",
               "type": "string"
             }
@@ -6244,6 +6832,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Company",
         "tags": [
           "公司"
@@ -6287,6 +6880,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Pipeline Status",
         "tags": [
           "公司"
@@ -6344,6 +6942,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Similar Companies",
         "tags": [
           "公司"

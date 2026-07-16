@@ -48,9 +48,10 @@ services:
     env_file: !reset []
     environment:
       DEBUG: "false"
-      SECRET_KEY: test-contract-secret-key
-      SETTINGS_ENCRYPTION_KEY: test-contract-settings-key
-      JWT_SECRET: test-contract-jwt-key
+      SECRET_KEY: test-contract-secret-key-32-characters-minimum
+      SETTINGS_ENCRYPTION_KEY: test-contract-settings-key-32-characters-minimum
+      JWT_SECRET: test-contract-jwt-key-32-characters-minimum
+      PUBLIC_BASE_URL: https://contract.georank.test
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: georank_contract

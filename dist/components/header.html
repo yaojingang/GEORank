@@ -12,8 +12,8 @@
             </a>
 
             <!-- 桌面端导航菜单 -->
-            <div class="hidden md:flex items-center gap-5">
-                <a href="/"
+            <div class="hidden md:flex items-center gap-5" data-site-navigation data-navigation-variant="desktop">
+                <a href="/companies"
                    data-nav-link
                    data-i18n="nav.companies"
                    class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
@@ -66,12 +66,8 @@
 
         <!-- 右侧操作区 -->
         <div class="header-actions flex items-center gap-2 md:gap-3">
-            <div class="header-language" data-language-switcher aria-label="语言切换" data-i18n-aria-label="language.label">
-                <button type="button" class="header-language__option" data-lang-option="zh-CN" aria-label="切换到中文" data-i18n-aria-label="language.switchToZh">中</button>
-                <button type="button" class="header-language__option" data-lang-option="en-US" aria-label="Switch to English" data-i18n-aria-label="language.switchToEn">EN</button>
-            </div>
             <a
-                href="/profile"
+                href="/login"
                 data-auth-trigger
                 data-profile-link
                 class="auth-trigger header-profile-button"
@@ -93,8 +89,8 @@
 
     <!-- 移动端导航菜单 -->
     <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-        <div class="flex flex-col px-6 py-4 space-y-3">
-            <a href="/"
+        <div class="flex flex-col px-6 py-4 space-y-3" data-site-navigation data-navigation-variant="mobile">
+            <a href="/companies"
                data-nav-link
                data-i18n="nav.companies"
                class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">

@@ -46,6 +46,7 @@ class StorageService:
                 Body=io.BytesIO(data),
                 ContentType=content_type,
             )
+            self._fallback.pop(key, None)
             return True
         except Exception:
             self._fallback[key] = data

@@ -2,11 +2,19 @@
 
 [简体中文](README.md) | English
 
+**[Try the official demo: GEORankHub](https://www.georankhub.com/)**
+
 [GitHub repository](https://github.com/yaojingang/GEORank)
 
 GEOrank is an open-source workbench for Generative Engine Optimization. It helps teams diagnose AI search visibility, turn insights into Q&A and action plans, expand keyword assets, generate structured content tools, and manage the workflow through a self-hosted admin console.
 
+Teams can use it as an internal GEO toolbox, apply it to their own diagnostic and analysis workflows, or self-host and extend the code to deliver GEO tools and services to clients.
+
 This repository includes the product code, engineering structure, configuration templates, demo data, and the built-in public expert profiles used by the experts channel. It does not include private production data, non-public expert content, real tutorial assets, user conversations, generated customer plans, keyword packs, database dumps, object storage files, or API keys.
+
+## Official Demo
+
+[GEORankHub](https://www.georankhub.com/) is the official online demo and public-interest GEO research platform for GEOrank. It provides direct access to website diagnostics, GEO Q&A, action plans, keyword expansion, structured tools, tutorials, open documentation, and research resources.
 
 ## Why GEOrank?
 
@@ -25,14 +33,14 @@ GEOrank turns those disconnected tasks into a structured workflow: diagnose, ask
 
 The open-source build shows the built-in GEO workbench homepage at `/` by default. The original company directory remains available at `/companies`, and you can upload or switch custom homepage releases from the admin settings panel.
 
-## Use Cases
+## How You Can Use GEOrank
 
-- **GEO research and market tracking**: organize companies, tools, services, experts, tutorials, and examples.
-- **AI visibility diagnostics**: evaluate whether a website can be understood, cited, and recommended by AI search systems.
-- **Brand and content planning**: generate executable GEO plans from goals, constraints, resources, and website context.
-- **Keyword and question assets**: expand business terms into questions, scenarios, commercial-intent keywords, and recommendation patterns.
-- **AI-readable content production**: generate JSON-LD, llms.txt, GEO titles, and knowledge-base drafts.
-- **Self-hosted GEO platform**: configure API providers, modules, usage policy, custom homepage releases, and analytics snippets.
+- **Build an internal GEO toolbox**: bring website diagnostics, AI Q&A, action plans, keyword expansion, and structured-content tools into one workspace for growth, SEO, content, and product teams.
+- **Improve your own business and brand**: analyze the AI search visibility of corporate sites, product pages, and brand content, then produce diagnostic reports, recommendations, content ideas, and 30/60/90-day action plans.
+- **Deliver GEO services to clients**: consulting firms, marketing agencies, and independent advisors can use GEOrank for client diagnostics, Q&A, analysis, keyword planning, and content-tool support across pre-sales assessments, project delivery, and ongoing advisory work.
+- **Run GEO capabilities in your own environment**: deploy the full project on your infrastructure and connect your own model APIs, databases, analytics, and access policies while keeping business data, credentials, and client records under your control.
+- **Create a tailored product from the open-source code**: extend the homepage, channels, diagnostic rules, model providers, and tool modules for an internal team, a specific industry, or a client segment.
+- **Build a GEO resource and knowledge platform**: organize companies, tools, service providers, experts, tutorials, and case studies into a public directory, a tool collection, or an internal GEO knowledge base.
 
 ## Features
 

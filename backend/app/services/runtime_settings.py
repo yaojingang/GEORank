@@ -11,6 +11,7 @@ import re
 import time
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlparse
 
 from sqlalchemy import select
 
@@ -23,6 +24,7 @@ _cache_lock = asyncio.Lock()
 _cache_ttl_seconds = 15
 _cache_expires_at = 0.0
 _settings_cache: dict[str, Any] = {}
+POSTGRES_INTEGER_MAX = 2_147_483_647
 DEFAULT_DIAGNOSTIC_RULE_WEIGHTS = {
     "schema": 30.0,
     "content": 30.0,
@@ -112,30 +114,37 @@ DEFAULT_SOLUTION_CHANNELS = {
     ],
 }
 DEFAULT_AI_USAGE_POLICY = {
-    "access_mode": "platform_unlimited",
-    "daily_token_limit": 20000,
+    "access_mode": "lifetime_quota_with_byok",
+    "daily_token_limit": 0,
+    "lifetime_token_grant": 10000,
+    "global_daily_token_limit": 1000000,
+    "global_budget_enabled": True,
+    "emergency_byok_only": False,
     "quota_reset_timezone": "Asia/Shanghai",
-    "allow_anonymous_ai_usage": True,
+    "allow_anonymous_ai_usage": False,
     "allow_user_byok": True,
     "byok_transport_mode": "proxy_transient",
+    "byok_guidance": {
+        "provider": "deepseek",
+        "title": "平台赠送额度已用完",
+        "message": "绑定自己的 DeepSeek API Key 后，可以继续使用 AI 功能。",
+        "cta_label": "配置 DeepSeek API",
+        "official_url": "https://platform.deepseek.com/api_keys",
+        "base_url": "https://api.deepseek.com",
+        "model": "deepseek-v4-flash",
+    },
     "allowed_byok_providers": [
         {
             "key": "deepseek",
             "name": "DeepSeek",
-            "base_url": "https://api.deepseek.com/v1",
-            "default_model": "deepseek-chat",
+            "base_url": "https://api.deepseek.com",
+            "default_model": "deepseek-v4-flash",
         },
         {
             "key": "openai",
             "name": "OpenAI",
             "base_url": "https://api.openai.com/v1",
             "default_model": "gpt-4o-mini",
-        },
-        {
-            "key": "custom",
-            "name": "OpenAI-compatible",
-            "base_url": "",
-            "default_model": "",
         },
     ],
     "metered_modules": ["solutions", "keywords", "diagnostics", "companies", "tools"],
@@ -150,10 +159,10 @@ DEFAULT_FRONTEND_MODULES = {
         {
             "key": "companies",
             "name": "公司",
-            "path": "/",
+            "path": "/companies",
             "description": "公司列表、详情和提交公司入口",
             "enabled": True,
-            "protected_paths": ["/", "/company", "/companies", "/c", "/submit-company"],
+            "protected_paths": ["/company", "/companies", "/c", "/submit-company"],
         },
         {
             "key": "diagnostic",
@@ -215,19 +224,20 @@ DEFAULT_FRONTEND_MODULES = {
 }
 DEFAULT_HOMEPAGE_RUNTIME = {
     "mode": "custom",
-    "active_release_id": "43a461f6-6be2-4931-9dbb-f1d56576292a",
+    "active_release_id": "9fe4a087-42bc-423a-bc59-fc020018a6f9",
     "fallback_enabled": True,
     "company_list_path": "/companies",
     "updated_at": None,
     "updated_by": None,
 }
 DEFAULT_HOMEPAGE_RELEASE_ID = DEFAULT_HOMEPAGE_RUNTIME["active_release_id"]
-DEFAULT_HOMEPAGE_RELEASE_TITLE = "开源内置首页"
+DEFAULT_HOMEPAGE_RELEASE_TITLE = "GEORankHub 导航与版权更新"
 VALID_AI_ACCESS_MODES = {
     "platform_unlimited",
     "daily_quota",
     "quota_with_byok",
     "byok_required",
+    "lifetime_quota_with_byok",
 }
 VALID_LLM_PROVIDER_STRATEGIES = {"failover", "round_robin"}
 
@@ -246,6 +256,7 @@ def get_default_solution_channel_config() -> dict[str, Any]:
 def get_default_ai_usage_policy_config() -> dict[str, Any]:
     return {
         **DEFAULT_AI_USAGE_POLICY,
+        "byok_guidance": dict(DEFAULT_AI_USAGE_POLICY["byok_guidance"]),
         "allowed_byok_providers": [
             dict(item) for item in DEFAULT_AI_USAGE_POLICY["allowed_byok_providers"]
         ],
@@ -672,13 +683,47 @@ def _normalize_byok_provider(raw: Any) -> dict[str, str] | None:
         return None
     key = _pick_string(raw.get("key")).lower()
     name = _pick_string(raw.get("name"))
-    if not key:
+    base_url = _safe_http_url(raw.get("base_url"), "", max_length=240)
+    default_model = _pick_string(raw.get("default_model"))[:100]
+    if not key or not base_url or not default_model:
         return None
     return {
         "key": key[:50],
         "name": (name or key)[:80],
-        "base_url": _pick_string(raw.get("base_url"))[:240],
-        "default_model": _pick_string(raw.get("default_model"))[:100],
+        "base_url": base_url,
+        "default_model": default_model,
+    }
+
+
+def _safe_http_url(value: Any, default: str, *, max_length: int = 500) -> str:
+    candidate = _pick_string(value)[:max_length]
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return default
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return default
+    return candidate
+
+
+def _normalize_byok_guidance(raw: Any, defaults: dict[str, Any]) -> dict[str, str]:
+    value = raw if isinstance(raw, dict) else {}
+    return {
+        "provider": _pick_string(value.get("provider"), defaults["provider"])[:50],
+        "title": _pick_string(value.get("title"), defaults["title"])[:120],
+        "message": _pick_string(value.get("message"), defaults["message"])[:500],
+        "cta_label": _pick_string(value.get("cta_label"), defaults["cta_label"])[:80],
+        "official_url": _safe_http_url(
+            value.get("official_url"),
+            defaults["official_url"],
+            max_length=500,
+        ),
+        "base_url": _safe_http_url(
+            value.get("base_url"),
+            defaults["base_url"],
+            max_length=240,
+        ),
+        "model": _pick_string(value.get("model"), defaults["model"])[:100],
     }
 
 
@@ -691,6 +736,8 @@ def _build_ai_usage_policy_config(values: dict[str, Any]) -> dict[str, Any]:
     access_mode = _pick_string(raw.get("access_mode"), defaults["access_mode"])
     if access_mode not in VALID_AI_ACCESS_MODES:
         access_mode = defaults["access_mode"]
+    if access_mode in {"daily_quota", "quota_with_byok"}:
+        access_mode = "lifetime_quota_with_byok"
 
     providers = []
     seen_providers: set[str] = set()
@@ -719,9 +766,42 @@ def _build_ai_usage_policy_config(values: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "access_mode": access_mode,
-        "daily_token_limit": max(
-            0,
+        "daily_token_limit": min(
+            POSTGRES_INTEGER_MAX,
+            max(
+                0,
             _pick_int(raw.get("daily_token_limit"), defaults["daily_token_limit"], default=defaults["daily_token_limit"]),
+            ),
+        ),
+        "lifetime_token_grant": min(
+            POSTGRES_INTEGER_MAX,
+            max(
+                0,
+                _pick_int(
+                    raw.get("lifetime_token_grant"),
+                    defaults["lifetime_token_grant"],
+                    default=defaults["lifetime_token_grant"],
+                ),
+            ),
+        ),
+        "global_daily_token_limit": min(
+            POSTGRES_INTEGER_MAX,
+            max(
+                0,
+                _pick_int(
+                    raw.get("global_daily_token_limit"),
+                    defaults["global_daily_token_limit"],
+                    default=defaults["global_daily_token_limit"],
+                ),
+            ),
+        ),
+        "global_budget_enabled": _pick_bool(
+            raw.get("global_budget_enabled"),
+            defaults["global_budget_enabled"],
+        ),
+        "emergency_byok_only": _pick_bool(
+            raw.get("emergency_byok_only"),
+            defaults["emergency_byok_only"],
         ),
         "quota_reset_timezone": _pick_string(raw.get("quota_reset_timezone"), defaults["quota_reset_timezone"]),
         "allow_anonymous_ai_usage": _pick_bool(
@@ -733,6 +813,10 @@ def _build_ai_usage_policy_config(values: dict[str, Any]) -> dict[str, Any]:
             "browser_direct"
             if raw.get("byok_transport_mode") == "browser_direct"
             else "proxy_transient"
+        ),
+        "byok_guidance": _normalize_byok_guidance(
+            raw.get("byok_guidance"),
+            defaults["byok_guidance"],
         ),
         "allowed_byok_providers": providers,
         "metered_modules": modules,

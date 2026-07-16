@@ -43,6 +43,8 @@ runtime/homepages/*
 runtime/homepages/releases/*
 !runtime/homepages/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/
 !runtime/homepages/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/**
+!runtime/homepages/releases/9fe4a087-42bc-423a-bc59-fc020018a6f9/
+!runtime/homepages/releases/9fe4a087-42bc-423a-bc59-fc020018a6f9/**
 !runtime/homepages/public/
 runtime/homepages/public/*
 !runtime/homepages/public/.gitkeep
@@ -50,6 +52,8 @@ runtime/homepages/public/*
 runtime/homepages/public/releases/*
 !runtime/homepages/public/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/
 !runtime/homepages/public/releases/43a461f6-6be2-4931-9dbb-f1d56576292a/**
+!runtime/homepages/public/releases/9fe4a087-42bc-423a-bc59-fc020018a6f9/
+!runtime/homepages/public/releases/9fe4a087-42bc-423a-bc59-fc020018a6f9/**
 
 # Docker volumes
 pg_data/
@@ -72,4 +76,5 @@ tmp/
 *.sql
 *.backup
 *.jsonl
+!skills/georank/evals/output/cases.jsonl
 *.parquet

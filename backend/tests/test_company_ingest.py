@@ -1,9 +1,12 @@
 import unittest
+import socket
+from unittest.mock import patch
 
 from app.services.company_ingest import (
     build_candidate_links,
     fallback_select_company_pages,
     normalize_company_url,
+    validate_public_crawl_url,
 )
 
 
@@ -13,6 +16,34 @@ class CompanyIngestTests(unittest.TestCase):
             normalize_company_url("example.com"),
             "https://example.com",
         )
+
+    def test_normalize_company_url_rejects_credentials_and_private_hosts(self):
+        for value in (
+            "https://user:password@example.com",
+            "http://localhost:8000",
+            "http://127.0.0.1/admin",
+            "http://169.254.169.254/latest/meta-data",
+            "http://[::1]/",
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                normalize_company_url(value)
+
+    @patch("app.services.company_ingest.socket.getaddrinfo")
+    def test_validate_public_crawl_url_rejects_hostname_resolving_to_private_ip(self, getaddrinfo):
+        getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.8", 443)),
+        ]
+
+        with self.assertRaises(ValueError):
+            validate_public_crawl_url("https://example.com")
+
+    @patch("app.services.company_ingest.socket.getaddrinfo")
+    def test_validate_public_crawl_url_accepts_hostname_resolving_to_public_ip(self, getaddrinfo):
+        getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+        ]
+
+        self.assertEqual(validate_public_crawl_url("https://example.com"), "https://example.com")
 
     def test_build_candidate_links_keeps_same_domain_shallow_pages(self):
         candidates = build_candidate_links(

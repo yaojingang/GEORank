@@ -323,6 +323,8 @@ test('rejects generic private, wiki, and runtime data paths while allowing publi
     'runtime/homepages/releases/public/source/index.html': '<h1>Public</h1>\n',
     'public/data/companies.csv': 'name\nExample\n',
     'data/public/example.jsonl': '{"name":"Example"}\n',
+    'skills/georank/evals/output/cases.jsonl': '{"id":"public-eval"}\n',
+    'skills/other/evals/output/cases.jsonl': '{"id":"unreviewed-eval"}\n',
   });
   t.after(() => rmSync(root, { recursive: true, force: true }));
 
@@ -336,6 +338,7 @@ test('rejects generic private, wiki, and runtime data paths while allowing publi
     'docs/wiki/runbook.md',
     'knowledge/internal-wiki/notes.md',
     'runtime/data/snapshot.json',
+    'skills/other/evals/output/cases.jsonl',
   ]) {
     assert.match(output, new RegExp(path.replaceAll('.', '\\.')));
   }
@@ -343,6 +346,7 @@ test('rejects generic private, wiki, and runtime data paths while allowing publi
     'runtime/homepages/releases/public/source/index.html',
     'public/data/companies.csv',
     'data/public/example.jsonl',
+    'skills/georank/evals/output/cases.jsonl',
   ]) {
     assert.doesNotMatch(output, new RegExp(path.replaceAll('.', '\\.')));
   }

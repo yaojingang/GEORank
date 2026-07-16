@@ -1,12 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 
-import { getCurrentUser, login, register } from '@georank/api-sdk';
-import { getBoundPhone, maskPhone, normalizePhone } from '@georank/auth';
-import { setSession } from '@georank/auth';
-import { localizeHref } from '@georank/i18n/routing';
+import {getCurrentUser, login, register} from '@georank/api-sdk';
+import {getBoundPhone, getVerifiedSession, maskPhone, normalizePhone, setSession} from '@georank/auth';
+import {localizeHref, stripLocalePrefix} from '@georank/i18n/routing';
 
 type AuthFormProps = {
   locale: string;
@@ -14,14 +13,42 @@ type AuthFormProps = {
   returnTo?: string;
 };
 
-export function AuthForm({ locale, mode, returnTo }: AuthFormProps) {
+const RETURN_ORIGIN = 'https://return.georank.local';
+
+function safeReturnTo(value: unknown, fallback: string) {
+  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//')) return fallback;
+  try {
+    const target = new URL(value, RETURN_ORIGIN);
+    if (target.origin !== RETURN_ORIGIN) return fallback;
+    const currentPath = stripLocalePrefix(target.pathname);
+    if (currentPath === '/login' || currentPath === '/register') return fallback;
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+export function AuthForm({locale, mode, returnTo}: AuthFormProps) {
   const t = useTranslations('web.authForm');
   const boundPhone = useMemo(() => getBoundPhone(), []);
+  const profileHref = localizeHref(locale, '/profile');
+  const destination = safeReturnTo(returnTo, profileHref);
   const [phone, setPhone] = useState(boundPhone);
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    getVerifiedSession().then((user) => {
+      if (!cancelled && user) window.location.replace(destination);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [destination]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,17 +66,21 @@ export function AuthForm({ locale, mode, returnTo }: AuthFormProps) {
       setError(t('shortPassword'));
       return;
     }
+    if (mode === 'register' && password !== confirmPassword) {
+      setError(t('passwordMismatch'));
+      return;
+    }
 
     setSubmitting(true);
     setError('');
     try {
       const tokenResponse =
         mode === 'register'
-          ? await register({ phone: normalizedPhone, password, remember_me: remember })
-          : await login({ phone: normalizedPhone, password, remember_me: remember });
+          ? await register({phone: normalizedPhone, password, remember_me: remember})
+          : await login({phone: normalizedPhone, password, remember_me: remember});
       const user = await getCurrentUser(tokenResponse.access_token);
       setSession(tokenResponse.access_token, user, remember);
-      window.location.href = returnTo || localizeHref(locale, '/');
+      window.location.href = destination;
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : t('authFailed'));
     } finally {
@@ -57,14 +88,20 @@ export function AuthForm({ locale, mode, returnTo }: AuthFormProps) {
     }
   }
 
+  const alternateHref = `${localizeHref(locale, mode === 'register' ? '/login' : '/register')}?return=${encodeURIComponent(
+    destination
+  )}`;
+
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <p className="page-eyebrow">{mode === 'register' ? 'Create Account' : 'Account Access'}</p>
-        <h1 className="card-title">{mode === 'register' ? t('registerTitle') : t('loginTitle')}</h1>
-        <p className="card-subtitle">
-          {t('subtitle', {mode: mode === 'register' ? t('registerMode') : t('loginMode')})}
-        </p>
+    <main className="auth-page auth-page--account">
+      <section className="auth-card auth-card--account" aria-labelledby="auth-page-title">
+        <p className="page-eyebrow">{mode === 'register' ? t('registerEyebrow') : t('loginEyebrow')}</p>
+        <h1 className="auth-card__title" id="auth-page-title">
+          {mode === 'register' ? t('registerTitle') : t('loginTitle')}
+        </h1>
+        <p className="auth-card__copy">{mode === 'register' ? t('registerCopy') : t('loginCopy')}</p>
+
+        {boundPhone ? <p className="auth-form__notice">{t('boundPhone', {phone: maskPhone(boundPhone)})}</p> : null}
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="auth-form__label">
@@ -95,6 +132,22 @@ export function AuthForm({ locale, mode, returnTo }: AuthFormProps) {
             />
           </label>
 
+          {mode === 'register' ? (
+            <label className="auth-form__label">
+              <span>{t('confirmPassword')}</span>
+              <input
+                autoComplete="new-password"
+                maxLength={128}
+                minLength={6}
+                name="confirmPassword"
+                placeholder={t('confirmPasswordPlaceholder')}
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </label>
+          ) : null}
+
           <label className="auth-form__checkbox">
             <input checked={remember} type="checkbox" onChange={(event) => setRemember(event.target.checked)} />
             <span>{t('remember')}</span>
@@ -114,17 +167,10 @@ export function AuthForm({ locale, mode, returnTo }: AuthFormProps) {
         </form>
 
         <div className="auth-form__links">
-          {mode === 'register' ? (
-            <a href={`${localizeHref(locale, '/login')}${returnTo ? `?return=${encodeURIComponent(returnTo)}` : ''}`}>
-              {t('hasAccount')}
-            </a>
-          ) : (
-            <a href={`${localizeHref(locale, '/register')}${returnTo ? `?return=${encodeURIComponent(returnTo)}` : ''}`}>
-              {t('noAccount')}
-            </a>
-          )}
+          <span>{mode === 'register' ? t('hasAccountPrompt') : t('noAccountPrompt')}</span>
+          <a href={alternateHref}>{mode === 'register' ? t('goLogin') : t('goRegister')}</a>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

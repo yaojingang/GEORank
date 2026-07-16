@@ -6,27 +6,89 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <title>GEO AI 问答 - GEOrank</title>
     <meta name="description" content="通过 GEOrank AI 问答频道理解 GEO、AI 搜索、诊断报告、内容结构和品牌可见性问题。">
+    <script>
+        document.documentElement.classList.add('solutions-initializing');
+        try {
+            if (localStorage.getItem('georank_solutions_sidebar_collapsed') === '1') {
+                document.documentElement.classList.add('solutions-sidebar-pref-collapsed');
+            }
+        } catch (_) {}
+    </script>
+    <style>
+        html.solutions-initializing #solutions-workspace,
+        html.solutions-initializing #solutions-right-sidebar,
+        html.solutions-initializing #solutions-workspace [class*="transition"] {
+            transition: none !important;
+        }
+        html.solutions-sidebar-pref-collapsed #solutions-right-sidebar {
+            width: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            border-left-color: transparent;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+    </style>
 
     <!-- Tailwind CSS -->
-    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 
     <!-- Tailwind Configuration -->
-    <script src="/js/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/css/public-tailwind.css?v=20260716-first-paint-lifecycle">
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link rel="stylesheet" href="/css/common.css?v=20260716-first-paint-lifecycle">
     <link rel="stylesheet" href="/css/solutions.css?v=20260613-front-polish2">
 </head>
 <body class="bg-white text-on-surface antialiased">
     <!-- Header Container -->
-    <div id="header-container"></div>
+    <div id="header-container" data-prerendered="true">
+        <nav id="main-nav" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_rgba(25,27,35,0.04)]">
+            <div class="flex justify-between items-center px-6 md:px-8 h-16 w-full max-w-7xl mx-auto">
+                <div class="flex items-center gap-8">
+                    <a href="/" data-logo-link class="text-xl font-bold tracking-tighter text-blue-700 dark:text-blue-500 font-headline hover:opacity-90 transition-opacity">GEORank</a>
+                    <div class="hidden md:flex items-center gap-5" data-site-navigation data-navigation-variant="desktop">
+                        <a href="/companies" data-nav-link data-navigation-item="companies" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">公司</a>
+                        <a href="/diagnostic" data-nav-link data-navigation-item="diagnostic" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">诊断</a>
+                        <a href="/solutions" data-nav-link data-navigation-item="solutions" class="font-manrope font-medium tracking-tight text-blue-600 border-b-2 border-blue-600 font-bold dark:text-blue-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">问答</a>
+                        <a href="/plans" data-nav-link data-navigation-item="plans" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">方案</a>
+                        <a href="/keywords" data-nav-link data-navigation-item="keywords" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">拓词</a>
+                        <a href="/tools" data-nav-link data-navigation-item="tools" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">工具</a>
+                        <a href="/experts" data-nav-link data-navigation-item="experts" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">专家</a>
+                        <a href="/tutorial" data-nav-link data-navigation-item="tutorial" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">教程</a>
+                        <a href="https://github.com/yaojingang/GEORank" target="_blank" rel="noopener noreferrer" data-nav-link data-navigation-item="github" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">GitHub</a>
+                    </div>
+                </div>
+                <div class="header-actions flex items-center gap-2 md:gap-3">
+                    <a href="/login" data-auth-trigger data-profile-link class="auth-trigger header-profile-button" aria-label="登录 / 个人中心" data-i18n-aria-label="auth.triggerSignedOut">
+                        <span class="header-profile-button__icon" aria-hidden="true"><span class="material-symbols-outlined">person</span></span>
+                        <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
+                    </a>
+                    <button id="mobile-menu-toggle" class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-slate-800" aria-label="打开菜单" data-i18n-aria-label="header.mobileMenu">
+                        <span class="material-symbols-outlined text-slate-600 dark:text-slate-400">menu</span>
+                    </button>
+                </div>
+            </div>
+            <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex flex-col px-6 py-4 space-y-3" data-site-navigation data-navigation-variant="mobile">
+                    <a href="/companies" data-nav-link data-navigation-item="companies" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">公司</a>
+                    <a href="/diagnostic" data-nav-link data-navigation-item="diagnostic" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">诊断</a>
+                    <a href="/solutions" data-nav-link data-navigation-item="solutions" class="font-manrope font-medium py-2 text-blue-600 border-b-2 border-blue-600 font-bold dark:text-blue-500 hover:text-blue-500 transition-colors">问答</a>
+                    <a href="/plans" data-nav-link data-navigation-item="plans" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">方案</a>
+                    <a href="/keywords" data-nav-link data-navigation-item="keywords" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">拓词</a>
+                    <a href="/tools" data-nav-link data-navigation-item="tools" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">工具</a>
+                    <a href="/experts" data-nav-link data-navigation-item="experts" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">专家</a>
+                    <a href="/tutorial" data-nav-link data-navigation-item="tutorial" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">教程</a>
+                    <a href="https://github.com/yaojingang/GEORank" target="_blank" rel="noopener noreferrer" data-nav-link data-navigation-item="github" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">GitHub</a>
+                </div>
+            </div>
+        </nav>
+    </div>
 
     <!-- Main Container -->
     <main id="solutions-workspace" class="solutions-workspace pt-16 md:pt-20 flex flex-col md:flex-row md:h-screen max-w-[1760px] mx-auto bg-white overflow-hidden" style="height: calc(100svh - 0px)">
@@ -35,12 +97,29 @@
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
                     <h3 class="font-headline text-xs font-extrabold uppercase tracking-[0.1em] text-on-surface-variant">问答频道</h3>
-                    <span id="chat-context-badge" class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-primary">公开问答</span>
+                    <span id="chat-context-badge" class="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-primary">公开会话</span>
                 </div>
                 <div id="solution-channel-list" class="space-y-2">
-                    <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-xs leading-relaxed text-slate-500">
-                        正在加载问答频道...
-                    </div>
+                    <button type="button" data-solution-channel="geo-basics" class="border-primary/25 bg-primary/[0.04] text-primary shadow-sm w-full rounded-2xl border px-3 py-3 text-left transition-all">
+                        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">school</span><span class="text-sm font-bold">GEO 入门科普</span></div>
+                        <p class="mt-1 line-clamp-2 text-[11px] leading-5 text-primary/75">解释 GEO、AI 搜索、生成式答案引擎和品牌可见性的基础概念。</p>
+                    </button>
+                    <button type="button" data-solution-channel="diagnostic-explain" class="border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50 w-full rounded-2xl border px-3 py-3 text-left transition-all">
+                        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">monitoring</span><span class="text-sm font-bold">诊断报告解读</span></div>
+                        <p class="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">把 GEO 诊断分数、Schema、内容结构、Meta 和引用问题解释成可理解的行动建议。</p>
+                    </button>
+                    <button type="button" data-solution-channel="content-structure" class="border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50 w-full rounded-2xl border px-3 py-3 text-left transition-all">
+                        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">article</span><span class="text-sm font-bold">内容结构优化</span></div>
+                        <p class="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">围绕官网页面、教程、FAQ、案例和结构化答案，生成适合 AI 读取的内容建议。</p>
+                    </button>
+                    <button type="button" data-solution-channel="brand-visibility" class="border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50 w-full rounded-2xl border px-3 py-3 text-left transition-all">
+                        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">travel_explore</span><span class="text-sm font-bold">品牌可见性问答</span></div>
+                        <p class="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">回答品牌在 ChatGPT、Perplexity、Gemini 等 AI 答案中被理解、引用和推荐的问题。</p>
+                    </button>
+                    <button type="button" data-solution-channel="action-plan" class="border-slate-100 bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50 w-full rounded-2xl border px-3 py-3 text-left transition-all">
+                        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">checklist</span><span class="text-sm font-bold">行动方案拆解</span></div>
+                        <p class="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-400">把问答结论进一步拆成 30/60/90 天计划、任务优先级和团队分工。</p>
+                    </button>
                 </div>
             </div>
 
@@ -56,8 +135,10 @@
                 </div>
             </div>
             <div class="pt-4 border-t border-slate-200" id="history-footer">
-                <div class="rounded-2xl bg-slate-50 px-4 py-3 text-[11px] leading-relaxed text-slate-500">
-                    当前支持公开问答会话。复制当前页面链接即可继续当前对话。
+                <div class="space-y-3">
+                    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-[11px] leading-relaxed text-slate-500">
+                        当前支持公开问答会话。生成后会自动写入可分享的公开链接。
+                    </div>
                 </div>
             </div>
         </aside>
@@ -79,24 +160,30 @@
                         </div>
                         <div class="space-y-2">
                             <p id="solution-active-channel-eyebrow" class="text-xs font-extrabold uppercase tracking-[0.14em] text-primary">GEO AI Q&A</p>
-                            <h3 id="solution-active-channel-title" class="text-2xl font-black tracking-tight text-slate-900">问任何关于 GEO、AI 搜索和品牌可见性的问题</h3>
-                            <p id="solution-active-channel-copy" class="max-w-2xl text-sm leading-7 text-slate-500">选择一个问答频道，输入你的问题。AI 会先回答问题本身，再根据需要补充科普解释、诊断解读、内容建议或行动方案。</p>
+                            <h3 id="solution-active-channel-title" class="text-2xl font-black tracking-tight text-slate-900">GEO 入门科普</h3>
+                            <p id="solution-active-channel-copy" class="max-w-2xl text-sm leading-7 text-slate-500">解释 GEO、AI 搜索、生成式答案引擎和品牌可见性的基础概念。</p>
                         </div>
                     </div>
                     <div id="solution-channel-banner" class="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm leading-6 text-blue-800">
-                        当前频道会决定 AI 的回答范围、语气和推荐问题。
+                        <div class="flex items-start gap-2">
+                            <span class="material-symbols-outlined text-base text-primary">school</span>
+                            <div>
+                                <p class="font-semibold">GEO 入门科普</p>
+                                <p class="mt-1">解释 GEO、AI 搜索、生成式答案引擎和品牌可见性的基础概念。</p>
+                            </div>
+                        </div>
                     </div>
                     <div id="solution-prompt-grid" class="grid gap-3 md:grid-cols-3">
                         <button data-solution-prompt="GEO 和 SEO 到底有什么区别？" class="solution-prompt-card rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left transition-colors hover:border-primary/30 hover:bg-primary/[0.03]">
-                            <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">入门科普</p>
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">GEO 入门科普 1</p>
                             <p class="mt-2 text-sm font-semibold text-slate-900">GEO 和 SEO 到底有什么区别？</p>
                         </button>
                         <button data-solution-prompt="为什么 AI 搜索会影响品牌获客？" class="solution-prompt-card rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left transition-colors hover:border-primary/30 hover:bg-primary/[0.03]">
-                            <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">AI 搜索</p>
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">GEO 入门科普 2</p>
                             <p class="mt-2 text-sm font-semibold text-slate-900">为什么 AI 搜索会影响品牌获客？</p>
                         </button>
                         <button data-solution-prompt="一个新品牌应该先做哪些 GEO 基础动作？" class="solution-prompt-card rounded-2xl border border-slate-200 bg-white px-4 py-4 text-left transition-colors hover:border-primary/30 hover:bg-primary/[0.03]">
-                            <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">行动建议</p>
+                            <p class="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">GEO 入门科普 3</p>
                             <p class="mt-2 text-sm font-semibold text-slate-900">一个新品牌应该先做哪些 GEO 基础动作？</p>
                         </button>
                     </div>
@@ -110,7 +197,7 @@
                     <textarea id="chat-input" class="w-full bg-transparent border-none focus:ring-0 text-sm p-2 min-h-[34px] md:min-h-[38px] resize-none" placeholder="输入你的 GEO / AI 搜索问题，例如：AI 为什么没有推荐我的品牌？"></textarea>
                     <div class="flex items-center justify-between px-2 pb-1">
                         <div class="flex items-center gap-3 md:gap-4">
-                            <span id="chat-input-helper" class="text-[11px] leading-5 text-slate-400">Enter 发送，Shift + Enter 换行</span>
+                            <span id="chat-input-helper" class="text-[11px] leading-5 text-slate-400"></span>
                         </div>
                         <button id="send-btn" class="btn btn-primary px-4 md:px-5 rounded-xl flex items-center gap-1.5">
                             <span class="text-sm font-bold hidden sm:inline">发送</span>
@@ -127,21 +214,21 @@
             <div>
                 <h3 class="font-headline text-xs font-extrabold uppercase tracking-[0.1em] text-on-surface-variant mb-6">问答辅助</h3>
                 <div class="space-y-4">
-                    <button id="export-word-btn" class="w-full flex items-center justify-between p-4 rounded-xl group hover:bg-primary transition-all bg-white border border-slate-100 disabled:cursor-not-allowed disabled:hover:bg-white disabled:opacity-50">
+                    <button id="export-word-btn" disabled class="w-full flex items-center justify-between p-4 rounded-xl group hover:bg-primary transition-all bg-white border border-slate-100 disabled:cursor-not-allowed disabled:hover:bg-white disabled:opacity-50">
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined text-blue-600 group-hover:text-white transition-colors">description</span>
                             <span class="text-sm font-bold group-hover:text-white transition-colors">导出问答文档</span>
                         </div>
                         <span class="material-symbols-outlined text-slate-300 group-hover:text-white/50 text-sm">download</span>
                     </button>
-                    <button id="export-pdf-btn" class="w-full flex items-center justify-between p-4 rounded-xl group hover:bg-primary transition-all bg-white border border-slate-100 disabled:cursor-not-allowed disabled:hover:bg-white disabled:opacity-50">
+                    <button id="export-pdf-btn" disabled class="w-full flex items-center justify-between p-4 rounded-xl group hover:bg-primary transition-all bg-white border border-slate-100 disabled:cursor-not-allowed disabled:hover:bg-white disabled:opacity-50">
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined text-red-500 group-hover:text-white transition-colors">picture_as_pdf</span>
                             <span class="text-sm font-bold group-hover:text-white transition-colors">打印 / PDF</span>
                         </div>
                         <span class="material-symbols-outlined text-slate-300 group-hover:text-white/50 text-sm">download</span>
                     </button>
-                    <button id="export-html-btn" class="w-full flex items-center justify-between p-4 bg-primary text-white rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md disabled:cursor-not-allowed disabled:opacity-60">
+                    <button id="export-html-btn" disabled class="w-full flex items-center justify-between p-4 bg-primary text-white rounded-xl hover:opacity-90 active:scale-[0.98] transition-all shadow-md disabled:cursor-not-allowed disabled:opacity-60">
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined">code</span>
                             <span class="text-sm font-bold">保存 HTML 摘要</span>
@@ -177,8 +264,8 @@
                     <p class="text-[10px] text-slate-400 font-bold uppercase mb-2">快速反馈</p>
                     <p class="text-xs text-slate-600 mb-3">这次回答是否解决了你的问题？</p>
                     <div class="flex gap-2">
-                        <button id="feedback-helpful-btn" class="flex-1 py-2 rounded-lg text-[10px] font-bold hover:bg-green-50 bg-white border border-slate-100 transition-colors">有用</button>
-                        <button id="feedback-refine-btn" class="flex-1 py-2 rounded-lg text-[10px] font-bold hover:bg-red-50 bg-white border border-slate-100 transition-colors">需优化</button>
+                        <button id="feedback-helpful-btn" disabled class="flex-1 py-2 rounded-lg text-[10px] font-bold hover:bg-green-50 bg-white border border-slate-100 transition-colors">有用</button>
+                        <button id="feedback-refine-btn" disabled class="flex-1 py-2 rounded-lg text-[10px] font-bold hover:bg-red-50 bg-white border border-slate-100 transition-colors">需优化</button>
                     </div>
                     <p id="feedback-note" class="mt-3 text-[11px] text-slate-400">生成回答后可快速记录反馈。</p>
                 </div>
@@ -190,7 +277,7 @@
     <div id="footer-container"></div>
 
     <!-- Scripts -->
-    <script src="/js/common.js?v=20260616-analytics-inject"></script>
-    <script src="/js/solutions.js"></script>
+    <script src="/js/common.js?v=20260716-first-paint-lifecycle"></script>
+    <script src="/js/solutions.js?v=20260716-first-paint-lifecycle"></script>
 </body>
 </html>

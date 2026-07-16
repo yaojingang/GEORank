@@ -16,7 +16,7 @@ from app.models.user import User, UserRole
 
 # HTTP Bearer Token 提取器（optional=True 允许匿名访问接口可选认证）
 bearer_scheme = HTTPBearer(auto_error=False)
-bearer_required = HTTPBearer(auto_error=True)
+bearer_required = HTTPBearer(auto_error=False)
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -60,7 +60,7 @@ async def get_current_user_optional(
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_required)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_required)],
     db: DbSession,
 ) -> User:
     """必须认证 — 未登录返回 401"""
