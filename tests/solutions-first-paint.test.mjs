@@ -74,12 +74,12 @@ test('conversation restore waits for deferred Markdown dependencies', async () =
   );
 });
 
-test('prerendered headers and matching navigation are preserved during hydration', async () => {
+test('rendered headers and matching navigation are preserved during hydration', async () => {
   const source = await readFile(sharedFrontendScriptPath, 'utf8');
 
   assert.match(
     source,
-    /async loadHeader\(\)\s*\{[\s\S]*?dataset\.prerendered[\s\S]*?this\.load\('\/components\/header\.html'/
+    /async loadHeader\(\)\s*\{[\s\S]*?header\?\.querySelector\('#main-nav'\)[\s\S]*?this\.load\('\/components\/header\.html'/
   );
   assert.match(
     source,

@@ -1,7 +1,7 @@
 <!--
     GEOrank - 公共头部导航组件
     GEO 智搜优化引擎
-    用法: 在页面中添加 <div id="header-container"></div>，JS会自动加载此组件
+    用法: 页面保留 <div id="header-container"></div>，公共脚本同步渲染同结构首屏；此文件用于后备加载与结构校验
 -->
 <nav id="main-nav" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_rgba(25,27,35,0.04)]">
     <div class="flex justify-between items-center px-6 md:px-8 h-16 w-full max-w-7xl mx-auto">
@@ -61,6 +61,14 @@
                    class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
                     教程
                 </a>
+                <a href="https://github.com/yaojingang/GEORank"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   data-nav-link
+                   data-navigation-item="github"
+                   class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                    GitHub
+                </a>
             </div>
         </div>
 
@@ -75,14 +83,19 @@
                 data-i18n-aria-label="auth.triggerSignedOut"
             >
                 <span class="header-profile-button__icon" aria-hidden="true">
-                    <span class="material-symbols-outlined">person</span>
+                    <svg fill="none" height="20" viewBox="0 0 24 24" width="20">
+                        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="1.8" />
+                        <path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+                    </svg>
                 </span>
                 <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
             </a>
 
             <!-- 移动端菜单按钮 -->
             <button id="mobile-menu-toggle" class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-slate-800" aria-label="打开菜单" data-i18n-aria-label="header.mobileMenu">
-                <span class="material-symbols-outlined text-slate-600 dark:text-slate-400">menu</span>
+                <svg aria-hidden="true" class="text-slate-600 dark:text-slate-400" fill="none" height="20" viewBox="0 0 24 24" width="20">
+                    <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+                </svg>
             </button>
         </div>
     </div>
@@ -137,6 +150,14 @@
                data-i18n="nav.tutorial"
                class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
                 教程
+            </a>
+            <a href="https://github.com/yaojingang/GEORank"
+               target="_blank"
+               rel="noopener noreferrer"
+               data-nav-link
+               data-navigation-item="github"
+               class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">
+                GitHub
             </a>
         </div>
     </div>

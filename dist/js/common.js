@@ -685,24 +685,7 @@
         },
     };
 
-    // ===== 首屏结构壳层（组件加载期间不暴露未绑定的交互控件） =====
-    const HEADER_SHELL_HTML = `
-<nav id="main-nav" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_rgba(25,27,35,0.04)]" aria-hidden="true">
-    <div class="flex justify-between items-center px-6 md:px-8 h-16 w-full max-w-7xl mx-auto">
-        <div class="flex items-center gap-8">
-            <span class="text-xl font-bold tracking-tighter text-blue-700 dark:text-blue-500 font-headline">GEOrank</span>
-            <div class="hidden md:flex items-center gap-5" data-site-navigation data-navigation-variant="desktop">
-                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
-                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
-                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
-                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
-            </div>
-        </div>
-        <span class="block h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800"></span>
-    </div>
-</nav>`;
-
-    // ===== 内联模板（file:// 协议 fallback） =====
+    // ===== 首屏完整导航与 file:// 协议 fallback =====
     const HEADER_HTML = `
 <nav id="main-nav" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_rgba(25,27,35,0.04)]">
     <div class="flex justify-between items-center px-6 md:px-8 h-16 w-full max-w-7xl mx-auto">
@@ -719,17 +702,23 @@
                 <a href="/tools" data-nav-link data-i18n="nav.tools" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">工具</a>
                 <a href="/experts" data-nav-link data-i18n="nav.experts" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">专家</a>
                 <a href="/tutorial" data-nav-link data-i18n="nav.tutorial" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">教程</a>
+                <a href="https://github.com/yaojingang/GEORank" target="_blank" rel="noopener noreferrer" data-nav-link data-navigation-item="github" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">GitHub</a>
             </div>
         </div>
         <div class="header-actions flex items-center gap-2 md:gap-3">
             <a href="/login" data-auth-trigger data-profile-link class="auth-trigger header-profile-button" aria-label="登录 / 个人中心" data-i18n-aria-label="auth.triggerSignedOut">
                 <span class="header-profile-button__icon" aria-hidden="true">
-                    <span class="material-symbols-outlined">person</span>
+                    <svg fill="none" height="20" viewBox="0 0 24 24" width="20">
+                        <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="1.8" />
+                        <path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+                    </svg>
                 </span>
                 <span class="sr-only" data-auth-trigger-label data-i18n="auth.login">登录</span>
             </a>
             <button id="mobile-menu-toggle" class="md:hidden w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-50 dark:hover:bg-slate-800" aria-label="打开菜单" data-i18n-aria-label="header.mobileMenu">
-                <span class="material-symbols-outlined text-slate-600 dark:text-slate-400">menu</span>
+                <svg aria-hidden="true" class="text-slate-600 dark:text-slate-400" fill="none" height="20" viewBox="0 0 24 24" width="20">
+                    <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+                </svg>
             </button>
         </div>
     </div>
@@ -743,6 +732,7 @@
             <a href="/tools" data-nav-link data-i18n="nav.tools" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">工具</a>
             <a href="/experts" data-nav-link data-i18n="nav.experts" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">专家</a>
             <a href="/tutorial" data-nav-link data-i18n="nav.tutorial" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">教程</a>
+            <a href="https://github.com/yaojingang/GEORank" target="_blank" rel="noopener noreferrer" data-nav-link data-navigation-item="github" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">GitHub</a>
         </div>
     </div>
 </nav>`;
@@ -758,11 +748,11 @@ const FOOTER_HTML = `
 
     // ===== 组件加载器 =====
     const ComponentLoader = {
-        /** 立即挂载内联壳层，避免远程组件加载期间出现空白区域 */
+        /** 立即挂载完整内联组件，避免首屏等待远程组件 */
         mountFallbacks() {
             const header = DOM.get('#header-container');
             const footer = DOM.get('#footer-container');
-            if (header && !header.innerHTML.trim()) header.innerHTML = HEADER_SHELL_HTML;
+            if (header && !header.innerHTML.trim()) header.innerHTML = HEADER_HTML;
             if (footer && !footer.innerHTML.trim()) footer.innerHTML = FOOTER_HTML;
         },
 
@@ -812,7 +802,7 @@ const FOOTER_HTML = `
         /** 加载头部组件 */
         async loadHeader() {
             const header = DOM.get('#header-container');
-            if (header?.dataset.prerendered !== 'true') {
+            if (!header?.querySelector('#main-nav')) {
                 await this.load('/components/header.html', '#header-container', HEADER_HTML);
             }
             Navigation.init();
