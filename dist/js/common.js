@@ -68,6 +68,19 @@
             site_name: 'GEOrank',
             site_description: 'GEO 智搜优化引擎',
             analytics_tracking_code: '',
+            navigation_menu: {
+                items: [
+                    { id: 'companies', label: '公司', url: '/companies', target: '_blank', enabled: true },
+                    { id: 'diagnostic', label: '诊断', url: '/diagnostic', target: '_blank', enabled: true },
+                    { id: 'solutions', label: '问答', url: '/solutions', target: '_blank', enabled: true },
+                    { id: 'plans', label: '方案', url: '/plans', target: '_blank', enabled: true },
+                    { id: 'keywords', label: '拓词', url: '/keywords', target: '_blank', enabled: true },
+                    { id: 'tools', label: '工具', url: '/tools', target: '_blank', enabled: true },
+                    { id: 'experts', label: '专家', url: '/experts', target: '_blank', enabled: true },
+                    { id: 'tutorial', label: '教程', url: '/tutorial', target: '_blank', enabled: true },
+                    { id: 'github', label: 'GitHub', url: 'https://github.com/yaojingang/GEORank', target: '_blank', enabled: true },
+                ],
+            },
         },
         state: {
             loaded: false,
@@ -110,7 +123,72 @@
                 site_name: cleanName || this.defaults.site_name,
                 site_description: cleanDescription || this.defaults.site_description,
                 analytics_tracking_code: analyticsCode,
+                navigation_menu: this.normalizeNavigationMenu(payload?.navigation_menu),
             };
+        },
+
+        normalizeNavigationUrl(value) {
+            const url = String(value || '').trim();
+            if (!url) return '';
+            if (url.startsWith('/') && !url.startsWith('//')) return url;
+            if (url.startsWith('#') && url.length > 1) return url;
+            try {
+                const parsed = new URL(url);
+                return ['http:', 'https:'].includes(parsed.protocol) && parsed.hostname ? url : '';
+            } catch (_) {
+                return '';
+            }
+        },
+
+        normalizeNavigationMenu(value) {
+            const source = Array.isArray(value?.items) && value.items.length
+                ? value.items
+                : this.defaults.navigation_menu.items;
+            const items = source.slice(0, 12).map((item, index) => ({
+                id: String(item?.id || `menu-${index + 1}`),
+                label: String(item?.label || '').trim().slice(0, 40),
+                url: this.normalizeNavigationUrl(item?.url),
+                target: item?.target === '_self' ? '_self' : '_blank',
+                enabled: item?.enabled !== false,
+            })).filter(item => item.enabled && item.label && item.url);
+            return {items: items.length ? items : this.defaults.navigation_menu.items.map(item => ({...item}))};
+        },
+
+        applyNavigation(root = document) {
+            let replaced = false;
+            root.querySelectorAll?.('[data-site-navigation]').forEach(container => {
+                const mobile = container.dataset.navigationVariant === 'mobile';
+                const currentLinks = Array.from(container.children).filter(node => node.matches?.('a[data-nav-link]'));
+                const alreadyMatches = currentLinks.length === this.settings.navigation_menu.items.length
+                    && currentLinks.every((link, index) => {
+                        const item = this.settings.navigation_menu.items[index];
+                        const currentTarget = link.getAttribute('target') || '_self';
+                        return link.textContent.trim() === item.label
+                            && link.getAttribute('href') === item.url
+                            && currentTarget === item.target;
+                    });
+                if (alreadyMatches) return;
+
+                const fragment = document.createDocumentFragment();
+                this.settings.navigation_menu.items.forEach(item => {
+                    const link = document.createElement('a');
+                    link.href = item.url;
+                    link.textContent = item.label;
+                    link.dataset.navLink = '';
+                    link.dataset.navigationItem = item.id;
+                    link.className = mobile
+                        ? 'font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors'
+                        : 'font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors';
+                    link.setAttribute('target', item.target);
+                    if (item.target === '_blank') {
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    }
+                    fragment.appendChild(link);
+                });
+                container.replaceChildren(fragment);
+                replaced = true;
+            });
+            if (replaced) Navigation.highlightCurrentPage();
         },
 
         get settings() {
@@ -123,6 +201,8 @@
         },
 
         apply(root = document) {
+            // 保留 HTML 自带的首屏文案，等待接口返回后再覆盖。
+            if (!this.state.loaded) return;
             const settings = this.settings;
             const siteName = settings.site_name;
             const siteDescription = settings.site_description;
@@ -132,6 +212,7 @@
                 link.textContent = siteName;
                 link.setAttribute('aria-label', siteName);
             });
+            this.applyNavigation(root);
 
             root.querySelectorAll?.('[data-site-name]').forEach(element => {
                 element.textContent = siteName;
@@ -153,13 +234,6 @@
                 descriptionMeta.setAttribute('content', siteDescription);
             }
 
-            root.querySelectorAll?.('[data-i18n="footer.rights"]').forEach(element => {
-                const footerDescription = /[.!?。！？]$/.test(siteDescription)
-                    ? siteDescription
-                    : `${siteDescription}.`;
-                element.textContent = `© 2024-2026 ${siteName}. ${footerDescription} All rights reserved.`;
-            });
-
             document.dispatchEvent(new CustomEvent('georank:site-settings-applied', {
                 detail: { siteName, siteDescription },
             }));
@@ -175,6 +249,28 @@
     // ===== 网站统计代码注入 =====
     const AnalyticsInjector = {
         ROOT_ID: 'georank-analytics-code',
+
+        isSensitiveContext() {
+            const path = String(window.location.pathname || '').replace(/\.html$/, '');
+            const sensitivePaths = [
+                '/profile',
+                '/solutions',
+                '/keywords',
+                '/plans',
+                '/tools',
+                '/diagnostic',
+                '/submit-company',
+            ];
+            if (sensitivePaths.some(prefix => path === prefix || path.startsWith(`${prefix}/`))) {
+                return true;
+            }
+            try {
+                const config = JSON.parse(localStorage.getItem('georank_byok_config_v1') || 'null');
+                return Boolean(config?.apiKey);
+            } catch (_) {
+                return true;
+            }
+        },
 
         clear() {
             const oldRoot = document.getElementById(this.ROOT_ID);
@@ -197,6 +293,7 @@
 
         inject(code) {
             this.clear();
+            if (this.isSensitiveContext()) return;
             const html = String(code || '').trim();
             if (!html) return;
             const root = document.createElement('div');
@@ -211,6 +308,9 @@
         init() {
             SiteSettings.load().then(settings => {
                 this.inject(settings.analytics_tracking_code);
+            });
+            document.addEventListener('georank:api-key-changed', event => {
+                if (event.detail?.configured) this.clear();
             });
         },
     };
@@ -263,6 +363,9 @@
                 'auth.phonePlaceholder': '请输入手机号',
                 'auth.password': '密码',
                 'auth.passwordPlaceholder': '请输入密码',
+                'auth.confirmPassword': '确认密码',
+                'auth.confirmPasswordPlaceholder': '再次输入密码',
+                'auth.passwordMismatch': '两次输入的密码不一致',
                 'auth.remember': '保持登录',
                 'auth.submitLogin': '登录',
                 'auth.submitRegister': '注册并登录',
@@ -291,7 +394,7 @@
                 'auth.goRegister': '没有账号？去注册',
                 'profile.eyebrow': 'ACCOUNT SETTINGS',
                 'profile.title': '个人中心',
-                'profile.copy': '集中管理账号状态、语言偏好和前台体验设置。',
+                'profile.copy': '管理账户与模型调用设置。',
                 'profile.accountTitle': '账号状态',
                 'profile.accountSubtitle': '当前浏览器会保存你的登录状态，用于继续诊断、问答、方案和拓词流程。',
                 'profile.statusLabel': '当前账号',
@@ -322,11 +425,57 @@
                 'profile.passwordTooShort': '新密码至少 6 位',
                 'profile.passwordUpdated': '密码已更新，请使用新密码重新登录',
                 'profile.passwordFailed': '修改密码失败',
+                'profile.stackLabel': '个人中心设置',
+                'profile.signedInUser': '已登录用户',
+                'profile.active': '启用中',
+                'profile.modelApiEyebrow': 'MODEL API',
+                'profile.modelApiTitle': '我的模型 API',
+                'profile.modelApiCopy': '配置自己的模型服务，用于额度不足或自托管场景。密钥仅保存在当前浏览器。',
+                'profile.deviceConfigured': '此设备已配置',
+                'profile.deviceNotConfigured': '此设备未配置',
+                'profile.currentMode': '当前模式',
+                'profile.remainingTokens': '终身剩余额度',
+                'profile.usedTokens': '终身已用',
+                'profile.provider': '供应商',
+                'profile.customProvider': '自定义 OpenAI-compatible',
+                'profile.baseUrl': 'Base URL',
+                'profile.model': 'Model',
+                'profile.apiKey': 'API Key',
+                'profile.apiKeyPlaceholder': '只保存在当前浏览器',
+                'profile.enableApiKey': '启用我的 API Key',
+                'profile.apiNote': '代理模式会在单次生成请求中临时发送密钥，服务端不会保存到数据库或写入日志。',
+                'profile.saveApi': '保存设置',
+                'profile.removeApi': '移除密钥',
+                'profile.accountSecurity': '账户与安全',
+                'profile.profileTitle': '个人资料',
+                'profile.profileSummary': '用户名、邮箱',
+                'profile.edit': '编辑',
+                'profile.username': '用户名',
+                'profile.email': '邮箱',
+                'profile.phone': '手机号',
+                'profile.saveProfile': '保存资料',
+                'profile.passwordSummary': '修改后需要重新登录',
+                'profile.change': '修改',
+                'profile.loading': '读取中',
+                'profile.unlimited': '不限',
+                'profile.usageUnavailable': '读取失败',
+                'profile.modePlatformUnlimited': '平台无限',
+                'profile.modeDailyQuota': '每日额度',
+                'profile.modeQuotaWithByok': '额度 + 自定义 Key',
+                'profile.modeByokRequired': '必须自定义 Key',
+                'profile.usernameRequired': '请输入用户名',
+                'profile.emailRequired': '请输入邮箱',
+                'profile.profileSaved': '账号资料已更新',
+                'profile.profileFailed': '账号资料更新失败',
+                'profile.apiSaved': 'API Key 设置已保存在当前浏览器',
+                'profile.apiRemoved': '此设备的 API Key 已移除',
+                'profile.removeApiConfirm': '移除此设备保存的 API Key？',
+                'profile.apiRequired': '启用 API Key 时，请完整填写 Base URL、Model 和 API Key',
+                'profile.apiInvalidBaseUrl': 'Base URL 必须是有效的 HTTP 或 HTTPS 地址',
                 'profile.quickTitle': '快捷入口',
                 'profile.quickSubmit': '提交公司',
                 'profile.quickDiagnostic': 'GEO 诊断',
                 'profile.quickPlans': '生成方案',
-                'footer.rights': '© 2024-2026 GEOrank. GEO 智搜优化引擎. All rights reserved.',
             },
             'en-US': {
                 'nav.companies': 'Companies',
@@ -366,6 +515,9 @@
                 'auth.phonePlaceholder': 'Enter phone number',
                 'auth.password': 'Password',
                 'auth.passwordPlaceholder': 'Enter password',
+                'auth.confirmPassword': 'Confirm password',
+                'auth.confirmPasswordPlaceholder': 'Enter the password again',
+                'auth.passwordMismatch': 'The two passwords do not match',
                 'auth.remember': 'Keep me signed in',
                 'auth.submitLogin': 'Log in',
                 'auth.submitRegister': 'Register and log in',
@@ -394,7 +546,7 @@
                 'auth.goRegister': 'No account yet? Register',
                 'profile.eyebrow': 'ACCOUNT SETTINGS',
                 'profile.title': 'Account center',
-                'profile.copy': 'Manage account status, language preference, and front-end settings in one place.',
+                'profile.copy': 'Manage your account and model API settings.',
                 'profile.accountTitle': 'Account status',
                 'profile.accountSubtitle': 'This browser keeps your session for diagnostics, Q&A, plans, and keyword workflows.',
                 'profile.statusLabel': 'Current account',
@@ -425,11 +577,57 @@
                 'profile.passwordTooShort': 'New password must be at least 6 characters',
                 'profile.passwordUpdated': 'Password updated. Please sign in again with the new password',
                 'profile.passwordFailed': 'Failed to change password',
+                'profile.stackLabel': 'Account center settings',
+                'profile.signedInUser': 'Signed-in user',
+                'profile.active': 'Active',
+                'profile.modelApiEyebrow': 'MODEL API',
+                'profile.modelApiTitle': 'My model API',
+                'profile.modelApiCopy': 'Configure your own model service for quota limits or self-hosted use. The key stays in this browser.',
+                'profile.deviceConfigured': 'Configured on this device',
+                'profile.deviceNotConfigured': 'Not configured on this device',
+                'profile.currentMode': 'Current mode',
+                'profile.remainingTokens': 'Lifetime remaining',
+                'profile.usedTokens': 'Lifetime used',
+                'profile.provider': 'Provider',
+                'profile.customProvider': 'Custom OpenAI-compatible',
+                'profile.baseUrl': 'Base URL',
+                'profile.model': 'Model',
+                'profile.apiKey': 'API Key',
+                'profile.apiKeyPlaceholder': 'Stored in this browser only',
+                'profile.enableApiKey': 'Use my API Key',
+                'profile.apiNote': 'Proxy mode sends the key with a single generation request. The server does not persist it or write it to logs.',
+                'profile.saveApi': 'Save settings',
+                'profile.removeApi': 'Remove key',
+                'profile.accountSecurity': 'Account and security',
+                'profile.profileTitle': 'Account profile',
+                'profile.profileSummary': 'Username and email',
+                'profile.edit': 'Edit',
+                'profile.username': 'Username',
+                'profile.email': 'Email',
+                'profile.phone': 'Phone',
+                'profile.saveProfile': 'Save profile',
+                'profile.passwordSummary': 'You will need to log in again after changing it',
+                'profile.change': 'Change',
+                'profile.loading': 'Loading',
+                'profile.unlimited': 'Unlimited',
+                'profile.usageUnavailable': 'Unavailable',
+                'profile.modePlatformUnlimited': 'Platform unlimited',
+                'profile.modeDailyQuota': 'Daily quota',
+                'profile.modeQuotaWithByok': 'Quota + custom key',
+                'profile.modeByokRequired': 'Custom key required',
+                'profile.usernameRequired': 'Enter a username',
+                'profile.emailRequired': 'Enter an email address',
+                'profile.profileSaved': 'Account profile updated',
+                'profile.profileFailed': 'Failed to update account profile',
+                'profile.apiSaved': 'API Key settings saved in this browser',
+                'profile.apiRemoved': 'The API Key was removed from this device',
+                'profile.removeApiConfirm': 'Remove the API Key stored on this device?',
+                'profile.apiRequired': 'Enter a Base URL, model, and API Key before enabling your key',
+                'profile.apiInvalidBaseUrl': 'Base URL must be a valid HTTP or HTTPS address',
                 'profile.quickTitle': 'Shortcuts',
                 'profile.quickSubmit': 'Submit company',
                 'profile.quickDiagnostic': 'GEO diagnostic',
                 'profile.quickPlans': 'Generate plan',
-                'footer.rights': '© 2024-2026 GEOrank. GEO search optimization engine. All rights reserved.',
             },
         },
 
@@ -476,43 +674,35 @@
             root.querySelectorAll?.('[data-i18n-aria-label]').forEach((element) => {
                 element.setAttribute('aria-label', this.t(element.getAttribute('data-i18n-aria-label') || '', {}, element.getAttribute('aria-label') || ''));
             });
-            root.querySelectorAll?.('[data-lang-option]').forEach((button) => {
-                const locale = button.getAttribute('data-lang-option') || this.defaultLocale;
-                const active = locale === this.state.locale;
-                button.classList.toggle('is-active', active);
-                button.setAttribute('aria-pressed', active ? 'true' : 'false');
-                button.setAttribute('aria-label', locale === 'zh-CN'
-                    ? this.t('language.switchToZh')
-                    : this.t('language.switchToEn'));
-            });
-            root.querySelectorAll?.('[data-language-switcher]').forEach((switcher) => {
-                switcher.setAttribute('aria-label', this.t('language.label'));
-            });
-        },
-
-        bindSwitcher(root = document) {
-            root.querySelectorAll?.('[data-lang-option]').forEach((button) => {
-                if (button.dataset.bound === '1') return;
-                button.dataset.bound = '1';
-                button.addEventListener('click', () => {
-                    this.setLocale(button.getAttribute('data-lang-option') || this.defaultLocale);
-                    Auth?.renderHeader?.();
-                });
-            });
         },
 
         init() {
             if (this.state.initialized) return;
             this.state.initialized = true;
             this.state.locale = this.getLocale();
-            this.bindSwitcher();
             this.apply();
             document.addEventListener('componentLoaded', () => {
-                this.bindSwitcher();
                 this.apply();
             });
         },
     };
+
+    // ===== 首屏结构壳层（组件加载期间不暴露未绑定的交互控件） =====
+    const HEADER_SHELL_HTML = `
+<nav id="main-nav" class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 shadow-[0_10px_40px_rgba(25,27,35,0.04)]" aria-hidden="true">
+    <div class="flex justify-between items-center px-6 md:px-8 h-16 w-full max-w-7xl mx-auto">
+        <div class="flex items-center gap-8">
+            <span class="text-xl font-bold tracking-tighter text-blue-700 dark:text-blue-500 font-headline">GEOrank</span>
+            <div class="hidden md:flex items-center gap-5" data-site-navigation data-navigation-variant="desktop">
+                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
+                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
+                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
+                <span class="block h-4 w-12 rounded-full bg-slate-100 dark:bg-slate-800"></span>
+            </div>
+        </div>
+        <span class="block h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800"></span>
+    </div>
+</nav>`;
 
     // ===== 内联模板（file:// 协议 fallback） =====
     const HEADER_HTML = `
@@ -522,8 +712,8 @@
             <a href="/" data-logo-link class="text-xl font-bold tracking-tighter text-blue-700 dark:text-blue-500 font-headline hover:opacity-90 transition-opacity">
                 GEOrank
             </a>
-            <div class="hidden md:flex items-center gap-5">
-                <a href="/" data-nav-link data-i18n="nav.companies" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">公司</a>
+            <div class="hidden md:flex items-center gap-5" data-site-navigation data-navigation-variant="desktop">
+                <a href="/companies" data-nav-link data-i18n="nav.companies" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">公司</a>
                 <a href="/diagnostic" data-nav-link data-i18n="nav.diagnostic" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">诊断</a>
                 <a href="/solutions" data-nav-link data-i18n="nav.solutions" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">问答</a>
                 <a href="/plans" data-nav-link data-i18n="nav.plans" class="font-manrope font-medium tracking-tight text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">方案</a>
@@ -534,11 +724,7 @@
             </div>
         </div>
         <div class="header-actions flex items-center gap-2 md:gap-3">
-            <div class="header-language" data-language-switcher aria-label="语言切换" data-i18n-aria-label="language.label">
-                <button type="button" class="header-language__option" data-lang-option="zh-CN" aria-label="切换到中文" data-i18n-aria-label="language.switchToZh">中</button>
-                <button type="button" class="header-language__option" data-lang-option="en-US" aria-label="Switch to English" data-i18n-aria-label="language.switchToEn">EN</button>
-            </div>
-            <a href="/profile" data-auth-trigger data-profile-link class="auth-trigger header-profile-button" aria-label="登录 / 个人中心" data-i18n-aria-label="auth.triggerSignedOut">
+            <a href="/login" data-auth-trigger data-profile-link class="auth-trigger header-profile-button" aria-label="登录 / 个人中心" data-i18n-aria-label="auth.triggerSignedOut">
                 <span class="header-profile-button__icon" aria-hidden="true">
                     <span class="material-symbols-outlined">person</span>
                 </span>
@@ -550,8 +736,8 @@
         </div>
     </div>
     <div id="mobile-menu" class="hidden md:hidden bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-        <div class="flex flex-col px-6 py-4 space-y-3">
-            <a href="/" data-nav-link data-i18n="nav.companies" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">公司</a>
+        <div class="flex flex-col px-6 py-4 space-y-3" data-site-navigation data-navigation-variant="mobile">
+            <a href="/companies" data-nav-link data-i18n="nav.companies" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">公司</a>
             <a href="/diagnostic" data-nav-link data-i18n="nav.diagnostic" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">诊断</a>
             <a href="/solutions" data-nav-link data-i18n="nav.solutions" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">问答</a>
             <a href="/plans" data-nav-link data-i18n="nav.plans" class="font-manrope font-medium py-2 text-slate-600 dark:text-slate-400 hover:text-blue-500 transition-colors">方案</a>
@@ -566,29 +752,58 @@
 const FOOTER_HTML = `
 <footer class="w-full mt-auto border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
     <div class="max-w-7xl mx-auto px-6 md:px-8 py-6">
-        <p class="font-inter text-sm text-slate-400 dark:text-slate-500 text-center" data-i18n="footer.rights">© 2024-2026 GEOrank. GEO 智搜优化引擎. All rights reserved.</p>
+        <p class="font-inter text-sm text-slate-400 dark:text-slate-500 text-center" data-footer-rights>© 2026 GEORankHub · 公益性 GEO 研究平台 · 独立第三方 · <strong><a href="https://github.com/yaojingang/GEORank" target="_blank" rel="noopener noreferrer">GitHub</a>开源</strong></p>
     </div>
 </footer>`;
 
+    const COMPONENT_LOAD_TIMEOUT_MS = 2500;
+
     // ===== 组件加载器 =====
     const ComponentLoader = {
+        /** 立即挂载内联壳层，避免远程组件加载期间出现空白区域 */
+        mountFallbacks() {
+            const header = DOM.get('#header-container');
+            const footer = DOM.get('#footer-container');
+            if (header && !header.innerHTML.trim()) header.innerHTML = HEADER_SHELL_HTML;
+            if (footer && !footer.innerHTML.trim()) footer.innerHTML = FOOTER_HTML;
+        },
+
+        /** 兼容旧 HTML 与旧 CSS 缓存，避免新版脚本不再恢复透明度后永久白屏 */
+        revealLegacyDocument() {
+            const body = document.body;
+            if (!body || getComputedStyle(body).opacity !== '0') return;
+            body.style.opacity = '1';
+            body.style.transition = 'none';
+        },
+
         /**
          * 加载HTML组件 — 先尝试 fetch，失败则用内联模板
          */
         async load(url, targetSelector, fallbackHTML) {
             const target = DOM.get(targetSelector);
             if (!target) return null;
+            const controller = new AbortController();
+            const timeout = window.setTimeout(() => controller.abort(), COMPONENT_LOAD_TIMEOUT_MS);
 
             try {
-                const response = await fetch(url);
+                const response = await fetch(url, {
+                    cache: 'no-store',
+                    signal: controller.signal,
+                });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const html = await response.text();
                 target.innerHTML = html;
-            } catch (_) {
+            } catch (error) {
+                console.warn('[GEOrank] component load failed; using fallback', {
+                    url,
+                    error: error?.name || 'Error',
+                });
                 // file:// 协议或网络错误，使用内联模板
                 if (fallbackHTML) {
                     target.innerHTML = fallbackHTML;
                 }
+            } finally {
+                window.clearTimeout(timeout);
             }
             document.dispatchEvent(new CustomEvent('componentLoaded', {
                 detail: { url, targetSelector }
@@ -598,13 +813,15 @@ const FOOTER_HTML = `
 
         /** 加载头部组件 */
         async loadHeader() {
-            await this.load('/components/header.html', '#header-container', HEADER_HTML);
-            await ModuleGate.load();
-            ModuleGate.applyHeader();
+            const header = DOM.get('#header-container');
+            if (header?.dataset.prerendered !== 'true') {
+                await this.load('/components/header.html', '#header-container', HEADER_HTML);
+            }
             Navigation.init();
-            I18N.bindSwitcher();
             I18N.apply();
             SiteSettings.apply();
+            await ModuleGate.load();
+            ModuleGate.applyHeader();
         },
 
         /** 加载底部组件 */
@@ -646,12 +863,9 @@ const FOOTER_HTML = `
 
         getModulePath(pathname = window.location.pathname) {
             const normalized = this.normalizePath(pathname);
-            if (normalized === '/' || normalized === '/index') {
-                if (window.GEOrank?.ModuleGate?.homepageActive?.()) return '/__homepage';
-                return '/';
-            }
-            if (normalized === '/company' || normalized === '/companies' || normalized.startsWith('/companies/') || normalized === '/c' || normalized.startsWith('/c/')) return '/';
-            if (normalized === '/submit-company' || normalized === '/company-submit') return '/';
+            if (normalized === '/' || normalized === '/index') return '/';
+            if (normalized === '/company' || normalized === '/companies' || normalized.startsWith('/companies/') || normalized === '/c' || normalized.startsWith('/c/')) return '/companies';
+            if (normalized === '/submit-company' || normalized === '/company-submit') return '/companies';
             if (normalized === '/diagnostic' || normalized.startsWith('/diagnostic/')) return '/diagnostic';
             if (normalized === '/solutions' || normalized.startsWith('/solutions/')) return '/solutions';
             if (normalized === '/plans' || normalized.startsWith('/plans/')) return '/plans';
@@ -664,7 +878,7 @@ const FOOTER_HTML = `
         },
 
         buildCompanyDetail(companyIdentifier, query = {}) {
-            if (!companyIdentifier) return this.buildUrl('/', query);
+            if (!companyIdentifier) return this.buildUrl('/companies', query);
             return this.buildUrl(`/c/${encodeURIComponent(companyIdentifier)}`, query);
         },
 
@@ -803,17 +1017,19 @@ const FOOTER_HTML = `
             const params = current.searchParams;
 
             if (rawPath === '/index.html' || normalizedPath === '/index') {
-                return Routes.buildUrl('/');
+                return Routes.buildUrl('/companies');
             }
 
             if (rawPath === '/company.html') {
                 return params.get('id')
                     ? Routes.buildCompanyDetail(params.get('id'))
-                    : Routes.buildUrl('/company');
+                    : Routes.buildUrl('/companies');
             }
 
-            if (normalizedPath === '/company' && params.get('id')) {
-                return Routes.buildCompanyDetail(params.get('id'));
+            if (normalizedPath === '/company') {
+                return params.get('id')
+                    ? Routes.buildCompanyDetail(params.get('id'))
+                    : Routes.buildUrl('/companies');
             }
 
             if (rawPath === '/tutorial.html') {
@@ -924,7 +1140,7 @@ const FOOTER_HTML = `
         defaults: {
             default_module: 'companies',
             modules: [
-                { key: 'companies', name: '公司', path: '/', enabled: true, protected_paths: ['/', '/company', '/companies', '/c', '/submit-company'] },
+                { key: 'companies', name: '公司', path: '/companies', enabled: true, protected_paths: ['/company', '/companies', '/c', '/submit-company'] },
                 { key: 'diagnostic', name: '诊断', path: '/diagnostic', enabled: true, protected_paths: ['/diagnostic'] },
                 { key: 'solutions', name: '问答', path: '/solutions', enabled: true, protected_paths: ['/solutions'] },
                 { key: 'plans', name: '方案', path: '/plans', enabled: true, protected_paths: ['/plans'] },
@@ -940,7 +1156,7 @@ const FOOTER_HTML = `
             promise: null,
         },
         modulePathToKey: {
-            '/': 'companies',
+            '/companies': 'companies',
             '/diagnostic': 'diagnostic',
             '/solutions': 'solutions',
             '/plans': 'plans',
@@ -998,9 +1214,7 @@ const FOOTER_HTML = `
         },
 
         companyListPath() {
-            return this.homepageActive()
-                ? (this.state.homepage?.company_list_path || '/companies')
-                : '/';
+            return this.state.homepage?.company_list_path || '/companies';
         },
 
         normalizeConfig(payload) {
@@ -1013,8 +1227,8 @@ const FOOTER_HTML = `
                     ...item,
                     name: raw.name || item.name,
                     path: item.key === 'companies' ? this.companyListPath() : (raw.path || item.path),
-                    protected_paths: item.key === 'companies' && this.homepageActive()
-                        ? ['/company', '/companies', '/c', '/submit-company']
+                    protected_paths: item.key === 'companies'
+                        ? item.protected_paths
                         : (Array.isArray(raw.protected_paths) ? raw.protected_paths : item.protected_paths),
                     enabled: raw.enabled !== false,
                 };
@@ -1050,9 +1264,6 @@ const FOOTER_HTML = `
             if (normalized.startsWith('/admin') || normalized === '/profile' || normalized === '/login' || normalized === '/register') {
                 return null;
             }
-            if (normalized === '/' && this.homepageActive()) {
-                return null;
-            }
             const modulePath = Routes.getModulePath(normalized);
             return this.modulePathToKey[modulePath] || null;
         },
@@ -1075,9 +1286,8 @@ const FOOTER_HTML = `
         },
 
         applyHeader() {
-            const defaultPath = this.defaultPath();
             document.querySelectorAll('[data-logo-link]').forEach(link => {
-                link.setAttribute('href', this.homepageActive() ? '/' : defaultPath);
+                link.setAttribute('href', '/');
             });
             document.querySelectorAll('[data-nav-link][data-i18n="nav.companies"]').forEach(link => {
                 link.setAttribute('href', this.companyListPath());
@@ -1142,6 +1352,94 @@ const FOOTER_HTML = `
     };
 
     window.GEOrank.ModuleGate = ModuleGate;
+
+    // ===== 页面可用性生命周期 =====
+    const PageLifecycle = {
+        state: {
+            promise: null,
+        },
+
+        whenDomReady() {
+            if (document.body && document.querySelector('main')) return Promise.resolve();
+            return new Promise(resolve => {
+                document.addEventListener('DOMContentLoaded', resolve, { once: true });
+            });
+        },
+
+        setPending(pending) {
+            const main = document.querySelector('main');
+            if (!main) return;
+            if (pending) {
+                main.setAttribute('inert', '');
+                main.setAttribute('aria-busy', 'true');
+                return;
+            }
+            main.removeAttribute('inert');
+            main.removeAttribute('aria-busy');
+        },
+
+        whenAvailable() {
+            if (!this.state.promise) {
+                this.setPending(true);
+                this.state.promise = Promise.all([
+                    this.whenDomReady(),
+                    ModuleGate.load(),
+                ]).then(() => {
+                    ModuleGate.applyHeader();
+                    const available = ModuleGate.guardCurrentPage();
+                    if (available) ModuleGate.applyLinks();
+                    this.setPending(false);
+                    if (available) {
+                        document.dispatchEvent(new CustomEvent('georank:page-available', {
+                            detail: { path: window.location.pathname },
+                        }));
+                    }
+                    return available;
+                });
+            }
+            return this.state.promise;
+        },
+
+        run(callback) {
+            return this.whenAvailable()
+                .then(available => available ? callback() : undefined)
+                .catch(error => {
+                    this.setPending(false);
+                    console.error('[GEOrank] page initialization failed', {
+                        error: error?.name || 'Error',
+                    });
+                });
+        },
+    };
+
+    window.GEOrank.PageLifecycle = PageLifecycle;
+
+    // ===== 风控设备身份 =====
+    // 随机 ID 保持同一浏览器稳定。
+    // 服务端只保存 SHA-256 摘要，前端原始值不会写入业务数据。
+    const DeviceIdentity = {
+        STORAGE_KEY: 'georank_device_id_v1',
+
+        createId() {
+            if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+            return `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+        },
+
+        getOrCreateId() {
+            const stored = localStorage.getItem(this.STORAGE_KEY)?.trim() || '';
+            if (stored.length >= 16) return stored;
+            const deviceId = this.createId();
+            localStorage.setItem(this.STORAGE_KEY, deviceId);
+            return deviceId;
+        },
+
+        getHeaders() {
+            const deviceId = this.getOrCreateId();
+            return { 'X-GEOrank-Device-ID': deviceId };
+        },
+    };
+
+    window.GEOrank.DeviceIdentity = DeviceIdentity;
 
     // ===== 公共认证 =====
     const Auth = {
@@ -1245,6 +1543,7 @@ const FOOTER_HTML = `
         async request(path, options = {}) {
             const headers = {
                 'Content-Type': 'application/json',
+                ...DeviceIdentity.getHeaders(),
                 ...(options.headers || {}),
             };
             const token = this.getToken();
@@ -1314,6 +1613,10 @@ const FOOTER_HTML = `
         },
 
         setSession(token, user, remember = true) {
+            const previousUser = this.getUser();
+            if (previousUser?.id && user?.id && previousUser.id !== user.id) {
+                window.GEOrank.APIKeyStore?.clear?.();
+            }
             localStorage.setItem(this.TOKEN_KEY, token);
             localStorage.setItem(this.USER_KEY, JSON.stringify(user));
             this.state.token = token;
@@ -1333,6 +1636,7 @@ const FOOTER_HTML = `
         },
 
         clearSession() {
+            window.GEOrank.APIKeyStore?.clear?.();
             localStorage.removeItem(this.TOKEN_KEY);
             localStorage.removeItem(this.USER_KEY);
             localStorage.removeItem('georank_token');
@@ -1425,13 +1729,26 @@ const FOOTER_HTML = `
             }
         },
 
-        showError(message = '') {
+        showError(message = '', root = null) {
             const modal = document.getElementById(this.MODAL_ID);
-            if (!modal) return;
-            const errorEl = modal.querySelector('[data-auth-error]');
+            const errorEl = root?.querySelector?.('[data-auth-error]') || modal?.querySelector('[data-auth-error]');
             if (!errorEl) return;
             errorEl.textContent = message;
             errorEl.classList.toggle('hidden', !message);
+        },
+
+        safeReturnTo(value, fallback = '/') {
+            const candidate = String(value || '');
+            if (!candidate) return fallback;
+            try {
+                const target = new URL(candidate, window.location.origin);
+                if (target.origin !== window.location.origin) return fallback;
+                const currentPath = Routes.normalizePath(target.pathname);
+                if (currentPath === '/login' || currentPath === '/register') return fallback;
+                return `${target.pathname}${target.search}${target.hash}`;
+            } catch (_) {
+                return fallback;
+            }
         },
 
         openModal(mode = 'login', options = {}) {
@@ -1470,15 +1787,20 @@ const FOOTER_HTML = `
             const normalizedPhone = this.normalizePhone(phone);
             const boundPhone = this.getBoundPhone();
             if (boundPhone && boundPhone !== normalizedPhone) {
-                this.showError(I18N.t('auth.invalidBoundPhone', { phone: this.maskPhone(boundPhone) }));
+                this.showError(I18N.t('auth.invalidBoundPhone', { phone: this.maskPhone(boundPhone) }), form);
                 return;
             }
             if (!/^1\d{10}$/.test(normalizedPhone)) {
-                this.showError(I18N.t('auth.invalidPhone'));
+                this.showError(I18N.t('auth.invalidPhone'), form);
                 return;
             }
             if (String(password).length < 6) {
-                this.showError(I18N.t('auth.invalidPassword'));
+                this.showError(I18N.t('auth.invalidPassword'), form);
+                return;
+            }
+            const confirmPassword = form.elements.confirmPassword?.value || '';
+            if (this.state.mode === 'register' && password !== confirmPassword) {
+                this.showError(I18N.t('auth.passwordMismatch'), form);
                 return;
             }
             submitBtn?.setAttribute('disabled', 'disabled');
@@ -1488,15 +1810,16 @@ const FOOTER_HTML = `
                     ? await this.register({ phone: normalizedPhone, password, remember })
                     : await this.login({ phone: normalizedPhone, password, remember });
                 this.closeModal();
-                if (window.location.pathname === '/login' || window.location.pathname === '/register') {
+                const currentPath = Routes.normalizePath(window.location.pathname);
+                if (currentPath === '/login' || currentPath === '/register') {
                     const params = new URLSearchParams(window.location.search);
-                    const returnTo = params.get('return') || '/';
+                    const returnTo = this.safeReturnTo(params.get('return'), '/');
                     window.location.href = returnTo;
                     return;
                 }
                 this.showToast?.(I18N.t('auth.toastSignedIn', { phone: this.maskPhone(user.phone) }));
             } catch (error) {
-                this.showError(error.message || I18N.t('auth.failed'));
+                this.showError(error.message || I18N.t('auth.failed'), form);
             } finally {
                 submitBtn?.removeAttribute('disabled');
                 submitBtn && (submitBtn.textContent = this.state.mode === 'login' ? I18N.t('auth.submitLogin') : I18N.t('auth.submitRegister'));
@@ -1559,6 +1882,18 @@ const FOOTER_HTML = `
             }
             if (trigger) {
                 trigger.setAttribute('aria-label', triggerLabel);
+                const currentPath = Routes.normalizePath(window.location.pathname);
+                const isAuthPage = currentPath === '/login' || currentPath === '/register';
+                const rawReturnTo = isAuthPage
+                    ? new URLSearchParams(window.location.search).get('return')
+                    : `${window.location.pathname}${window.location.search}`;
+                const returnTo = isAuthPage ? this.safeReturnTo(rawReturnTo, '') : rawReturnTo;
+                const loginHref = Routes.buildUrl('/login');
+                trigger.href = authenticated
+                    ? Routes.buildUrl('/profile')
+                    : returnTo
+                        ? `${loginHref}?return=${encodeURIComponent(returnTo)}`
+                        : loginHref;
             }
             if (phone) {
                 phone.textContent = authenticated ? this.maskPhone(user?.phone || user?.username || I18N.t('auth.signedIn')) : I18N.t('auth.signedOut');
@@ -1577,6 +1912,13 @@ const FOOTER_HTML = `
             if (path === '/profile') return;
             const moduleKey = ModuleGate.moduleKeyForPath(path);
             if (moduleKey && !ModuleGate.isEnabled(moduleKey)) return;
+            if (
+                path === '/company'
+                || path === '/companies'
+                || path.startsWith('/companies/')
+                || path === '/c'
+                || path.startsWith('/c/')
+            ) return;
             if (path === '/experts' || path.startsWith('/experts/')) return;
             let submitAutoOpenFlag = false;
             try {
@@ -1602,6 +1944,13 @@ const FOOTER_HTML = `
             });
         },
 
+        authLinkWithReturn(path) {
+            const rawReturnTo = new URLSearchParams(window.location.search).get('return');
+            const returnTo = rawReturnTo ? this.safeReturnTo(rawReturnTo, '') : '';
+            const href = Routes.buildUrl(path);
+            return returnTo ? `${href}?return=${encodeURIComponent(returnTo)}` : href;
+        },
+
         mountStandalone(root, mode = 'login') {
             if (!root) return;
             root.innerHTML = `
@@ -1610,7 +1959,6 @@ const FOOTER_HTML = `
                         <p class="auth-standalone__eyebrow">${mode === 'register' ? I18N.t('auth.standaloneRegisterEyebrow') : I18N.t('auth.standaloneLoginEyebrow')}</p>
                         <h1 class="auth-standalone__title">${mode === 'register' ? I18N.t('auth.standaloneRegisterTitle') : I18N.t('auth.standaloneLoginTitle')}</h1>
                         <p class="auth-standalone__copy">${mode === 'register' ? I18N.t('auth.standaloneRegisterCopy') : I18N.t('auth.standaloneLoginCopy')}</p>
-                        <p class="auth-form__hint">${I18N.t('auth.standaloneHint')}</p>
                         <form class="auth-form auth-form--standalone" data-auth-standalone-form>
                             <label class="auth-form__label">
                                 <span>${I18N.t('auth.phone')}</span>
@@ -1620,6 +1968,11 @@ const FOOTER_HTML = `
                                 <span>${I18N.t('auth.password')}</span>
                                 <input type="password" autocomplete="${mode === 'register' ? 'new-password' : 'current-password'}" name="password" placeholder="${I18N.t('auth.passwordPlaceholder')}" minlength="6" maxlength="128" required />
                             </label>
+                            ${mode === 'register' ? `
+                            <label class="auth-form__label">
+                                <span>${I18N.t('auth.confirmPassword')}</span>
+                                <input type="password" autocomplete="new-password" name="confirmPassword" placeholder="${I18N.t('auth.confirmPasswordPlaceholder')}" minlength="6" maxlength="128" required />
+                            </label>` : ''}
                             <label class="auth-form__checkbox">
                                 <input type="checkbox" name="remember" checked />
                                 <span>${I18N.t('auth.remember')}</span>
@@ -1628,8 +1981,8 @@ const FOOTER_HTML = `
                             <button type="submit" class="auth-form__submit">${mode === 'register' ? I18N.t('auth.submitRegister') : I18N.t('auth.submitLogin')}</button>
                             <div class="auth-form__links">
                                 ${mode === 'register'
-                                    ? `<a href="/login">${I18N.t('auth.goLogin')}</a>`
-                                    : `<a href="/register">${I18N.t('auth.goRegister')}</a>`}
+                                    ? `<a href="${this.authLinkWithReturn('/login')}">${I18N.t('auth.goLogin')}</a>`
+                                    : `<a href="${this.authLinkWithReturn('/register')}">${I18N.t('auth.goRegister')}</a>`}
                             </div>
                         </form>
                     </div>
@@ -1686,6 +2039,59 @@ const FOOTER_HTML = `
         STORAGE_KEY: 'georank_byok_config_v1',
         COOKIE_KEY: 'georank_byok_config_v1',
         MODAL_ID: 'georank-api-key-modal',
+        policy: null,
+        policyPromise: null,
+
+        apiBase() {
+            return Auth.apiBase
+                || (['80', '443', ''].includes(window.location.port)
+                    ? ''
+                    : `${window.location.protocol}//${window.location.hostname}:8000`);
+        },
+
+        applyPolicy(policy) {
+            if (!policy || typeof policy !== 'object') return this.policy;
+            this.policy = policy;
+            if (policy.allow_user_byok === false) this.clear();
+            return this.policy;
+        },
+
+        async loadPolicy({force = false} = {}) {
+            if (this.policy && !force) return this.policy;
+            if (this.policyPromise && !force) return this.policyPromise;
+            this.policyPromise = fetch(`${this.apiBase()}/api/usage/policy`, {
+                headers: DeviceIdentity.getHeaders(),
+            })
+                .then(async response => {
+                    const payload = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(payload.detail || '读取 API 策略失败');
+                    return this.applyPolicy(payload);
+                })
+                .finally(() => {
+                    this.policyPromise = null;
+                });
+            return this.policyPromise;
+        },
+
+        providerPresets() {
+            return (this.policy?.allowed_byok_providers || [])
+                .filter(provider => provider?.key && provider?.base_url);
+        },
+
+        providerPreset(providerKey) {
+            const key = String(providerKey || '').trim().toLowerCase();
+            return this.providerPresets().find(provider => String(provider.key).toLowerCase() === key) || null;
+        },
+
+        isAllowedProviderConfig(config) {
+            const preset = this.providerPreset(config?.provider);
+            if (!preset) return false;
+            try {
+                return new URL(config.baseUrl).origin === new URL(preset.base_url).origin;
+            } catch (_) {
+                return false;
+            }
+        },
 
         read() {
             if (Auth.getCookie(this.COOKIE_KEY)) {
@@ -1702,6 +2108,12 @@ const FOOTER_HTML = `
         },
 
         save(config = {}) {
+            if (this.policy?.allow_user_byok === false) {
+                throw new Error('后台当前未开放用户自备 API');
+            }
+            if (this.policy && !this.isAllowedProviderConfig(config)) {
+                throw new Error('API Base URL 必须使用后台允许的供应商地址');
+            }
             const payload = {
                 enabled: Boolean(config.enabled),
                 provider: String(config.provider || 'deepseek').trim() || 'deepseek',
@@ -1729,20 +2141,34 @@ const FOOTER_HTML = `
 
         hasUsableKey() {
             const config = this.read();
-            return Boolean(config?.enabled && config?.apiKey && config?.baseUrl && config?.model);
+            if (this.policy?.allow_user_byok === false) return false;
+            return Boolean(
+                config?.enabled
+                && config?.apiKey
+                && config?.baseUrl
+                && config?.model
+                && (!this.policy || this.isAllowedProviderConfig(config))
+            );
         },
 
         maskKey(value) {
             const text = String(value || '');
-            if (!text) return '未配置';
-            if (text.length <= 10) return '已配置';
+            if (!text) return '';
+            if (text.length <= 10) return '••••••••';
             return `${text.slice(0, 4)}••••${text.slice(-4)}`;
         },
 
         getHeaders() {
+            const deviceHeaders = DeviceIdentity.getHeaders();
             const config = this.read();
-            if (!config?.enabled || !config.apiKey) return {};
+            if (
+                this.policy?.allow_user_byok === false
+                || !config?.enabled
+                || !config.apiKey
+                || (this.policy && !this.isAllowedProviderConfig(config))
+            ) return deviceHeaders;
             return {
+                ...deviceHeaders,
                 'X-GEOrank-BYOK-Provider': config.provider || 'custom',
                 'X-GEOrank-BYOK-Base-URL': config.baseUrl || '',
                 'X-GEOrank-BYOK-Model': config.model || '',
@@ -1751,6 +2177,7 @@ const FOOTER_HTML = `
         },
 
         shouldPromptForError(error) {
+            if (this.policy?.allow_user_byok === false) return false;
             const message = String(error?.message || error || '');
             return /额度|自定义 API|API Key|Payment Required|Too Many Requests/i.test(message);
         },
@@ -1767,16 +2194,13 @@ const FOOTER_HTML = `
                         <span class="material-symbols-outlined">close</span>
                     </button>
                     <p class="api-key-modal__eyebrow">BYOK SETTINGS</p>
-                    <h2 id="api-key-modal-title">使用自己的 API Key 继续生成</h2>
+                    <h2 id="api-key-modal-title" data-api-key-title>使用自己的 API Key 继续生成</h2>
                     <p class="api-key-modal__copy" data-api-key-reason>你的 Key 只保存在当前浏览器。若使用代理模式，会在本次生成请求中临时发送到服务端调用模型，但不会入库或写入日志。</p>
+                    <a data-api-key-official class="api-key-form__official" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">前往 DeepSeek 获取 API Key</a>
                     <form class="api-key-form" data-api-key-form>
                         <label>
                             <span>供应商</span>
-                            <select name="provider">
-                                <option value="deepseek">DeepSeek</option>
-                                <option value="openai">OpenAI</option>
-                                <option value="custom">自定义 OpenAI-compatible</option>
-                            </select>
+                            <select name="provider"></select>
                         </label>
                         <label>
                             <span>Base URL</span>
@@ -1813,33 +2237,72 @@ const FOOTER_HTML = `
                 event.preventDefault();
                 const form = event.currentTarget;
                 const data = new FormData(form);
-                this.save({
-                    enabled: data.get('enabled') === 'on',
-                    provider: data.get('provider'),
-                    baseUrl: data.get('baseUrl'),
-                    model: data.get('model'),
-                    apiKey: data.get('apiKey'),
-                });
-                this.closeModal();
-                Auth.showToast('API Key 设置已保存在当前浏览器');
+                try {
+                    this.save({
+                        enabled: data.get('enabled') === 'on',
+                        provider: data.get('provider'),
+                        baseUrl: data.get('baseUrl'),
+                        model: data.get('model'),
+                        apiKey: data.get('apiKey'),
+                    });
+                    this.closeModal();
+                    Auth.showToast('API Key 设置已保存在当前浏览器');
+                } catch (error) {
+                    Auth.showToast(error?.message || 'API Key 设置保存失败');
+                }
+            });
+            wrapper.querySelector('select[name="provider"]')?.addEventListener('change', event => {
+                const preset = this.providerPreset(event.currentTarget.value);
+                const form = wrapper.querySelector('[data-api-key-form]');
+                if (!preset || !form) return;
+                form.baseUrl.value = preset.base_url || '';
+                form.model.value = preset.default_model || '';
             });
         },
 
-        openModal(reason = '') {
+        async openModal(reason = '') {
+            try {
+                await this.loadPolicy();
+            } catch (_) {
+                Auth.showToast('暂时无法读取 API 配置，请稍后重试');
+                return;
+            }
+            if (this.policy?.allow_user_byok === false) {
+                this.clear();
+                Auth.showToast('后台当前未开放用户自备 API');
+                return;
+            }
             this.ensureModal();
             const modal = document.getElementById(this.MODAL_ID);
             const config = this.read() || {};
+            const guidance = this.policy?.byok_guidance || {};
+            const presets = this.providerPresets();
             const form = modal?.querySelector('[data-api-key-form]');
             if (form) {
-                form.provider.value = config.provider || 'deepseek';
-                form.baseUrl.value = config.baseUrl || 'https://api.deepseek.com/v1';
-                form.model.value = config.model || 'deepseek-chat';
+                form.provider.innerHTML = presets.map(provider => {
+                    const value = String(provider.key || '').replace(/["<>]/g, '');
+                    const label = String(provider.name || provider.key || '').replace(/[<>]/g, '');
+                    return `<option value="${value}">${label}</option>`;
+                }).join('');
+                const preferredKey = config.provider || guidance.provider || presets[0]?.key || '';
+                form.provider.value = this.providerPreset(preferredKey)?.key || presets[0]?.key || '';
+                const selected = this.providerPreset(form.provider.value) || presets[0] || {};
+                form.baseUrl.value = config.baseUrl || selected.base_url || guidance.base_url || '';
+                form.model.value = config.model || selected.default_model || guidance.model || '';
                 form.apiKey.value = config.apiKey || '';
                 form.enabled.checked = config.enabled !== false;
             }
+            const titleEl = modal?.querySelector('[data-api-key-title]');
+            if (titleEl) titleEl.textContent = guidance.title || '使用自己的 API Key 继续生成';
+            const officialEl = modal?.querySelector('[data-api-key-official]');
+            if (officialEl) {
+                officialEl.textContent = guidance.cta_label || '前往 DeepSeek 获取 API Key';
+                officialEl.href = guidance.official_url || 'https://platform.deepseek.com/api_keys';
+            }
             const reasonEl = modal?.querySelector('[data-api-key-reason]');
-            if (reasonEl && reason) {
-                reasonEl.textContent = SiteSettings.replaceBrand(`${reason} 你的 Key 只保存在当前浏览器，不会保存到 GEOrank 数据库。`);
+            if (reasonEl) {
+                const message = reason || guidance.message || '平台额度当前不可用，请绑定自己的 API Key。';
+                reasonEl.textContent = SiteSettings.replaceBrand(`${message} Key 只保存在当前浏览器，不会保存到 GEOrank 数据库。`);
             }
             modal?.classList.remove('hidden');
             document.body.classList.add('auth-modal-open');
@@ -2063,33 +2526,40 @@ const FOOTER_HTML = `
         Routes,
         Canonicalizer,
         Auth,
+        DeviceIdentity,
         APIKeyStore,
         SiteSettings,
-        AnalyticsInjector
+        AnalyticsInjector,
+        PageLifecycle
     });
 
     // ===== 初始化 =====
-    document.addEventListener('DOMContentLoaded', async () => {
-        // 自动加载组件
-        const loads = [];
-        loads.push(SiteSettings.load());
-        loads.push(ModuleGate.load());
-        if (DOM.get('#header-container')) loads.push(ComponentLoader.loadHeader());
-        if (DOM.get('#footer-container')) loads.push(ComponentLoader.loadFooter());
+    ComponentLoader.mountFallbacks();
+    ComponentLoader.revealLegacyDocument();
 
-        // 等组件注入完成再显示，防止 header/footer 异步注入导致布局跳动
-        await Promise.all(loads);
-        const pageAvailable = ModuleGate.guardCurrentPage();
-        if (pageAvailable) {
-            ModuleGate.applyLinks();
-        }
-        document.body.style.opacity = '1';
+    let frontendInitialized = false;
 
-        // 初始化投票功能
-        Voting.init();
+    function initializeFrontend() {
+        if (frontendInitialized) return;
+        frontendInitialized = true;
 
-        // 初始化搜索功能
-        Search.init();
+        // 后台刷新公共组件；单个组件失败不影响正文与模块可用性判断
+        const shellLoads = [];
+        if (DOM.get('#header-container')) shellLoads.push(ComponentLoader.loadHeader());
+        if (DOM.get('#footer-container')) shellLoads.push(ComponentLoader.loadFooter());
+        void Promise.allSettled(shellLoads).then(results => {
+            results.forEach(result => {
+                if (result.status !== 'rejected') return;
+                const error = result.reason?.message || result.reason?.name || 'Error';
+                console.warn('[GEOrank] shell hydration failed', error);
+            });
+        });
+
+        // 模块可用性独立判断，页面控制器复用同一启动契约
+        void PageLifecycle.run(() => {
+            Voting.init();
+            Search.init();
+        });
 
         // 初始化语言切换
         I18N.init();
@@ -2101,6 +2571,13 @@ const FOOTER_HTML = `
 
         // 初始化认证
         Auth.init();
-    });
+        void APIKeyStore.loadPolicy().catch(() => {});
+    }
+
+    if (document.body) {
+        initializeFrontend();
+    } else {
+        document.addEventListener('DOMContentLoaded', initializeFrontend, { once: true });
+    }
 
 })();

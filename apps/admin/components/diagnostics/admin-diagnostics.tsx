@@ -10,6 +10,8 @@ import type {
   AdminDiagnosticRules
 } from '@georank/api-sdk';
 import {
+  deleteAdminDiagnosticReport,
+  exportAdminDiagnosticReport,
   getAdminDiagnosticReport,
   getAdminDiagnosticRules,
   listAdminDiagnosticReports,
@@ -226,6 +228,29 @@ export function AdminDiagnostics({token}: AdminDiagnosticsProps) {
     }
   }
 
+  async function handleDelete(reportId: string) {
+    if (!window.confirm(t('deleteConfirm'))) return;
+    setActionMessage('');
+    try {
+      await deleteAdminDiagnosticReport(token, reportId);
+      setActionMessage(t('deletedMessage'));
+      const nextList = await listAdminDiagnosticReports(token, {
+        page,
+        size: 12,
+        search: query || undefined,
+        statusFilter: statusFilter || undefined
+      });
+      setListState(nextList);
+      const nextId = nextList.items[0]?.id || '';
+      setSelectedReportId(nextId);
+      if (!nextId) {
+        setDetail(null);
+      }
+    } catch (actionError: unknown) {
+      setActionMessage(actionError instanceof Error ? actionError.message : t('deleteFailed'));
+    }
+  }
+
   async function handleRuleSave() {
     setActionMessage('');
     try {
@@ -253,18 +278,7 @@ export function AdminDiagnostics({token}: AdminDiagnosticsProps) {
     if (!selectedReportId) return;
     setActionMessage('');
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/admin/diagnostics/reports/${encodeURIComponent(selectedReportId)}/export?format=${format}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-      if (!response.ok) {
-        throw new Error(t('exportStatusFailed', {status: response.status}));
-      }
-      const blob = await response.blob();
+      const blob = await exportAdminDiagnosticReport(token, selectedReportId, format);
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -434,6 +448,13 @@ export function AdminDiagnostics({token}: AdminDiagnosticsProps) {
                     type="button"
                   >
                     {actions('retry')}
+                  </button>
+                  <button
+                    className="admin-button admin-button--danger admin-button--small"
+                    onClick={() => handleDelete(detail.id)}
+                    type="button"
+                  >
+                    {actions('delete')}
                   </button>
                 </div>
               ) : null}

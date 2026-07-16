@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <title>系统设置 - Admin | GEOrank</title>
-    <style>body{opacity:0}</style>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <script src="../js/tailwind.config.js"></script>
     <link rel="stylesheet" href="../css/common.css?v=20260613-common-hidden-fix">
-    <link rel="stylesheet" href="../css/admin.css?v=20260616-api-provider-list">
+    <link rel="stylesheet" href="../css/admin.css?v=20260716-homepage-file-input">
 </head>
 <body class="bg-slate-50 text-on-surface antialiased">
     <div class="admin-layout">
@@ -177,21 +176,36 @@
                                 <span>BYOK 请求</span>
                                 <strong data-api-policy-byok-requests>--</strong>
                             </div>
+                            <div>
+                                <span>今日全站已用</span>
+                                <strong data-api-policy-global-used>--</strong>
+                            </div>
+                            <div>
+                                <span>今日全站预占</span>
+                                <strong data-api-policy-global-reserved>--</strong>
+                            </div>
+                            <div>
+                                <span>今日全站剩余</span>
+                                <strong data-api-policy-global-remaining>--</strong>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
                             <div>
                                 <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">访问模式</label>
                                 <select id="api-policy-access-mode" class="form-input">
+                                    <option value="lifetime_quota_with_byok">终身赠送额度 + 用户自备 API</option>
                                     <option value="platform_unlimited">平台无限模式</option>
-                                    <option value="daily_quota">每人每日额度</option>
-                                    <option value="quota_with_byok">额度 + 用户自定义 Key</option>
                                     <option value="byok_required">强制用户自定义 Key</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">每人每日 Token 上限</label>
-                                <input id="api-policy-daily-limit" type="number" min="0" step="100" class="form-input" placeholder="20000">
+                                <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">普通用户终身赠送 Token</label>
+                                <input id="api-policy-lifetime-grant" type="number" min="0" step="100" class="form-input" placeholder="10000">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">全站每日 Token 阈值</label>
+                                <input id="api-policy-global-limit" type="number" min="0" step="10000" class="form-input" placeholder="1000000">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">额度重置时区</label>
@@ -201,7 +215,6 @@
                                 <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">BYOK 传输模式</label>
                                 <select id="api-policy-byok-mode" class="form-input">
                                     <option value="proxy_transient">临时代理模式</option>
-                                    <option value="browser_direct">浏览器直连模式</option>
                                 </select>
                             </div>
                         </div>
@@ -215,16 +228,54 @@
                                 <input id="api-policy-allow-byok" type="checkbox">
                                 <span>允许用户自定义 API Key</span>
                             </label>
+                            <label>
+                                <input id="api-policy-global-enabled" type="checkbox">
+                                <span>启用全站每日预算限制</span>
+                            </label>
+                            <label>
+                                <input id="api-policy-emergency-byok" type="checkbox">
+                                <span>应急切换为全站自备 API</span>
+                            </label>
                         </div>
 
                         <div class="mt-6">
-                            <p class="text-xs font-semibold text-on-surface-variant mb-2">计量模块</p>
+                            <p class="text-xs font-semibold text-on-surface-variant mb-2">用户自备 API 引导</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">引导标题</label>
+                                    <input id="api-policy-guidance-title" type="text" class="form-input" placeholder="使用自己的 DeepSeek API 继续">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">按钮文案</label>
+                                    <input id="api-policy-guidance-cta" type="text" class="form-input" placeholder="前往 DeepSeek 获取 API Key">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">引导说明</label>
+                                    <textarea id="api-policy-guidance-message" class="form-input min-h-20" placeholder="平台赠送额度已用完，请绑定自己的 API Key。"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">DeepSeek 官网</label>
+                                    <input id="api-policy-guidance-official-url" type="url" class="form-input" placeholder="https://platform.deepseek.com/api_keys">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">推荐 API Base URL</label>
+                                    <input id="api-policy-guidance-base-url" type="url" class="form-input" placeholder="https://api.deepseek.com">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">推荐模型</label>
+                                    <input id="api-policy-guidance-model" type="text" class="form-input" placeholder="deepseek-chat">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <p class="text-xs font-semibold text-on-surface-variant mb-2">纳入额度限制的 AI 模块（全量固定）</p>
                             <div class="admin-api-policy-modules">
-                                <label><input type="checkbox" value="solutions" data-api-policy-module>问答 / 方案</label>
-                                <label><input type="checkbox" value="keywords" data-api-policy-module>拓词</label>
-                                <label><input type="checkbox" value="diagnostics" data-api-policy-module>诊断</label>
-                                <label><input type="checkbox" value="companies" data-api-policy-module>公司提交</label>
-                                <label><input type="checkbox" value="tools" data-api-policy-module>工具</label>
+                                <label><input type="checkbox" value="solutions" data-api-policy-module checked disabled>问答 / 方案</label>
+                                <label><input type="checkbox" value="keywords" data-api-policy-module checked disabled>拓词</label>
+                                <label><input type="checkbox" value="diagnostics" data-api-policy-module checked disabled>诊断</label>
+                                <label><input type="checkbox" value="companies" data-api-policy-module checked disabled>公司提交</label>
+                                <label><input type="checkbox" value="tools" data-api-policy-module checked disabled>工具</label>
                             </div>
                         </div>
 
@@ -236,6 +287,39 @@
 
                 <!-- Frontend Modules Panel -->
                 <div id="panel-frontend" class="settings-panel hidden bg-white rounded-xl border border-slate-100 divide-y divide-slate-50">
+                    <div class="p-6">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="text-sm font-bold">菜单栏设置</h3>
+                                    <span class="admin-pill bg-blue-50 text-blue-700">全站同步</span>
+                                </div>
+                                <p class="mt-1 text-xs leading-5 text-on-surface-variant">自定义前台顶部菜单的文案、URL、显示顺序和打开方式。新菜单项默认在新标签页打开。</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button id="navigation-menu-reset" type="button" class="btn admin-btn-secondary px-4 py-2 rounded-lg text-xs">恢复默认</button>
+                                <button id="navigation-menu-add" type="button" class="btn admin-btn-secondary px-4 py-2 rounded-lg text-xs inline-flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-sm" aria-hidden="true">add</span>
+                                    新增菜单项
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                            <p class="text-xs leading-5 text-slate-500">最多 12 项。支持站内路径、锚点以及 HTTP/HTTPS 外链。</p>
+                            <div class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-500" data-navigation-menu-summary>
+                                正在读取菜单配置...
+                            </div>
+                        </div>
+
+                        <div id="navigation-menu-list" class="space-y-3"></div>
+
+                        <div class="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                            <p class="text-xs leading-5 text-slate-500">保存后，首页和其他前台页面会在下次打开或刷新时读取新菜单。</p>
+                            <button id="navigation-menu-save" type="button" class="btn btn-primary px-5 py-2.5 rounded-lg text-sm whitespace-nowrap">保存菜单栏</button>
+                        </div>
+                    </div>
+
                     <div class="p-6">
                         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
                             <div>
@@ -299,7 +383,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">上传 HTML 包</label>
-                                    <input id="homepage-zip-file" type="file" accept=".zip" class="form-input bg-white">
+                                    <input id="homepage-zip-file" type="file" accept=".zip" class="form-input homepage-file-input bg-white">
                                 </div>
                                 <div class="lg:col-span-2">
                                     <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">或粘贴单文件 HTML</label>
@@ -369,6 +453,6 @@
             </main>
         </div>
     </div>
-    <script src="../js/admin.js?v=20260616-api-provider-list"></script>
+    <script src="../js/admin.js?v=20260716-homepage-clone-editor"></script>
 </body>
 </html>

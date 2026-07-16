@@ -147,6 +147,9 @@ class RuntimeSettingsTests(unittest.TestCase):
         self.assertEqual(config["default_module"], "companies")
         self.assertGreaterEqual(len(config["modules"]), 8)
         self.assertTrue(all(module["enabled"] for module in config["modules"]))
+        modules = {module["key"]: module for module in config["modules"]}
+        self.assertEqual(modules["companies"]["path"], "/companies")
+        self.assertNotIn("/", modules["companies"]["protected_paths"])
 
     def test_build_frontend_module_config_moves_default_to_enabled_module(self):
         config = _build_frontend_module_config(

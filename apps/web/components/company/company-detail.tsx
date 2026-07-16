@@ -54,6 +54,8 @@ export async function CompanyDetailView({ locale, company, similarCompanies }: C
         <article className="company-hero-card">
           <div className="company-hero-card__top">
             <div className="company-logo-box">
+              {/* Company logos use arbitrary audited domains; next/image requires an enumerated allowlist. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               {company.logo_url ? <img alt={company.name} src={company.logo_url} /> : <span>{company.name.slice(0, 1)}</span>}
             </div>
             <div className="company-hero-copy">

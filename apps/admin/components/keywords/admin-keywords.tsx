@@ -1,13 +1,31 @@
 'use client';
 
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 
-import type {KeywordDimension, KeywordExpandResponse} from '@georank/api-sdk';
-import {expandKeywords} from '@georank/api-sdk';
+import type {
+  AdminKeywordPackDetail,
+  AdminKeywordPackSummary,
+  AdminKeywordSummary
+} from '@georank/api-sdk';
+import {
+  createAdminKeywordPack,
+  deleteAdminKeywordPack,
+  exportAdminKeywordPack,
+  getAdminKeywordPack,
+  getAdminKeywordSummary,
+  listAdminKeywordPacks
+} from '@georank/api-sdk';
 
 type AdminKeywordsProps = {
   token: string;
+};
+
+type ListState = {
+  items: AdminKeywordPackSummary[];
+  total: number;
+  page: number;
+  pages: number;
 };
 
 function parseSeeds(input: string) {
@@ -17,56 +35,168 @@ function parseSeeds(input: string) {
     .filter(Boolean);
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export function AdminKeywords({token}: AdminKeywordsProps) {
   const t = useTranslations('admin.keywords');
+  const actions = useTranslations('common.actions');
   const units = useTranslations('common.units');
   const [input, setInput] = useState(t('defaultSeed'));
-  const [result, setResult] = useState<KeywordExpandResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [sourceType, setSourceType] = useState('');
+  const [page, setPage] = useState(1);
+  const [summary, setSummary] = useState<AdminKeywordSummary | null>(null);
+  const [listState, setListState] = useState<ListState>({
+    items: [],
+    total: 0,
+    page: 1,
+    pages: 1
+  });
+  const [selectedPackId, setSelectedPackId] = useState('');
+  const [detail, setDetail] = useState<AdminKeywordPackDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [error, setError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
 
-  const topStats = useMemo(() => {
-    if (!result) {
-      return [
-        {label: t('profileLabel'), value: t('notGenerated'), tone: 'neutral'},
-        {label: t('averageRecommendation'), value: '—', tone: 'brand'},
-        {label: t('averageBusiness'), value: '—', tone: 'warning'},
-        {label: t('dimensionCount'), value: '8', tone: 'success'}
-      ];
-    }
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
 
-    return [
-      {label: t('profileLabel'), value: result.profile.name, tone: 'brand'},
-      {
-        label: t('averageRecommendation'),
-        value: `${Math.round(result.summary.average_recommendation_score)}`,
-        tone: 'brand'
-      },
-      {
-        label: t('averageBusiness'),
-        value: `${Math.round(result.summary.average_business_score)}`,
-        tone: 'warning'
-      },
-      {label: t('dimensionCount'), value: `${result.dimensions.length}`, tone: 'success'}
-    ];
-  }, [result, t]);
+    Promise.all([
+      getAdminKeywordSummary(token),
+      listAdminKeywordPacks(token, {
+        page,
+        size: 12,
+        search: query || undefined,
+        sourceType: sourceType || undefined
+      })
+    ])
+      .then(([summaryPayload, listPayload]) => {
+        if (!active) return;
+        setSummary(summaryPayload);
+        setListState(listPayload);
+        setSelectedPackId((current) => {
+          if (current && listPayload.items.some((item) => item.id === current)) return current;
+          return listPayload.items[0]?.id || '';
+        });
+      })
+      .catch((loadError: unknown) => {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : t('listLoadFailed'));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-  async function handleExpand() {
-    const seeds = parseSeeds(input);
-    if (seeds.length === 0) {
-      setError(t('missingSeed'));
+    return () => {
+      active = false;
+    };
+  }, [token, page, query, sourceType, refreshKey, t]);
+
+  useEffect(() => {
+    if (!selectedPackId) {
+      setDetail(null);
       return;
     }
 
-    setLoading(true);
-    setError('');
+    let active = true;
+    setDetailLoading(true);
+    getAdminKeywordPack(token, selectedPackId)
+      .then((payload) => {
+        if (!active) return;
+        setDetail(payload);
+      })
+      .catch((loadError: unknown) => {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : t('detailLoadFailed'));
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token, selectedPackId, t]);
+
+  const topStats = useMemo(
+    () => [
+      {label: t('totalPacks'), value: summary?.total_packs ?? 0, tone: 'brand'},
+      {label: t('totalKeywords'), value: summary?.total_keywords ?? 0, tone: 'success'},
+      {
+        label: t('averageRecommendation'),
+        value: Math.round(summary?.avg_recommendation_score ?? 0),
+        tone: 'brand'
+      },
+      {label: t('averageBusiness'), value: Math.round(summary?.avg_business_score ?? 0), tone: 'warning'}
+    ],
+    [summary, t]
+  );
+
+  async function handleGenerate() {
+    const seeds = parseSeeds(input);
+    if (seeds.length === 0) {
+      setActionMessage(t('missingSeed'));
+      return;
+    }
+
+    setGenerating(true);
+    setActionMessage('');
     try {
-      const payload = await expandKeywords({seeds}, token);
-      setResult(payload);
+      const created = await createAdminKeywordPack(token, {
+        title: title.trim() || undefined,
+        seeds,
+        source_type: 'manual'
+      });
+      setActionMessage(t('createdMessage'));
+      setTitle('');
+      setSelectedPackId(created.id);
+      setDetail(created);
+      setRefreshKey((current) => current + 1);
     } catch (loadError: unknown) {
-      setError(loadError instanceof Error ? loadError.message : t('failed'));
+      setActionMessage(loadError instanceof Error ? loadError.message : t('failed'));
     } finally {
-      setLoading(false);
+      setGenerating(false);
+    }
+  }
+
+  async function handleExport() {
+    if (!detail) return;
+    setActionMessage('');
+    try {
+      const blob = await exportAdminKeywordPack(token, detail.id);
+      downloadBlob(blob, `keyword-pack-${detail.id}.csv`);
+      setActionMessage(t('exportedMessage'));
+    } catch (actionError: unknown) {
+      setActionMessage(actionError instanceof Error ? actionError.message : t('exportFailed'));
+    }
+  }
+
+  async function handleDelete() {
+    if (!detail) return;
+    if (!window.confirm(t('deleteConfirm', {title: detail.title}))) return;
+    setActionMessage('');
+    try {
+      await deleteAdminKeywordPack(token, detail.id);
+      setActionMessage(t('deletedMessage'));
+      setDetail(null);
+      setSelectedPackId('');
+      setRefreshKey((current) => current + 1);
+    } catch (actionError: unknown) {
+      setActionMessage(actionError instanceof Error ? actionError.message : t('deleteFailed'));
     }
   }
 
@@ -78,7 +208,7 @@ export function AdminKeywords({token}: AdminKeywordsProps) {
           <h1>{t('title')}</h1>
           <p>{t('subtitle')}</p>
         </div>
-        <div className="admin-page__hero-chip">{t('flowChip')}</div>
+        {actionMessage ? <div className="admin-page__hero-chip">{actionMessage}</div> : null}
       </section>
 
       <section className="admin-stat-grid admin-stat-grid--compact">
@@ -90,6 +220,8 @@ export function AdminKeywords({token}: AdminKeywordsProps) {
         ))}
       </section>
 
+      {error ? <div className="admin-inline-error">{error}</div> : null}
+
       <section className="admin-panel">
         <div className="admin-panel__header">
           <div>
@@ -99,6 +231,15 @@ export function AdminKeywords({token}: AdminKeywordsProps) {
         </div>
 
         <div className="admin-form-stack">
+          <label className="admin-field">
+            <span>{t('packTitle')}</span>
+            <input
+              className="admin-input"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={t('packTitlePlaceholder')}
+            />
+          </label>
           <label className="admin-field">
             <span>{t('seedLabel')}</span>
             <textarea
@@ -111,14 +252,13 @@ export function AdminKeywords({token}: AdminKeywordsProps) {
           <div className="admin-company-detail__actions">
             <button
               className="admin-button admin-button--primary"
-              disabled={loading}
-              onClick={handleExpand}
+              disabled={generating}
+              onClick={handleGenerate}
               type="button"
             >
-              {loading ? t('generating') : t('generate')}
+              {generating ? t('generating') : t('generateAndSave')}
             </button>
           </div>
-          {error ? <div className="admin-inline-error">{error}</div> : null}
         </div>
       </section>
 
@@ -126,127 +266,166 @@ export function AdminKeywords({token}: AdminKeywordsProps) {
         <article className="admin-panel">
           <div className="admin-panel__header">
             <div>
-              <p className="admin-panel__eyebrow">Profile</p>
-              <h2>{t('profileTitle')}</h2>
+              <p className="admin-panel__eyebrow">Packs</p>
+              <h2>{t('packsTitle')}</h2>
+            </div>
+            <span className="admin-pill admin-pill--neutral">{units('itemCount', {count: listState.total})}</span>
+          </div>
+
+          <div className="admin-toolbar">
+            <input
+              className="admin-input"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t('searchPlaceholder')}
+            />
+            <input
+              className="admin-input"
+              value={sourceType}
+              onChange={(event) => {
+                setSourceType(event.target.value);
+                setPage(1);
+              }}
+              placeholder={t('sourcePlaceholder')}
+            />
+            <button
+              className="admin-button admin-button--primary"
+              onClick={() => {
+                setQuery(search.trim());
+                setPage(1);
+              }}
+              type="button"
+            >
+              {actions('search')}
+            </button>
+          </div>
+
+          <div className="admin-record-list">
+            {loading ? (
+              <p className="admin-feed__empty">{t('loadingList')}</p>
+            ) : listState.items.length === 0 ? (
+              <p className="admin-feed__empty">{t('emptyList')}</p>
+            ) : (
+              listState.items.map((item) => (
+                <button
+                  className={`admin-record-row ${item.id === selectedPackId ? 'is-active' : ''}`}
+                  key={item.id}
+                  onClick={() => setSelectedPackId(item.id)}
+                  type="button"
+                >
+                  <div className="admin-record-row__body">
+                    <div className="admin-record-row__title">
+                      <strong>{item.title}</strong>
+                      <span className="admin-pill admin-pill--brand">{item.source_type}</span>
+                    </div>
+                    <p>{item.summary || item.seed_keywords.join(' / ')}</p>
+                    <div className="admin-record-row__meta">
+                      <span>{units('wordCount', {count: item.total_keywords})}</span>
+                      <span>{t('dimensionCountValue', {count: item.dimension_count})}</span>
+                      <span>{item.status}</span>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          <div className="admin-pagination">
+            <span>{units('pageCounter', {page: listState.page, pages: listState.pages})}</span>
+            <div className="admin-company-detail__actions">
+              <button
+                className="admin-button admin-button--ghost admin-button--small"
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                type="button"
+              >
+                {actions('previousPage')}
+              </button>
+              <button
+                className="admin-button admin-button--ghost admin-button--small"
+                disabled={page >= listState.pages}
+                onClick={() => setPage((current) => Math.min(listState.pages, current + 1))}
+                type="button"
+              >
+                {actions('nextPage')}
+              </button>
             </div>
           </div>
-          {!result ? (
-            <p className="admin-feed__empty">{t('emptyProfile')}</p>
-          ) : (
-            <div className="admin-company-detail">
-              <div className="admin-detail-grid admin-detail-grid--compact">
-                <div className="admin-detail-card">
-                  <span>{t('industryProfile')}</span>
-                  <strong>{result.profile.name}</strong>
-                </div>
-                <div className="admin-detail-card">
-                  <span>{t('companyHint')}</span>
-                  <strong>{result.profile.company_hint}</strong>
-                </div>
-                <div className="admin-detail-card">
-                  <span>{t('businessModel')}</span>
-                  <strong>{result.profile.business_model}</strong>
-                </div>
-                <div className="admin-detail-card">
-                  <span>{t('targetUsers')}</span>
-                  <strong>{result.profile.target_users.join(' / ')}</strong>
-                </div>
-              </div>
-              <div className="admin-detail-list__item">
-                <strong>{t('strategy')}</strong>
-                <p>{result.profile.keyword_strategy}</p>
-              </div>
-            </div>
-          )}
         </article>
 
         <article className="admin-panel">
           <div className="admin-panel__header">
             <div>
-              <p className="admin-panel__eyebrow">Summary</p>
-              <h2>{t('summaryTitle')}</h2>
+              <p className="admin-panel__eyebrow">Detail</p>
+              <h2>{t('detailTitle')}</h2>
             </div>
+            {detail ? (
+              <div className="admin-company-detail__actions">
+                <button className="admin-button admin-button--ghost admin-button--small" onClick={handleExport}>
+                  {t('exportCsv')}
+                </button>
+                <button className="admin-button admin-button--danger admin-button--small" onClick={handleDelete}>
+                  {actions('delete')}
+                </button>
+              </div>
+            ) : null}
           </div>
-          {!result ? (
-            <p className="admin-feed__empty">{t('emptySummary')}</p>
+
+          {detailLoading ? (
+            <p className="admin-feed__empty">{t('loadingDetail')}</p>
+          ) : !detail ? (
+            <p className="admin-feed__empty">{t('selectPack')}</p>
           ) : (
-            <div className="admin-score-list">
-              <div className="admin-score-row">
-                <div className="admin-score-row__meta">
+            <div className="admin-company-detail">
+              <div className="admin-detail-grid admin-detail-grid--compact">
+                <div className="admin-detail-card">
                   <span>{t('totalKeywords')}</span>
-                  <strong>{result.summary.total_keywords}</strong>
+                  <strong>{detail.total_keywords}</strong>
                 </div>
-                <div className="admin-score-row__track">
-                  <span className="admin-score-row__fill admin-tone--brand" style={{width: '100%'}} />
+                <div className="admin-detail-card">
+                  <span>{t('averageRecommendation')}</span>
+                  <strong>{Math.round(detail.avg_recommendation_score || 0)}</strong>
                 </div>
-              </div>
-              <div className="admin-score-row">
-                <div className="admin-score-row__meta">
-                  <span>{t('highRecommendationRatio')}</span>
-                  <strong>{Math.round(result.summary.high_recommendation_ratio * 100)}%</strong>
+                <div className="admin-detail-card">
+                  <span>{t('averageBusiness')}</span>
+                  <strong>{Math.round(detail.avg_business_score || 0)}</strong>
                 </div>
-                <div className="admin-score-row__track">
-                  <span
-                    className="admin-score-row__fill admin-tone--brand"
-                    style={{width: `${Math.max(6, Math.round(result.summary.high_recommendation_ratio * 100))}%`}}
-                  />
+                <div className="admin-detail-card">
+                  <span>{t('profileLabel')}</span>
+                  <strong>{String(detail.profile?.name || detail.profile?.business_model || '—')}</strong>
                 </div>
               </div>
-              <div className="admin-score-row">
-                <div className="admin-score-row__meta">
-                  <span>{t('highBusinessRatio')}</span>
-                  <strong>{Math.round(result.summary.high_business_ratio * 100)}%</strong>
-                </div>
-                <div className="admin-score-row__track">
-                  <span
-                    className="admin-score-row__fill admin-tone--warning"
-                    style={{width: `${Math.max(6, Math.round(result.summary.high_business_ratio * 100))}%`}}
-                  />
-                </div>
+
+              <div className="admin-dimension-grid">
+                {detail.dimensions.map((dimension) => (
+                  <div className="admin-dimension-card" key={dimension.key}>
+                    <div className="admin-dimension-card__header">
+                      <div>
+                        <strong>{dimension.name}</strong>
+                        <p>{dimension.description}</p>
+                      </div>
+                      <span className="admin-pill admin-pill--brand">{units('wordCount', {count: dimension.count})}</span>
+                    </div>
+                    <div className="admin-detail-list">
+                      {dimension.items.slice(0, 8).map((item) => (
+                        <div className="admin-dimension-item" key={item.id}>
+                          <div>
+                            <strong>{item.keyword}</strong>
+                            {item.reason ? <p>{item.reason}</p> : null}
+                          </div>
+                          <div className="admin-dimension-item__scores">
+                            <span>{t('recommendationShort', {score: item.recommendation_score})}</span>
+                            <span>{t('businessShort', {score: item.business_score})}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </article>
-      </section>
-
-      <section className="admin-panel">
-        <div className="admin-panel__header">
-          <div>
-            <p className="admin-panel__eyebrow">Dimensions</p>
-            <h2>{t('dimensionsTitle')}</h2>
-          </div>
-        </div>
-        {!result ? (
-          <p className="admin-feed__empty">{t('emptyDimensions')}</p>
-        ) : (
-          <div className="admin-dimension-grid">
-            {result.dimensions.map((dimension: KeywordDimension) => (
-              <div className="admin-dimension-card" key={dimension.key}>
-                <div className="admin-dimension-card__header">
-                  <div>
-                    <strong>{dimension.name}</strong>
-                    <p>{dimension.description}</p>
-                  </div>
-                  <span className="admin-pill admin-pill--brand">{units('wordCount', {count: dimension.count})}</span>
-                </div>
-                <div className="admin-detail-list">
-                  {dimension.items.slice(0, 6).map((item) => (
-                    <div className="admin-dimension-item" key={`${dimension.key}-${item.keyword}`}>
-                      <div>
-                        <strong>{item.keyword}</strong>
-                        {item.reason ? <p>{item.reason}</p> : null}
-                      </div>
-                      <div className="admin-dimension-item__scores">
-                        <span>{t('recommendationShort', {score: item.recommendation_score})}</span>
-                        <span>{t('businessShort', {score: item.business_score})}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </section>
     </main>
   );

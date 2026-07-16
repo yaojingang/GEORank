@@ -8,7 +8,12 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "build:public-tailwind": "npx -y tailwindcss@3.4.17 -c tailwind.public.config.cjs -i scripts/public-tailwind.css -o dist/css/public-tailwind.css --minify",
+    "test:admin-navigation": "node --test tests/admin-navigation-rendering.test.mjs",
+    "test:frontend-navigation": "node --test tests/frontend-navigation-rendering.test.mjs",
+    "test:public-language": "node --test tests/public-language-entry.test.mjs",
     "i18n:check": "node scripts/check-i18n-hardcoded.mjs",
+    "test:user-center": "node --test scripts/test-user-center.mjs",
     "sdk:pull": "curl http://localhost:8000/openapi.json -o packages/api-sdk/openapi.json",
     "sdk:generate": "pnpm --filter @georank/api-sdk generate",
     "sdk:refresh": "pnpm sdk:pull && pnpm sdk:generate"
@@ -17,6 +22,8 @@
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.2.4",
     "turbo": "^2.0.0",
     "typescript": "^5.8.0",
     "webpack": "^5.102.1"

@@ -1125,6 +1125,12 @@ ul, ol { list-style: none; }
   font-size: 13px;
   color: var(--text-muted);
 }
+.footer-bottom a {
+  color: inherit;
+  font-weight: inherit;
+  transition: color 0.15s ease;
+}
+.footer-bottom a:hover { color: var(--primary); }
 
 /* ---- 滚动显现 ---- */
 .reveal {
@@ -1355,40 +1361,6 @@ ul, ol { list-style: none; }
   align-items: center;
   gap: 10px;
 }
-.georank-language-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 46px;
-  padding: 4px;
-  border: 1px solid #DBE3EF;
-  border-radius: 16px;
-  background: #FFFFFF;
-  box-shadow: 0 12px 28px rgba(15,23,42,0.055);
-}
-.georank-language-switch a {
-  min-width: 34px;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  color: #64748B;
-  font-family: Manrope, Inter, sans-serif;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0;
-}
-.georank-language-switch a:hover {
-  background: #EFF6FF;
-  color: #2563EB;
-}
-.georank-language-switch a.is-active {
-  background: #2563EB;
-  color: #FFFFFF;
-  box-shadow: 0 10px 20px rgba(37,99,235,0.20);
-}
 .georank-profile-link {
   width: 44px;
   height: 44px;
@@ -1433,6 +1405,7 @@ ul, ol { list-style: none; }
     gap: 24px;
   }
   .georank-platform-menu {
+    flex: 1 1 auto;
     gap: 18px;
     overflow-x: auto;
     scrollbar-width: none;
@@ -1478,16 +1451,6 @@ ul, ol { list-style: none; }
   .georank-header-actions {
     gap: 8px;
   }
-  .georank-language-switch {
-    height: 40px;
-    border-radius: 14px;
-  }
-  .georank-language-switch a {
-    min-width: 30px;
-    height: 30px;
-    border-radius: 10px;
-    font-size: 11px;
-  }
   .georank-profile-link {
     width: 40px;
     height: 40px;
@@ -1514,12 +1477,6 @@ ul, ol { list-style: none; }
   }
   .georank-header-actions {
     gap: 6px;
-  }
-  .georank-language-switch {
-    padding: 3px;
-  }
-  .georank-language-switch a {
-    min-width: 28px;
   }
   .georank-profile-link {
     width: 38px;

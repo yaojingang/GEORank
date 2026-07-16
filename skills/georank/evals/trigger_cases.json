@@ -1,0 +1,34 @@
+{
+  "should_trigger": [
+    "登录我的 GEOrank 账号，然后查看当前用户信息。",
+    "帮我把 example.com 提交到 GEOrank，并检查入库进度。",
+    "用 GEOrank 跑一次网站诊断并读取报告。",
+    "查看我在 GEOrank 里的诊断历史和 AI 用量。",
+    "在 GEOrank 里扩展这组关键词。",
+    "列出 GEOrank 后台待审核的公司。",
+    "把这个 GEOrank 用户停用，先给我看变更预检。",
+    "更新 GEOrank 的模型 Provider 配置。",
+    "发布 GEOrank 教程并返回执行回执。",
+    "切换 GEOrank 自定义首页版本。",
+    "Log in to my self-hosted GEOrank and show who I am.",
+    "Delete this failed GEOrank diagnostic report after an admin safety check."
+  ],
+  "should_not_trigger": [
+    "解释 GEO 和 SEO 有什么区别。",
+    "为这个品牌写一篇 GEO 排名文章。",
+    "给我制定生成式引擎优化策略。",
+    "分析这个网站的 SEO 问题，但不要调用 GEOrank。",
+    "修复 GEOrank 后端测试失败。",
+    "重构 GEOrank 的管理员前端组件。",
+    "Review this GEOrank pull request.",
+    "Deploy an unrelated FastAPI service."
+  ],
+  "near_neighbor": [
+    "介绍 GEOrank 有哪些功能，不执行任何平台操作。",
+    "帮我设计一个类似 GEOrank 的 GEO 产品。",
+    "读取 GEOrank 仓库并给架构建议。",
+    "生成一份可以手工导入 GEOrank 的关键词清单。",
+    "写 GEOrank 的发布说明。",
+    "帮我安装 GEOrank，但先不要登录或管理实例。"
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "skill_name": "georank",
+  "risk_families": [
+    {
+      "key": "code_or_command_safety",
+      "label": "Code and command safety",
+      "matched_keywords": [
+        "code",
+        "script",
+        "cli",
+        "command",
+        "terminal",
+        "api"
+      ],
+      "score": 6,
+      "risks": [
+        "Commands can omit environment assumptions, working directory, or rollback notes.",
+        "Code snippets can look runnable while missing required inputs.",
+        "Error handling can be either absent or over-engineered."
+      ],
+      "constraints": [
+        "Name the working directory, required inputs, and expected output for each command.",
+        "Mark destructive or external side-effect operations explicitly.",
+        "Prefer the smallest runnable snippet over broad framework code."
+      ],
+      "self_repair": [
+        "Scan each command for cwd, input, output, and side-effect assumptions.",
+        "Remove speculative error handling that is not tied to a real failure mode."
+      ]
+    },
+    {
+      "key": "tone_and_specificity",
+      "label": "Tone and specificity",
+      "matched_keywords": [
+        "copy",
+        "article",
+        "content",
+        "summary"
+      ],
+      "score": 4,
+      "risks": [
+        "Headings and summaries can drift into generic, interchangeable language.",
+        "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+        "Strong claims can appear without examples or constraints."
+      ],
+      "constraints": [
+        "Anchor titles and summaries in the user's audience, object, and concrete outcome.",
+        "Avoid placeholder phrases such as comprehensive guide, ultimate solution, or key insights unless the source demands them.",
+        "Preserve one distinctive phrase, constraint, or standard from the user's input."
+      ],
+      "self_repair": [
+        "Replace generic title candidates with scenario-specific alternatives.",
+        "Delete any polished sentence that could fit almost any project unchanged."
+      ]
+    },
+    {
+      "key": "markdown_readability",
+      "label": "Markdown readability",
+      "matched_keywords": [
+        "markdown",
+        "md",
+        "report"
+      ],
+      "score": 3,
+      "risks": [
+        "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+        "Long bullets can make the output look complete while hiding the actual decision logic.",
+        "Mixed heading levels can reduce scanability."
+      ],
+      "constraints": [
+        "Use tables only when comparison is the main job; otherwise prefer compact cards or grouped bullets.",
+        "Keep table cells short and move explanations below the table.",
+        "Use heading levels consistently and keep each section anchored to a user-facing outcome."
+      ],
+      "self_repair": [
+        "Preview whether each table still reads well when columns are narrow.",
+        "Convert any table with paragraph-length cells into bullets or cards."
+      ]
+    },
+    {
+      "key": "citation_clutter",
+      "label": "Citation and footnote clutter",
+      "matched_keywords": [
+        "source",
+        "reference"
+      ],
+      "score": 2,
+      "risks": [
+        "Footnote markers or dense citation notes can interrupt the reading flow.",
+        "Evidence can be over-attached to obvious statements and under-attached to risky claims.",
+        "Source notes may become more prominent than the tutorial itself."
+      ],
+      "constraints": [
+        "Attach citations only to claims that need evidence, not to every sentence.",
+        "Group source notes at the end of a section when inline markers would hurt readability.",
+        "Keep the main sentence readable without requiring the reader to chase a footnote."
+      ],
+      "self_repair": [
+        "Remove decorative citations that do not support a material claim.",
+        "Move repeated source explanations into one compact source note."
+      ]
+    }
+  ],
+  "top_risks": [
+    "Commands can omit environment assumptions, working directory, or rollback notes.",
+    "Code snippets can look runnable while missing required inputs.",
+    "Headings and summaries can drift into generic, interchangeable language.",
+    "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+    "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+    "Long bullets can make the output look complete while hiding the actual decision logic."
+  ],
+  "output_constraints": [
+    "Name the working directory, required inputs, and expected output for each command.",
+    "Mark destructive or external side-effect operations explicitly.",
+    "Anchor titles and summaries in the user's audience, object, and concrete outcome.",
+    "Avoid placeholder phrases such as comprehensive guide, ultimate solution, or key insights unless the source demands them.",
+    "Use tables only when comparison is the main job; otherwise prefer compact cards or grouped bullets.",
+    "Keep table cells short and move explanations below the table."
+  ],
+  "self_repair_checks": [
+    "Scan each command for cwd, input, output, and side-effect assumptions.",
+    "Remove speculative error handling that is not tied to a real failure mode.",
+    "Replace generic title candidates with scenario-specific alternatives.",
+    "Delete any polished sentence that could fit almost any project unchanged.",
+    "Preview whether each table still reads well when columns are narrow.",
+    "Convert any table with paragraph-length cells into bullets or cards."
+  ],
+  "reviewer_note": "Use this report before deepening the package and again before approving example outputs."
+}

@@ -1,7 +1,8 @@
 /**
  * 提交公司 - 真实入库流水线交互
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = ['80', '443', ''].includes(window.location.port)
@@ -67,6 +68,7 @@
     async function request(path, options = {}) {
         const headers = {
             'Content-Type': 'application/json',
+            ...(window.GEOrank?.DeviceIdentity?.getHeaders?.() || {}),
             ...(options.headers || {}),
         };
         const token = getAuthToken();
@@ -450,4 +452,4 @@
     }
 
     consumeSubmitRouteSignal();
-})();
+});

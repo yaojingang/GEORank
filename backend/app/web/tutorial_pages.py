@@ -296,56 +296,68 @@ def _render_mobile_nav(articles: list[Content], current_identifier: str = "") ->
     )
 
 
+def _render_channel_flow_item(article: Content, item_index: int) -> str:
+    open_attr = "open" if item_index == 0 else ""
+    return f"""
+    <details class="tutorial-flow-item" {open_attr}>
+        <summary class="tutorial-flow-summary">
+            <span class="tutorial-flow-summary-main">
+                <span class="material-symbols-outlined tutorial-flow-summary-icon">chevron_right</span>
+                <span class="tutorial-flow-summary-title">{escape(article.title)}</span>
+            </span>
+            <span class="tutorial-flow-summary-meta">{_tutorial_reading_time(article)} 分钟</span>
+        </summary>
+        <div class="tutorial-flow-panel">
+            <p class="tutorial-flow-panel-text">{escape(_extract_article_summary(article))}</p>
+            <div class="tutorial-flow-panel-meta">
+                <span>更新于 {_format_date(article.updated_at or article.created_at)}</span>
+                <span>{int(article.view_count or 0)} 次阅读</span>
+            </div>
+            <a
+                href="{escape(_tutorial_detail_path(article))}"
+                class="tutorial-flow-panel-link"
+                data-tutorial-key="{escape(_article_identifier(article))}"
+            >
+                阅读这篇文章
+                <span class="material-symbols-outlined text-base">arrow_forward</span>
+            </a>
+        </div>
+    </details>
+    """
+
+
+def _render_channel_flow_group(index: int, category: str, items: list[Content]) -> str:
+    step_copy = _build_channel_step_copy(category, items)
+    item_markup = "".join(
+        _render_channel_flow_item(article, item_index)
+        for item_index, article in enumerate(items)
+    )
+    return f"""
+    <section id="tutorial-group-{escape(_slugify(category))}" class="tutorial-flow-step">
+        <div class="tutorial-flow-step-marker">
+            <span class="tutorial-flow-step-index">{index + 1}</span>
+        </div>
+        <div class="tutorial-flow-step-body">
+            <p class="tutorial-flow-step-kicker">章节 {str(index + 1).zfill(2)}</p>
+            <h3 class="tutorial-flow-step-title">{escape(category)}</h3>
+            <p class="tutorial-flow-step-text">{escape(step_copy[0])}</p>
+            <p class="tutorial-flow-step-text tutorial-flow-step-text-muted">{escape(step_copy[1])}</p>
+            <div class="tutorial-flow-accordion">
+                {item_markup}
+            </div>
+        </div>
+    </section>
+    """
+
+
 def _render_channel_home_article(groups: list[tuple[str, list[Content]]]) -> str:
+    group_markup = "".join(
+        _render_channel_flow_group(index, category, items)
+        for index, (category, items) in enumerate(groups)
+    )
     return f"""
     <div class="tutorial-flow">
-        {''.join(
-            f'''
-            <section id="tutorial-group-{escape(_slugify(category))}" class="tutorial-flow-step">
-                <div class="tutorial-flow-step-marker">
-                    <span class="tutorial-flow-step-index">{index + 1}</span>
-                </div>
-                <div class="tutorial-flow-step-body">
-                    <p class="tutorial-flow-step-kicker">章节 {str(index + 1).zfill(2)}</p>
-                    <h3 class="tutorial-flow-step-title">{escape(category)}</h3>
-                    <p class="tutorial-flow-step-text">{escape(_build_channel_step_copy(category, items)[0])}</p>
-                    <p class="tutorial-flow-step-text tutorial-flow-step-text-muted">{escape(_build_channel_step_copy(category, items)[1])}</p>
-                    <div class="tutorial-flow-accordion">
-                        {''.join(
-                            f'''
-                            <details class="tutorial-flow-item" {'open' if item_index == 0 else ''}>
-                                <summary class="tutorial-flow-summary">
-                                    <span class="tutorial-flow-summary-main">
-                                        <span class="material-symbols-outlined tutorial-flow-summary-icon">chevron_right</span>
-                                        <span class="tutorial-flow-summary-title">{escape(article.title)}</span>
-                                    </span>
-                                    <span class="tutorial-flow-summary-meta">{_tutorial_reading_time(article)} 分钟</span>
-                                </summary>
-                                <div class="tutorial-flow-panel">
-                                    <p class="tutorial-flow-panel-text">{escape(_extract_article_summary(article))}</p>
-                                    <div class="tutorial-flow-panel-meta">
-                                        <span>更新于 {_format_date(article.updated_at or article.created_at)}</span>
-                                        <span>{int(article.view_count or 0)} 次阅读</span>
-                                    </div>
-                                    <a
-                                        href="{escape(_tutorial_detail_path(article))}"
-                                        class="tutorial-flow-panel-link"
-                                        data-tutorial-key="{escape(_article_identifier(article))}"
-                                    >
-                                        阅读这篇文章
-                                        <span class="material-symbols-outlined text-base">arrow_forward</span>
-                                    </a>
-                                </div>
-                            </details>
-                            '''
-                            for item_index, article in enumerate(items)
-                        )}
-                    </div>
-                </div>
-            </section>
-            '''
-            for index, (category, items) in enumerate(groups)
-        )}
+        {group_markup}
     </div>
     """
 
@@ -459,12 +471,10 @@ def _render_page(
         og_type=og_type,
         article_section=article_section,
     )}
-    <style>body{{opacity:0;transition:opacity 0.15s ease}}</style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script src="/js/tailwind.config.js"></script>
-    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="/css/public-tailwind.css?v=20260716-first-paint-lifecycle">
+    <link rel="stylesheet" href="/css/common.css?v=20260716-first-paint-lifecycle">
     <link rel="stylesheet" href="/css/tutorial.css">
     {structured_data}
 </head>
@@ -553,8 +563,8 @@ def _render_page(
 
     <div id="footer-container"></div>
 
-    <script src="/js/common.js?v=20260613-site-settings2"></script>
-    <script src="/js/tutorial.js?v=20260613-site-settings2"></script>
+    <script src="/js/common.js?v=20260716-first-paint-lifecycle"></script>
+    <script src="/js/tutorial.js?v=20260716-first-paint-lifecycle"></script>
 </body>
 </html>"""
     return HTMLResponse(content=html)

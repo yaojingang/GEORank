@@ -2,7 +2,8 @@
  * GEOrank - 拓词工具 JavaScript
  * 调用后端 AI API 生成 8 维拓词结果
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = ['80', '443', ''].includes(window.location.port)
@@ -502,4 +503,4 @@
         seedLabel: '示例词包',
         disableRefine: true,
     });
-})();
+});

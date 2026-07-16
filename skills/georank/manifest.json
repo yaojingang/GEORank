@@ -1,0 +1,49 @@
+{
+  "name": "georank",
+  "version": "0.1.0",
+  "owner": "GEOrank Maintainers",
+  "updated_at": "2026-07-16",
+  "status": "active",
+  "maturity_tier": "governed",
+  "lifecycle_stage": "governed",
+  "context_budget_tier": "governed",
+  "review_cadence": "monthly",
+  "review_due": "2026-08-16",
+  "license": "Apache-2.0",
+  "category": "platform-operations",
+  "complexity_tier": "complex",
+  "target_platforms": [
+    "openai",
+    "claude",
+    "generic",
+    "agent-skills-compatible",
+    "vscode"
+  ],
+  "factory_components": [
+    "references",
+    "scripts",
+    "evals",
+    "examples",
+    "tests",
+    "reports",
+    "security"
+  ],
+  "input_files": [
+    "examples/request_payloads.json"
+  ],
+  "input_evidence": "file-backed fixture",
+  "output_contract": [
+    "detected access level",
+    "operation and target resource",
+    "dry-run or executed status",
+    "API status and request ID",
+    "redacted change summary",
+    "next step and rollback guidance"
+  ],
+  "rollback_boundary": "The skill can stop before writes, log API receipts, and describe compensating actions. It cannot guarantee rollback for deletes, password resets, provider-secret replacement, or external AI usage already incurred.",
+  "runtime_permissions": [
+    "network",
+    "file_write",
+    "interactive"
+  ]
+}

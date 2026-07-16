@@ -15,6 +15,17 @@
     const TOKEN_KEY = 'georank_admin_token';
     const ADMIN_ALIAS_BASES = new Set(['admin', 'manage', 'console', 'backend', 'control', 'dashboard']);
     const ADMIN_ALIAS_PATTERN = /^admin-[A-Za-z0-9][A-Za-z0-9_-]{1,42}$/;
+    const DEFAULT_NAVIGATION_MENU_ITEMS = [
+        { id: 'companies', label: '公司', url: '/companies', target: '_blank', enabled: true },
+        { id: 'diagnostic', label: '诊断', url: '/diagnostic', target: '_blank', enabled: true },
+        { id: 'solutions', label: '问答', url: '/solutions', target: '_blank', enabled: true },
+        { id: 'plans', label: '方案', url: '/plans', target: '_blank', enabled: true },
+        { id: 'keywords', label: '拓词', url: '/keywords', target: '_blank', enabled: true },
+        { id: 'tools', label: '工具', url: '/tools', target: '_blank', enabled: true },
+        { id: 'experts', label: '专家', url: '/experts', target: '_blank', enabled: true },
+        { id: 'tutorial', label: '教程', url: '/tutorial', target: '_blank', enabled: true },
+        { id: 'github', label: 'GitHub', url: 'https://github.com/yaojingang/GEORank', target: '_blank', enabled: true },
+    ];
     let configuredAdminEntryPath = null;
     let currentAdminUser = null;
 
@@ -95,6 +106,38 @@
             return new URL(urlOrPath, `${APP_ORIGIN}/`).pathname.replace(/\/$/, '') || '/';
         } catch (_) {
             return (urlOrPath || '').replace(/\/$/, '') || '/';
+        }
+    }
+
+    function defaultNavigationMenu() {
+        return {items: DEFAULT_NAVIGATION_MENU_ITEMS.map(item => ({...item}))};
+    }
+
+    function normalizeNavigationMenuForEditor(value) {
+        const source = Array.isArray(value?.items) && value.items.length
+            ? value.items
+            : defaultNavigationMenu().items;
+        return {
+            items: source.slice(0, 12).map((item, index) => ({
+                id: String(item?.id || `menu-${index + 1}`).trim() || `menu-${index + 1}`,
+                label: String(item?.label || '').trim(),
+                url: String(item?.url || '').trim(),
+                target: item?.target === '_self' ? '_self' : '_blank',
+                enabled: item?.enabled !== false,
+            })),
+        };
+    }
+
+    function validateNavigationMenuUrl(rawValue) {
+        const value = String(rawValue || '').trim();
+        if (!value) return false;
+        if (value.startsWith('/') && !value.startsWith('//')) return true;
+        if (value.startsWith('#') && value.length > 1) return true;
+        try {
+            const parsed = new URL(value);
+            return ['http:', 'https:'].includes(parsed.protocol) && Boolean(parsed.hostname);
+        } catch (_) {
+            return false;
         }
     }
 
@@ -324,7 +367,6 @@
     // ─── 登录页面 ────────────────────────────────────────────────────────────
     function showLoginModal(errMsg) {
         document.getElementById('login-modal')?.remove();
-        document.body.style.opacity = '1'; // 登录弹窗时也要可见
         const modal = document.createElement('div');
         modal.id = 'login-modal';
         modal.className = 'fixed inset-0 z-[9997] flex min-h-screen';
@@ -1423,7 +1465,7 @@ ${rows.slice(0, 3).map(item => {
             <div class="w-12 h-12 rounded-2xl bg-slate-100 text-primary flex items-center justify-center text-sm font-extrabold flex-shrink-0">${escapeHtml(getCompanyInitials(detail.name))}</div>
         </div>
         <div class="admin-detail-actions">
-            <a href="${buildPublicCompanyDetailHref(detail.id)}" target="_blank" rel="noreferrer" class="btn admin-btn-secondary px-4 py-2 rounded-lg text-sm inline-flex items-center gap-1.5">
+            <a href="${withAppOrigin(detail.preview_url || buildPublicCompanyDetailHref(detail.id))}" target="_blank" rel="noreferrer" class="btn admin-btn-secondary px-4 py-2 rounded-lg text-sm inline-flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-sm">visibility</span>
                 查看前台详情
             </a>
@@ -1734,7 +1776,7 @@ ${rows.slice(0, 3).map(item => {
             <button class="btn-preview-company w-8 h-8 flex items-center justify-center rounded-md hover:bg-blue-50 transition-colors" title="预览公司详情" data-id="${c.id}">
                 <span class="material-symbols-outlined text-slate-400 hover:text-primary text-lg">preview</span>
             </button>
-            <a href="${buildPublicCompanyDetailHref(c.id)}" target="_blank" rel="noreferrer" class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-50 transition-colors" title="查看前台详情">
+            <a href="${withAppOrigin(c.preview_url || buildPublicCompanyDetailHref(c.id, c.path_key))}" target="_blank" rel="noreferrer" class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-50 transition-colors" title="查看前台详情">
                 <span class="material-symbols-outlined text-slate-400 hover:text-primary text-lg">open_in_new</span>
             </a>
         </div>
@@ -2293,6 +2335,11 @@ ${pages.map(p => p === '…'
 
     const EXPERT_CATEGORY_LABEL = {
         strategy: '策略',
+        methodology: '方法论',
+        'ai-workflow': 'AI 工作流',
+        'seo-practice': 'SEO/GEO',
+        'traffic-growth': '流量增长',
+        overseas: '出海 GEO',
         technical: '技术',
         content: '内容',
         reputation: '品牌治理',
@@ -2335,6 +2382,7 @@ ${pages.map(p => p === '…'
         if (title) title.textContent = '新建专家';
         [
             'expert-display-name',
+            'expert-slug',
             'expert-avatar-initials',
             'expert-title',
             'expert-specialty-label',
@@ -2365,6 +2413,7 @@ ${pages.map(p => p === '…'
         const title = document.getElementById('expert-editor-title');
         if (title) title.textContent = editingExpertId ? '编辑专家' : '新建专家';
         setValue('expert-display-name', expert?.display_name || '');
+        setValue('expert-slug', expert?.slug || '');
         setValue('expert-avatar-initials', expert?.avatar_initials || '');
         setValue('expert-title', expert?.title || '');
         setValue('expert-specialty-label', expert?.specialty_label || EXPERT_CATEGORY_LABEL[expert?.category] || '');
@@ -2388,6 +2437,7 @@ ${pages.map(p => p === '…'
             || EXPERT_CATEGORY_LABEL[category]
             || '专家';
         return {
+            slug: document.getElementById('expert-slug')?.value?.trim() || null,
             display_name: displayName,
             avatar_initials: getExpertInitials(displayName, document.getElementById('expert-avatar-initials')?.value),
             title: document.getElementById('expert-title')?.value?.trim() || '',
@@ -2473,6 +2523,7 @@ ${pages.map(p => p === '…'
     </div>
     <dl class="admin-detail-meta">
         ${renderMetaItem('方向', escapeHtml(categoryLabel))}
+        ${renderMetaItem('详情链接标识', escapeHtml(detail.slug || '--'))}
         ${renderMetaItem('排序', escapeHtml(String(detail.sort_order ?? 100)))}
         ${renderMetaItem('创建时间', escapeHtml(formatDate(detail.created_at)))}
         ${renderMetaItem('最近更新', escapeHtml(timeAgo(detail.updated_at || detail.created_at)))}
@@ -4077,6 +4128,107 @@ ${pages.map(p => p === '…'
         });
     }
 
+    async function openUserAiQuotaModal(userId, username) {
+        if (!userId) return;
+        let quota;
+        try {
+            quota = await api('GET', `/api/admin/users/${userId}/ai-quota`);
+        } catch (err) {
+            toast('加载用户 AI 额度失败: ' + err.message, 'error');
+            return;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[9998] bg-slate-900/45 flex items-center justify-center p-4';
+        overlay.innerHTML = `
+<div class="admin-dialog bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
+    <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+        <div>
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-widest">AI QUOTA</p>
+            <h3 class="text-lg font-bold font-headline mt-1">${escapeHtml(username)} · 终身额度</h3>
+            <p class="text-xs text-slate-500 mt-1">风险主体 ${escapeHtml(quota.principal_id || '--')}</p>
+        </div>
+        <button type="button" data-quota-close class="w-9 h-9 rounded-lg hover:bg-slate-50 flex items-center justify-center">
+            <span class="material-symbols-outlined text-slate-400">close</span>
+        </button>
+    </div>
+    <form data-quota-form class="p-6 space-y-5">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="admin-detail-section p-3"><p class="text-xs text-slate-500">赠送</p><strong class="font-mono">${Number(quota.granted_tokens || 0).toLocaleString()}</strong></div>
+            <div class="admin-detail-section p-3"><p class="text-xs text-slate-500">已用</p><strong class="font-mono">${Number(quota.consumed_tokens || 0).toLocaleString()}</strong></div>
+            <div class="admin-detail-section p-3"><p class="text-xs text-slate-500">预占</p><strong class="font-mono">${Number(quota.reserved_tokens || 0).toLocaleString()}</strong></div>
+            <div class="admin-detail-section p-3"><p class="text-xs text-slate-500">剩余</p><strong data-quota-preview class="font-mono text-blue-600">${Number(quota.remaining_tokens || 0).toLocaleString()}</strong></div>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            已关联 ${Number(quota.linked_user_count || 0)} 个账号、${Number(quota.linked_device_count || 0)} 个浏览器设备。调整会作用于整个风险主体并写入审计日志。
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label class="space-y-2 text-sm">
+                <span class="font-semibold text-slate-700">赠送总额</span>
+                <input name="granted_tokens" type="number" min="0" max="1000000000" class="form-input font-mono" value="${Number(quota.granted_tokens || 0)}" required>
+            </label>
+            <label class="space-y-2 text-sm">
+                <span class="font-semibold text-slate-700">已消耗</span>
+                <input name="consumed_tokens" type="number" min="0" max="1000000000" class="form-input font-mono" value="${Number(quota.consumed_tokens || 0)}" required>
+            </label>
+        </div>
+        <label class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input name="frozen" type="checkbox" ${quota.frozen ? 'checked' : ''}>
+            冻结该风险主体的平台免费额度
+        </label>
+        <label class="space-y-2 text-sm block">
+            <span class="font-semibold text-slate-700">调整原因（必填）</span>
+            <textarea name="reason" class="form-input min-h-20" minlength="2" maxlength="500" required placeholder="例如：客服补偿、异常账号复核、运营活动赠送"></textarea>
+        </label>
+        <div class="flex items-center justify-end gap-3">
+            <button type="button" data-quota-close class="btn admin-btn-secondary px-5 py-2 rounded-lg text-sm">取消</button>
+            <button type="submit" data-quota-submit class="btn btn-primary px-5 py-2 rounded-lg text-sm">保存额度</button>
+        </div>
+    </form>
+</div>`;
+        document.body.appendChild(overlay);
+
+        const close = bindAdminDialogOverlay(overlay, () => overlay.remove());
+        overlay.querySelectorAll('[data-quota-close]').forEach(button => button.addEventListener('click', close));
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) close();
+        });
+
+        const form = overlay.querySelector('[data-quota-form]');
+        const updatePreview = () => {
+            const granted = Number(form?.elements.granted_tokens?.value || 0);
+            const consumed = Number(form?.elements.consumed_tokens?.value || 0);
+            const remaining = Math.max(0, granted - consumed - Number(quota.reserved_tokens || 0));
+            const preview = overlay.querySelector('[data-quota-preview]');
+            if (preview) preview.textContent = remaining.toLocaleString();
+        };
+        form?.elements.granted_tokens?.addEventListener('input', updatePreview);
+        form?.elements.consumed_tokens?.addEventListener('input', updatePreview);
+        form?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submit = overlay.querySelector('[data-quota-submit]');
+            if (submit) submit.disabled = true;
+            try {
+                const payload = {
+                    granted_tokens: Number(form.elements.granted_tokens.value || 0),
+                    consumed_tokens: Number(form.elements.consumed_tokens.value || 0),
+                    frozen: Boolean(form.elements.frozen.checked),
+                    reason: String(form.elements.reason.value || '').trim(),
+                };
+                if (payload.reason.length < 2) {
+                    throw new Error('请填写至少 2 个字符的调整原因');
+                }
+                await api('PUT', `/api/admin/users/${userId}/ai-quota`, payload);
+                toast('用户 AI 额度已更新');
+                close();
+                await loadUsers();
+            } catch (err) {
+                toast(err.message, 'error');
+                if (submit) submit.disabled = false;
+            }
+        });
+    }
+
     async function loadUsers() {
         const params = new URLSearchParams({ page: userPage, size: 20 });
         if (userFilters.role) params.set('role', userFilters.role);
@@ -4138,6 +4290,9 @@ ${pages.map(p => p === '…'
     <td class="text-on-surface-variant">${formatDate(u.created_at)}</td>
     <td class="text-right">
         <div class="flex items-center justify-end gap-1">
+            <button class="btn-ai-quota w-8 h-8 flex items-center justify-center rounded-md hover:bg-blue-50" title="管理 AI 额度" data-uid="${u.id}" data-username="${safeUsername}">
+                <span class="material-symbols-outlined text-blue-500 text-lg">toll</span>
+            </button>
             <button class="btn-toggle-active w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent" title="${isCurrentUser ? '当前管理员不能停用自己' : `${u.is_active ? '停用' : '启用'}账号`}" data-uid="${u.id}" data-active="${u.is_active}" ${isCurrentUser ? 'disabled data-self="true"' : ''}>
                 <span class="material-symbols-outlined ${isCurrentUser ? 'text-slate-300' : 'text-slate-400'} text-lg">${u.is_active ? 'block' : 'check_circle'}</span>
             </button>
@@ -4225,6 +4380,11 @@ ${pages.map(p => p === '…'
 
         // 事件委托
         document.addEventListener('click', async (e) => {
+            const quotaBtn = e.target.closest('.btn-ai-quota');
+            if (quotaBtn) {
+                await openUserAiQuotaModal(quotaBtn.dataset.uid, quotaBtn.dataset.username || '用户');
+                return;
+            }
             const toggleBtn = e.target.closest('.btn-toggle-active');
             if (toggleBtn) {
                 const uid = toggleBtn.dataset.uid;
@@ -4295,12 +4455,170 @@ ${pages.map(p => p === '…'
             console.warn('[admin] load frontend modules failed', err);
         }
 
+        let navigationMenuPayload = normalizeNavigationMenuForEditor(settings.navigation_menu?.value);
+        renderNavigationMenu(navigationMenuPayload);
+
         let homepagePayload = null;
+        let homepageEditorState = null;
         try {
             homepagePayload = await api('GET', '/api/admin/homepage');
             renderHomepage(homepagePayload);
         } catch (err) {
             console.warn('[admin] load homepage settings failed', err);
+        }
+
+        window.addEventListener('beforeunload', event => {
+            if (!homepageEditorState?.dirty) return;
+            event.preventDefault();
+            event.returnValue = '';
+        });
+
+        async function openHomepageSourceEditor(releaseId) {
+            if (!releaseId || homepageEditorState) return;
+            const release = homepagePayload?.releases?.find(item => item.id === releaseId);
+            if (!release || release.is_builtin) {
+                toast('内置首页版本不能编辑', 'warning');
+                return;
+            }
+
+            const editButton = document.querySelector(`[data-homepage-edit="${CSS.escape(releaseId)}"]`);
+            const editorSaveLabel = release.status === 'active' ? '保存并更新前台' : '保存 HTML';
+            const editorSaveDescription = release.status === 'active'
+                ? '保存后会立即更新当前启用的前台首页'
+                : '保存后可直接预览，启用此版本时才会更新前台首页';
+            if (editButton) editButton.disabled = true;
+            try {
+                const source = await api('GET', `/api/admin/homepage/releases/${encodeURIComponent(releaseId)}/source`);
+                const overlay = document.createElement('div');
+                overlay.className = 'admin-dialog-overlay homepage-editor-overlay';
+                overlay.innerHTML = `
+                    <div class="admin-dialog homepage-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="homepage-editor-title">
+                        <div class="homepage-editor-header">
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 id="homepage-editor-title" class="text-base font-extrabold text-slate-900">编辑首页 HTML</h3>
+                                    <span class="admin-pill bg-green-50 text-green-700" data-homepage-editor-status>已保存</span>
+                                </div>
+                                <p class="mt-1 truncate text-xs text-slate-500">${escapeHtml(release.title || '未命名首页')} · ${editorSaveDescription}</p>
+                            </div>
+                            <button type="button" class="btn admin-btn-secondary px-3 py-2 rounded-lg text-xs" data-homepage-editor-close>关闭</button>
+                        </div>
+                        <div class="homepage-code-editor" data-homepage-code-editor>
+                            <pre class="homepage-code-editor__gutter" aria-hidden="true">1</pre>
+                            <textarea class="homepage-code-editor__input" aria-label="首页 HTML 代码" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+                        </div>
+                        <div class="homepage-editor-footer">
+                            <p class="text-xs leading-5 text-slate-500"><span data-homepage-editor-position>第 1 行，第 1 列</span> · Tab 缩进 · ⌘/Ctrl + S 保存</p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" class="btn admin-btn-secondary px-4 py-2 rounded-lg text-xs" data-homepage-editor-preview>预览已保存版本</button>
+                                <button type="button" class="btn btn-primary px-4 py-2 rounded-lg text-xs" data-homepage-editor-save disabled>${editorSaveLabel}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+
+                const input = overlay.querySelector('.homepage-code-editor__input');
+                const gutter = overlay.querySelector('.homepage-code-editor__gutter');
+                const status = overlay.querySelector('[data-homepage-editor-status]');
+                const position = overlay.querySelector('[data-homepage-editor-position]');
+                const saveButton = overlay.querySelector('[data-homepage-editor-save]');
+                input.value = source.html || '';
+
+                const updateEditorChrome = () => {
+                    const lineCount = Math.max(1, input.value.split('\n').length);
+                    gutter.textContent = Array.from({length: lineCount}, (_, index) => index + 1).join('\n');
+                    const beforeCursor = input.value.slice(0, input.selectionStart);
+                    const lines = beforeCursor.split('\n');
+                    position.textContent = `第 ${lines.length} 行，第 ${lines.at(-1).length + 1} 列`;
+                    gutter.scrollTop = input.scrollTop;
+                };
+                const updateDirtyState = () => {
+                    const dirty = input.value !== homepageEditorState.savedHtml;
+                    homepageEditorState.dirty = dirty;
+                    status.textContent = dirty ? '未保存' : '已保存';
+                    status.className = `admin-pill ${dirty ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`;
+                    saveButton.disabled = !dirty || homepageEditorState.saving;
+                    updateEditorChrome();
+                };
+                const closeEditor = async force => {
+                    if (!force && homepageEditorState?.dirty && !await confirm('当前 HTML 有未保存修改，确认关闭编辑器？')) return;
+                    document.removeEventListener('keydown', handleDialogKeydown);
+                    overlay.remove();
+                    homepageEditorState = null;
+                };
+                const saveEditor = async () => {
+                    if (!homepageEditorState?.dirty || homepageEditorState.saving) return;
+                    homepageEditorState.saving = true;
+                    saveButton.disabled = true;
+                    saveButton.textContent = '保存中...';
+                    try {
+                        const result = await api('PUT',
+                            `/api/admin/homepage/releases/${encodeURIComponent(releaseId)}/source`,
+                            {html: input.value, expected_sha256: homepageEditorState.sha256}
+                        );
+                        homepageEditorState.savedHtml = input.value;
+                        homepageEditorState.sha256 = result.source_sha256;
+                        homepageEditorState.dirty = false;
+                        homepagePayload = await api('GET', '/api/admin/homepage');
+                        renderHomepage(homepagePayload);
+                        updateDirtyState();
+                        toast(result.updated_active ? 'HTML 已保存，前台首页已实时更新' : 'HTML 已保存');
+                    } catch (err) {
+                        toast('保存首页 HTML 失败: ' + err.message, 'error');
+                    } finally {
+                        if (homepageEditorState) {
+                            homepageEditorState.saving = false;
+                            saveButton.textContent = editorSaveLabel;
+                            updateDirtyState();
+                        }
+                    }
+                };
+                function handleDialogKeydown(event) {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeEditor(false);
+                    }
+                }
+
+                homepageEditorState = {
+                    releaseId,
+                    sha256: source.sha256,
+                    savedHtml: input.value,
+                    dirty: false,
+                    saving: false,
+                };
+                input.addEventListener('input', updateDirtyState);
+                input.addEventListener('scroll', updateEditorChrome);
+                input.addEventListener('click', updateEditorChrome);
+                input.addEventListener('keyup', updateEditorChrome);
+                input.addEventListener('keydown', event => {
+                    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+                        event.preventDefault();
+                        saveEditor();
+                        return;
+                    }
+                    if (event.key !== 'Tab') return;
+                    event.preventDefault();
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    input.setRangeText('  ', start, end, 'end');
+                    updateDirtyState();
+                });
+                overlay.querySelector('[data-homepage-editor-close]').onclick = () => closeEditor(false);
+                overlay.querySelector('[data-homepage-editor-preview]').onclick = () => openHomepagePreview(releaseId).catch(err => toast(err.message, 'error'));
+                saveButton.onclick = saveEditor;
+                overlay.addEventListener('click', event => {
+                    if (event.target === overlay) closeEditor(false);
+                });
+                document.addEventListener('keydown', handleDialogKeydown);
+                updateDirtyState();
+                input.focus();
+            } catch (err) {
+                toast('加载首页 HTML 失败: ' + err.message, 'error');
+            } finally {
+                if (editButton) editButton.disabled = false;
+            }
         }
 
         let llmProviderPayload = null;
@@ -4502,15 +4820,28 @@ ${pages.map(p => p === '…'
                 try {
                     apiPolicySaveBtn.textContent = '保存中...';
                     apiPolicySaveBtn.disabled = true;
-                    const modules = Array.from(document.querySelectorAll('[data-api-policy-module]:checked'))
+                    const modules = Array.from(document.querySelectorAll('[data-api-policy-module]'))
                         .map(input => input.value);
                     const payload = {
-                        access_mode: document.getElementById('api-policy-access-mode')?.value || 'platform_unlimited',
-                        daily_token_limit: Number(document.getElementById('api-policy-daily-limit')?.value || 0),
+                        access_mode: document.getElementById('api-policy-access-mode')?.value || 'lifetime_quota_with_byok',
+                        daily_token_limit: Number(apiPolicyPayload?.policy?.daily_token_limit || 0),
+                        lifetime_token_grant: Number(document.getElementById('api-policy-lifetime-grant')?.value || 0),
+                        global_daily_token_limit: Number(document.getElementById('api-policy-global-limit')?.value || 0),
+                        global_budget_enabled: Boolean(document.getElementById('api-policy-global-enabled')?.checked),
+                        emergency_byok_only: Boolean(document.getElementById('api-policy-emergency-byok')?.checked),
                         quota_reset_timezone: document.getElementById('api-policy-timezone')?.value || 'Asia/Shanghai',
                         byok_transport_mode: document.getElementById('api-policy-byok-mode')?.value || 'proxy_transient',
                         allow_anonymous_ai_usage: Boolean(document.getElementById('api-policy-allow-anonymous')?.checked),
                         allow_user_byok: Boolean(document.getElementById('api-policy-allow-byok')?.checked),
+                        byok_guidance: {
+                            provider: apiPolicyPayload?.policy?.byok_guidance?.provider || 'deepseek',
+                            title: document.getElementById('api-policy-guidance-title')?.value || '',
+                            message: document.getElementById('api-policy-guidance-message')?.value || '',
+                            cta_label: document.getElementById('api-policy-guidance-cta')?.value || '',
+                            official_url: document.getElementById('api-policy-guidance-official-url')?.value || '',
+                            base_url: document.getElementById('api-policy-guidance-base-url')?.value || '',
+                            model: document.getElementById('api-policy-guidance-model')?.value || '',
+                        },
                         metered_modules: modules,
                     };
                     apiPolicyPayload = await api('PUT', '/api/admin/api-policy', payload);
@@ -4521,6 +4852,91 @@ ${pages.map(p => p === '…'
                 } finally {
                     apiPolicySaveBtn.textContent = '保存成本策略';
                     apiPolicySaveBtn.disabled = false;
+                }
+            };
+        }
+
+        const navigationMenuList = document.getElementById('navigation-menu-list');
+        const navigationMenuAddBtn = document.getElementById('navigation-menu-add');
+        const navigationMenuResetBtn = document.getElementById('navigation-menu-reset');
+        const navigationMenuSaveBtn = document.getElementById('navigation-menu-save');
+
+        if (navigationMenuAddBtn) {
+            navigationMenuAddBtn.onclick = () => {
+                const items = collectNavigationMenuFromDom();
+                if (items.length >= 12) {
+                    toast('菜单栏最多支持 12 个菜单项', 'warning');
+                    return;
+                }
+                navigationMenuPayload = {
+                    items: [
+                        ...items,
+                        {
+                            id: `menu-${Date.now().toString(36)}`,
+                            label: '新菜单',
+                            url: '/',
+                            target: '_blank',
+                            enabled: true,
+                        },
+                    ],
+                };
+                renderNavigationMenu(navigationMenuPayload);
+            };
+        }
+
+        if (navigationMenuResetBtn) {
+            navigationMenuResetBtn.onclick = () => {
+                navigationMenuPayload = defaultNavigationMenu();
+                renderNavigationMenu(navigationMenuPayload);
+                toast('已恢复默认菜单，点击保存后生效');
+            };
+        }
+
+        if (navigationMenuList) {
+            navigationMenuList.onclick = event => {
+                const actionButton = event.target.closest('[data-navigation-menu-action]');
+                if (!actionButton) return;
+                const row = actionButton.closest('[data-navigation-menu-row]');
+                const rows = Array.from(navigationMenuList.querySelectorAll('[data-navigation-menu-row]'));
+                const index = rows.indexOf(row);
+                if (index < 0) return;
+                const items = collectNavigationMenuFromDom();
+                const action = actionButton.dataset.navigationMenuAction;
+                if (action === 'delete') {
+                    if (items.length <= 1) {
+                        toast('菜单栏至少需要保留一个菜单项', 'warning');
+                        return;
+                    }
+                    items.splice(index, 1);
+                } else if (action === 'up' && index > 0) {
+                    [items[index - 1], items[index]] = [items[index], items[index - 1]];
+                } else if (action === 'down' && index < items.length - 1) {
+                    [items[index + 1], items[index]] = [items[index], items[index + 1]];
+                } else {
+                    return;
+                }
+                navigationMenuPayload = {items};
+                renderNavigationMenu(navigationMenuPayload);
+            };
+        }
+
+        if (navigationMenuSaveBtn) {
+            navigationMenuSaveBtn.onclick = async () => {
+                try {
+                    const items = collectNavigationMenuFromDom({validate: true});
+                    navigationMenuSaveBtn.textContent = '保存中...';
+                    navigationMenuSaveBtn.disabled = true;
+                    await api('PUT', '/api/admin/settings', {
+                        navigation_menu: { value: {items}, category: 'frontend', is_public: true },
+                    });
+                    navigationMenuPayload = {items};
+                    renderNavigationMenu(navigationMenuPayload);
+                    toast('前台菜单栏已保存');
+                } catch (err) {
+                    toast('保存菜单栏失败: ' + err.message, 'error');
+                } finally {
+                    navigationMenuSaveBtn.textContent = '保存菜单栏';
+                    navigationMenuSaveBtn.disabled = false;
                 }
             };
         }
@@ -4630,11 +5046,37 @@ ${pages.map(p => p === '…'
         if (homepageList) {
             homepageList.onclick = async (event) => {
                 const previewBtn = event.target.closest('[data-homepage-preview]');
+                const editBtn = event.target.closest('[data-homepage-edit]');
+                const cloneBtn = event.target.closest('[data-homepage-clone]');
                 const activateBtn = event.target.closest('[data-homepage-activate]');
                 const deleteBtn = event.target.closest('[data-homepage-delete]');
                 try {
                     if (previewBtn) {
                         await openHomepagePreview(previewBtn.dataset.homepagePreview);
+                        return;
+                    }
+                    if (editBtn) {
+                        await openHomepageSourceEditor(editBtn.dataset.homepageEdit);
+                        return;
+                    }
+                    if (cloneBtn) {
+                        cloneBtn.disabled = true;
+                        cloneBtn.textContent = '复制中...';
+                        try {
+                            const created = await api(
+                                'POST',
+                                `/api/admin/homepage/releases/${encodeURIComponent(cloneBtn.dataset.homepageClone)}/clone`
+                            );
+                            homepagePayload = await api('GET', '/api/admin/homepage');
+                            renderHomepage(homepagePayload);
+                            toast('已创建可编辑副本');
+                            await openHomepageSourceEditor(created.id);
+                        } finally {
+                            if (cloneBtn.isConnected) {
+                                cloneBtn.disabled = false;
+                                cloneBtn.textContent = '复制并编辑';
+                            }
+                        }
                         return;
                     }
                     if (activateBtn) {
@@ -4926,27 +5368,130 @@ ${pages.map(p => p === '…'
             const totalTokensEl = document.querySelector('[data-api-policy-total-tokens]');
             const totalRequestsEl = document.querySelector('[data-api-policy-total-requests]');
             const byokRequestsEl = document.querySelector('[data-api-policy-byok-requests]');
+            const globalUsedEl = document.querySelector('[data-api-policy-global-used]');
+            const globalReservedEl = document.querySelector('[data-api-policy-global-reserved]');
+            const globalRemainingEl = document.querySelector('[data-api-policy-global-remaining]');
             if (totalTokensEl) totalTokensEl.textContent = Number(summary.total_tokens || 0).toLocaleString();
             if (totalRequestsEl) totalRequestsEl.textContent = Number(summary.total_requests || 0).toLocaleString();
             if (byokRequestsEl) byokRequestsEl.textContent = Number(summary.byok_requests || 0).toLocaleString();
+            if (globalUsedEl) globalUsedEl.textContent = Number(summary.global_budget?.used_tokens || 0).toLocaleString();
+            if (globalReservedEl) globalReservedEl.textContent = Number(summary.global_budget?.reserved_tokens || 0).toLocaleString();
+            if (globalRemainingEl) globalRemainingEl.textContent = Number(summary.global_budget?.remaining_tokens || 0).toLocaleString();
 
             const accessModeEl = document.getElementById('api-policy-access-mode');
             const limitEl = document.getElementById('api-policy-daily-limit');
+            const lifetimeGrantEl = document.getElementById('api-policy-lifetime-grant');
+            const globalLimitEl = document.getElementById('api-policy-global-limit');
             const timezoneEl = document.getElementById('api-policy-timezone');
             const byokModeEl = document.getElementById('api-policy-byok-mode');
             const allowAnonymousEl = document.getElementById('api-policy-allow-anonymous');
             const allowByokEl = document.getElementById('api-policy-allow-byok');
-            if (accessModeEl) accessModeEl.value = policy.access_mode || 'platform_unlimited';
+            const globalEnabledEl = document.getElementById('api-policy-global-enabled');
+            const emergencyByokEl = document.getElementById('api-policy-emergency-byok');
+            if (accessModeEl) {
+                const legacyMode = ['daily_quota', 'quota_with_byok'].includes(policy.access_mode);
+                accessModeEl.value = legacyMode ? 'lifetime_quota_with_byok' : (policy.access_mode || 'lifetime_quota_with_byok');
+            }
             if (limitEl) limitEl.value = policy.daily_token_limit ?? 20000;
+            if (lifetimeGrantEl) lifetimeGrantEl.value = policy.lifetime_token_grant ?? 10000;
+            if (globalLimitEl) globalLimitEl.value = policy.global_daily_token_limit ?? 1000000;
             if (timezoneEl) timezoneEl.value = policy.quota_reset_timezone || 'Asia/Shanghai';
-            if (byokModeEl) byokModeEl.value = policy.byok_transport_mode || 'proxy_transient';
+            if (byokModeEl) byokModeEl.value = 'proxy_transient';
             if (allowAnonymousEl) allowAnonymousEl.checked = Boolean(policy.allow_anonymous_ai_usage);
             if (allowByokEl) allowByokEl.checked = policy.allow_user_byok !== false;
+            if (globalEnabledEl) globalEnabledEl.checked = policy.global_budget_enabled !== false;
+            if (emergencyByokEl) emergencyByokEl.checked = Boolean(policy.emergency_byok_only);
 
-            const modules = new Set(policy.metered_modules || []);
-            document.querySelectorAll('[data-api-policy-module]').forEach(input => {
-                input.checked = modules.size ? modules.has(input.value) : true;
+            const guidance = policy.byok_guidance || {};
+            const guidanceFields = {
+                'api-policy-guidance-title': guidance.title || '',
+                'api-policy-guidance-message': guidance.message || '',
+                'api-policy-guidance-cta': guidance.cta_label || '',
+                'api-policy-guidance-official-url': guidance.official_url || '',
+                'api-policy-guidance-base-url': guidance.base_url || '',
+                'api-policy-guidance-model': guidance.model || '',
+            };
+            Object.entries(guidanceFields).forEach(([id, value]) => {
+                const field = document.getElementById(id);
+                if (field) field.value = value;
             });
+
+            document.querySelectorAll('[data-api-policy-module]').forEach(input => {
+                input.checked = true;
+                input.disabled = true;
+            });
+        }
+
+        function collectNavigationMenuFromDom({validate = false} = {}) {
+            const rows = Array.from(document.querySelectorAll('[data-navigation-menu-row]'));
+            const items = rows.map((row, index) => {
+                const label = row.querySelector('[data-navigation-menu-label]')?.value?.trim() || '';
+                const url = row.querySelector('[data-navigation-menu-url]')?.value?.trim() || '';
+                const targetValue = row.querySelector('[data-navigation-menu-target]')?.value || '_blank';
+                const target = targetValue === '_self' ? '_self' : '_blank';
+                if (validate && !label) throw new Error(`第 ${index + 1} 个菜单项缺少文案`);
+                if (validate && label.length > 40) throw new Error(`第 ${index + 1} 个菜单项文案不能超过 40 个字符`);
+                if (validate && !validateNavigationMenuUrl(url)) {
+                    throw new Error(`第 ${index + 1} 个菜单项 URL 无效`);
+                }
+                return {
+                    id: row.dataset.navigationMenuId || `menu-${index + 1}`,
+                    label,
+                    url,
+                    target,
+                    enabled: Boolean(row.querySelector('[data-navigation-menu-enabled]')?.checked),
+                };
+            });
+            if (validate && !items.some(item => item.enabled)) {
+                throw new Error('菜单栏至少需要保留一个菜单项显示');
+            }
+            return items;
+        }
+
+        function renderNavigationMenu(payload) {
+            const list = document.getElementById('navigation-menu-list');
+            const summary = document.querySelector('[data-navigation-menu-summary]');
+            if (!list) return;
+            const items = normalizeNavigationMenuForEditor(payload).items;
+            const enabledCount = items.filter(item => item.enabled).length;
+            const newTabCount = items.filter(item => item.enabled && item.target === '_blank').length;
+            if (summary) summary.textContent = `${enabledCount}/${items.length} 个显示 · ${newTabCount} 个新标签页`;
+            list.innerHTML = items.map((item, index) => `
+                <div class="rounded-2xl border ${item.enabled ? 'border-blue-100 bg-white' : 'border-slate-200 bg-slate-50'} p-4" data-navigation-menu-row data-navigation-menu-id="${escapeHtml(item.id)}">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-50 px-2 text-xs font-extrabold text-blue-700">${index + 1}</span>
+                            <span class="text-xs font-bold text-slate-500">${escapeHtml(item.label || '未命名菜单')}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-600">
+                                <input type="checkbox" data-navigation-menu-enabled ${item.enabled ? 'checked' : ''}>
+                                显示
+                            </label>
+                            <button type="button" class="btn admin-btn-secondary px-2.5 py-1.5 rounded-lg text-xs" data-navigation-menu-action="up" aria-label="上移菜单项" ${index === 0 ? 'disabled' : ''}>↑</button>
+                            <button type="button" class="btn admin-btn-secondary px-2.5 py-1.5 rounded-lg text-xs" data-navigation-menu-action="down" aria-label="下移菜单项" ${index === items.length - 1 ? 'disabled' : ''}>↓</button>
+                            <button type="button" class="btn px-2.5 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50" data-navigation-menu-action="delete" aria-label="删除菜单项">删除</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(8rem,0.75fr)_minmax(14rem,1.6fr)_minmax(10rem,0.75fr)]">
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-semibold text-on-surface-variant">菜单文案</span>
+                            <input type="text" maxlength="40" class="form-input bg-white" value="${escapeHtml(item.label)}" data-navigation-menu-label placeholder="例如：公司">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-semibold text-on-surface-variant">URL</span>
+                            <input type="text" maxlength="2048" class="form-input bg-white font-mono text-xs" value="${escapeHtml(item.url)}" data-navigation-menu-url placeholder="/companies 或 https://example.com">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1.5 block text-xs font-semibold text-on-surface-variant">打开方式</span>
+                            <select class="form-input bg-white" data-navigation-menu-target>
+                                <option value="_blank" ${item.target === '_blank' ? 'selected' : ''}>新标签页（默认）</option>
+                                <option value="_self" ${item.target === '_self' ? 'selected' : ''}>当前标签页</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+            `).join('');
         }
 
         function renderFrontendModules(payload) {
@@ -5070,6 +5615,9 @@ ${pages.map(p => p === '…'
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <button class="btn admin-btn-secondary px-3 py-2 rounded-lg text-xs" data-homepage-preview="${escapeHtml(release.id)}">预览</button>
+                                ${isBuiltin
+                                    ? `<button class="btn admin-btn-secondary px-3 py-2 rounded-lg text-xs" data-homepage-clone="${escapeHtml(release.id)}" title="保留内置版本并创建可编辑副本">复制并编辑</button>`
+                                    : `<button class="btn admin-btn-secondary px-3 py-2 rounded-lg text-xs" data-homepage-edit="${escapeHtml(release.id)}">编辑 HTML</button>`}
                                 ${isActive ? `
                                     <button class="btn btn-primary px-3 py-2 rounded-lg text-xs" disabled>已启用</button>
                                     <button class="btn admin-btn-secondary px-3 py-2 rounded-lg text-xs" disabled title="当前启用版本不能删除">当前版本</button>
@@ -5150,8 +5698,6 @@ ${pages.map(p => p === '…'
             else if (page === 'users') await initUsers();
             else if (page === 'settings') await initSettings();
 
-            // 鉴权完成、内容就绪后再显示页面，消除闪跳
-            document.body.style.opacity = '1';
         } catch (err) {
             const hadToken = Boolean(Auth.get());
             if (hadToken) Auth.clear();
@@ -5161,9 +5707,6 @@ ${pages.map(p => p === '…'
     }
 
     // ─── 启动 ────────────────────────────────────────────────────────────────
-    // 默认隐藏，等鉴权完成后再显示，防止未授权内容闪现
-    document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.15s ease';
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initPage);
     } else {

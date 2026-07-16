@@ -64,6 +64,7 @@ SETTINGS_CATEGORY_HINTS = {
     "api_usage_policy": "ai_usage",
     "frontend_modules": "frontend",
     "homepage_runtime": "frontend",
+    "navigation_menu": "frontend",
 }
 
 

@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "reviewed_at": "2026-07-16",
+  "capabilities": {
+    "network": {
+      "decision": "approved",
+      "reviewer": "GEOrank Maintainers",
+      "scope": "scripts/georank_client.py may call only the explicitly selected GEOrank base URL and /api paths.",
+      "reason": "Network access is required for the approved GEOrank management workflow and is constrained by base URL validation, API path validation, role checks, dry-runs, and confirmation phrases.",
+      "expires_at": "2027-01-16",
+      "evidence": [
+        "security/network_policy.json",
+        "tests/test_georank_client.py",
+        "reports/security_trust_report.md"
+      ],
+      "target_enforcement": {
+        "openai": "Run the local client only after base URL and action scope are explicit.",
+        "claude": "Run the local client only after base URL and action scope are explicit.",
+        "generic": "Run the local client only after base URL and action scope are explicit.",
+        "vscode": "Require workspace trust and an explicit GEOrank base URL."
+      }
+    },
+    "file_write": {
+      "decision": "approved",
+      "reviewer": "GEOrank Maintainers",
+      "scope": "The client may create a missing parent directory, create a marked local session file, and replace or remove only a recognized marked session. It never changes permissions on an existing parent directory.",
+      "reason": "An owner-only session file enables secure repeat authentication while avoiding tokens in command arguments, chat output, shell history, fixtures, and repository files.",
+      "expires_at": "2027-01-16",
+      "evidence": [
+        "references/safety-policy.md",
+        "tests/test_georank_client.py"
+      ],
+      "target_enforcement": {
+        "openai": "Session writes remain local and use owner-only permissions.",
+        "claude": "Session writes remain local and use owner-only permissions.",
+        "generic": "Session writes remain local and use owner-only permissions.",
+        "vscode": "Session writes require workspace trust and owner-only permissions."
+      }
+    },
+    "interactive": {
+      "decision": "approved",
+      "reviewer": "GEOrank Maintainers",
+      "scope": "The login command may request a password through getpass when the configured password environment variable is absent.",
+      "reason": "A hidden terminal prompt supports ordinary-user login without exposing passwords through process arguments, terminal echo, generated reports, or saved fixtures.",
+      "expires_at": "2027-01-16",
+      "evidence": [
+        "references/safety-policy.md",
+        "tests/test_georank_client.py"
+      ],
+      "target_enforcement": {
+        "openai": "Use a hidden prompt or reviewed password environment variable.",
+        "claude": "Use a hidden prompt or reviewed password environment variable.",
+        "generic": "Use a hidden prompt or reviewed password environment variable.",
+        "vscode": "Use a hidden prompt in a trusted terminal."
+      }
+    }
+  }
+}

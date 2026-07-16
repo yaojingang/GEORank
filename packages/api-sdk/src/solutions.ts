@@ -1,3 +1,6 @@
+import {getByokHeaders} from './byok';
+import {ApiRequestError, parseApiResponse} from './api-error';
+
 const API_BASE = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 export type SolutionChatRequest = {
@@ -43,11 +46,7 @@ export type SolutionStreamEvent =
   | { type: 'error'; content: string };
 
 async function parseJson<T>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((payload as { detail?: string }).detail || `API ${response.status}`);
-  }
-  return payload as T;
+  return parseApiResponse<T>(response);
 }
 
 export async function listSolutionConversations(
@@ -94,14 +93,18 @@ export async function streamSolutionChat(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      ...getByokHeaders()
     },
     body: JSON.stringify(body),
     signal
   });
 
   if (!response.ok || !response.body) {
-    throw new Error(`API ${response.status}`);
+    const payload = await response.json().catch(() => ({})) as {
+      detail?: string | {code?: string; message?: string; guidance?: Record<string, unknown>; quota?: Record<string, unknown>};
+    };
+    throw new ApiRequestError(response.status, payload.detail);
   }
 
   const reader = response.body.getReader();

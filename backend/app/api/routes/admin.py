@@ -2,7 +2,8 @@
 后台管理 API — 公司审核 / 内容管理 / 用户管理 / 系统设置
 所有接口需要 admin 角色
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import hashlib
 import time
 import re
 import secrets
@@ -10,6 +11,7 @@ import shutil
 import string
 import uuid
 from typing import Any, Optional
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, status
@@ -20,7 +22,13 @@ from sqlalchemy import String, cast, delete, select, func, update, or_, case
 from app.api.routes.auth import _hash_password, _normalize_phone
 from app.core.deps import DbSession, AdminUser
 from app.models.company import Company, PublishStatus, PipelineStatus
-from app.services.company_profile import company_profile_needs_hydration, ensure_company_profile
+from app.services.company_profile import (
+    company_profile_missing_fields,
+    company_profile_needs_hydration,
+)
+from app.services.company_ingest import normalize_company_url
+from app.services.company_lookup import company_public_path
+from app.services.company_preview import create_company_preview_token
 from app.models.content import Content, ContentStatus, ContentType
 from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
 from app.models.conversation import Conversation, Message, MessageRole
@@ -40,6 +48,7 @@ from app.services.runtime_settings import (
     DEFAULT_HOMEPAGE_RELEASE_ID,
     get_diagnostic_rule_config,
     get_ai_usage_policy_config,
+    get_default_ai_usage_policy_config,
     get_ai_runtime_config,
     get_default_solution_channel_config,
     get_default_solution_template_config,
@@ -52,25 +61,41 @@ from app.services.runtime_settings import (
     normalize_frontend_module_payload,
 )
 from app.services.homepage_assets import (
+    DEFAULT_LIMITS,
     HomepageAssetError,
+    HomepageAssetConflictError,
     apply_analytics_to_active_homepage,
     activate_homepage_release,
     build_single_html_release,
     build_zip_homepage_release,
+    clone_homepage_release,
     homepage_root,
     public_release_path,
+    read_homepage_entry_source,
     reset_active_homepage,
     source_release_path,
+    update_homepage_entry_source,
+)
+from app.services.navigation_settings import (
+    NAVIGATION_MENU_SETTING_KEY,
+    NavigationMenuValidationError,
+    normalize_navigation_menu_payload,
 )
 from app.services.ai_usage import (
+    AI_USAGE_POLICY_SETTING_KEY,
+    admin_user_quota_payload,
     admin_usage_summary,
     normalize_policy_payload,
     public_policy_payload,
+    release_ai_access,
     resolve_async_ai_access,
+    settle_token_reservation,
     store_policy_setting,
+    update_admin_user_quota,
 )
 from app.services.ai_client import ai_client
 from app.services.content_render import render_markdown
+from app.models.ai_usage import AIPrincipalUser, AIUsageEvent, UserDailyUsage
 
 router = APIRouter()
 DIAGNOSTIC_RULES_SETTING_KEY = "diagnostic_rule_weights"
@@ -84,6 +109,34 @@ ANALYTICS_TRACKING_CODE_SETTING_KEY = "analytics_tracking_code"
 CONTENT_PATH_KEY_ALPHABET = string.ascii_lowercase
 CONTENT_PATH_KEY_LENGTH = 5
 MASKED_SECRET_TEXT = "••••••••••••••••"
+PROTECTED_SETTING_KEYS = {
+    "site_name",
+    "site_description",
+    "default_language",
+    "timezone",
+    "admin_entry_path",
+    "llm_base_url",
+    "llm_model",
+    "llm_fallback_model",
+    "codex_base_url",
+    "codex_model",
+    "embedding_base_url",
+    "embedding_model",
+    "embedding_dimensions",
+    "geo_auto_score",
+    "geo_rescan_days",
+    "geo_score_public",
+    "geo_score_version",
+    DIAGNOSTIC_RULES_SETTING_KEY,
+    SOLUTION_TEMPLATES_SETTING_KEY,
+    SOLUTION_CHANNELS_SETTING_KEY,
+    LLM_PROVIDERS_SETTING_KEY,
+    LLM_PROVIDER_KEYS_SETTING_KEY,
+    FRONTEND_MODULES_SETTING_KEY,
+    HOMEPAGE_RUNTIME_SETTING_KEY,
+    NAVIGATION_MENU_SETTING_KEY,
+    AI_USAGE_POLICY_SETTING_KEY,
+}
 
 
 def _utc_now() -> datetime:
@@ -92,6 +145,41 @@ def _utc_now() -> datetime:
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _normalize_admin_string_list(items: list[str] | None, *, limit: int = 24, item_limit: int = 160) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    cleaned: list[str] = []
+    for item in items:
+        value = str(item or "").strip()
+        if value and value not in cleaned:
+            cleaned.append(value[:item_limit])
+        if len(cleaned) >= limit:
+            break
+    return cleaned
+
+
+def _safe_page_size(page: int, size: int, *, max_size: int = 100) -> tuple[int, int]:
+    return max(1, page), max(1, min(size, max_size))
+
+
+def _parse_publish_status(value: str | None) -> PublishStatus | None:
+    if value in (None, ""):
+        return None
+    try:
+        return PublishStatus(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="发布状态不合法") from exc
+
+
+def _parse_pipeline_status(value: str | None) -> PipelineStatus | None:
+    if value in (None, ""):
+        return None
+    try:
+        return PipelineStatus(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="流水线状态不合法") from exc
 
 
 async def _generate_unique_content_path_key(db: DbSession) -> str:
@@ -406,6 +494,65 @@ async def recent_failures(db: DbSession, _: AdminUser, limit: int = 10):
 
 # ===== 公司审核 =====
 
+class AdminCompanyRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=200)
+    url: str | None = Field(default=None, max_length=500)
+    logo_url: str | None = Field(default=None, max_length=500)
+    description: str | None = None
+    short_description: str | None = Field(default=None, max_length=300)
+    category: str | None = Field(default=None, max_length=50)
+    tags: list[str] = Field(default_factory=list)
+    is_geo_certified: bool = False
+    founded_date: date | None = None
+    headquarters: str | None = Field(default=None, max_length=200)
+    employee_count: str | None = Field(default=None, max_length=50)
+    funding_stage: str | None = Field(default=None, max_length=50)
+    tech_level: str | None = Field(default=None, max_length=50)
+    tech_stack: list[str] = Field(default_factory=list)
+    geo_score: float | None = Field(default=None, ge=0, le=100)
+    publish_status: str | None = None
+    pipeline_status: str | None = None
+
+
+def _company_admin_values(data: AdminCompanyRequest, *, partial: bool = False) -> dict:
+    payload = data.model_dump(exclude_unset=partial)
+    values: dict[str, Any] = {}
+    string_fields = [
+        "name",
+        "logo_url",
+        "description",
+        "short_description",
+        "category",
+        "headquarters",
+        "employee_count",
+        "funding_stage",
+        "tech_level",
+    ]
+    for field in string_fields:
+        if field in payload:
+            value = payload.get(field)
+            values[field] = str(value).strip() if value is not None else None
+    if "tags" in payload:
+        values["tags"] = _normalize_admin_string_list(payload.get("tags"), limit=20, item_limit=80)
+    if "tech_stack" in payload:
+        values["tech_stack"] = _normalize_admin_string_list(payload.get("tech_stack"), limit=20, item_limit=80)
+    if "is_geo_certified" in payload:
+        values["is_geo_certified"] = bool(payload.get("is_geo_certified"))
+    if "founded_date" in payload:
+        values["founded_date"] = payload.get("founded_date")
+    if "geo_score" in payload:
+        values["geo_score"] = payload.get("geo_score")
+    if "publish_status" in payload:
+        publish_status = _parse_publish_status(payload.get("publish_status"))
+        if publish_status is not None:
+            values["publish_status"] = publish_status
+    if "pipeline_status" in payload:
+        pipeline_status = _parse_pipeline_status(payload.get("pipeline_status"))
+        if pipeline_status is not None:
+            values["pipeline_status"] = pipeline_status
+    return values
+
+
 @router.get("/companies")
 async def list_companies_admin(
     db: DbSession,
@@ -420,6 +567,7 @@ async def list_companies_admin(
 ):
     """管理后台公司列表（含各状态，支持搜索/分页/分类/排序）"""
     from sqlalchemy import String, cast, or_
+    safe_page, safe_size = _safe_page_size(page, size)
     query = select(Company)
     if publish_status:
         query = query.where(Company.publish_status == publish_status)
@@ -450,14 +598,20 @@ async def list_companies_admin(
         query = query.order_by(review_priority.asc(), Company.updated_at.desc())
 
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-    result = await db.execute(query.offset((page - 1) * size).limit(size))
+    result = await db.execute(query.offset((safe_page - 1) * safe_size).limit(safe_size))
     companies = result.scalars().all()
-    pages = max(1, (total + size - 1) // size)
+    pages = max(1, ((total or 0) + safe_size - 1) // safe_size)
 
     return {
         "items": [
             {
                 "id": str(c.id),
+                "path_key": c.path_key,
+                "preview_url": (
+                    company_public_path(c)
+                    if c.publish_status == PublishStatus.PUBLISHED
+                    else f"{company_public_path(c)}?preview={quote(create_company_preview_token(c.id))}"
+                ),
                 "name": c.name,
                 "url": c.url,
                 "short_description": c.short_description,
@@ -473,11 +627,41 @@ async def list_companies_admin(
             }
             for c in companies
         ],
-        "total": total,
-        "page": page,
-        "size": size,
+        "total": total or 0,
+        "page": safe_page,
+        "size": safe_size,
         "pages": pages,
     }
+
+
+@router.post("/companies", status_code=status.HTTP_201_CREATED)
+async def create_company_admin(data: AdminCompanyRequest, db: DbSession, admin: AdminUser):
+    """管理员直接创建公司资料，不触发入库流水线。"""
+    if not data.name or not data.name.strip():
+        raise HTTPException(status_code=422, detail="公司名称不能为空")
+    if not data.url or not data.url.strip():
+        raise HTTPException(status_code=422, detail="公司 URL 不能为空")
+    try:
+        normalized_url = normalize_company_url(data.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    existing = await db.scalar(select(Company.id).where(Company.url == normalized_url))
+    if existing:
+        raise HTTPException(status_code=409, detail="公司 URL 已存在")
+
+    values = _company_admin_values(data)
+    values["url"] = normalized_url
+    values["name"] = data.name.strip()
+    # 手工创建只生成草稿；发布统一经过 approve_company 的完整性门槛。
+    values["publish_status"] = PublishStatus.DRAFT
+    values["pipeline_status"] = PipelineStatus.COMPLETED
+    values["submitted_by"] = admin.id
+    company = Company(**values)
+    db.add(company)
+    await db.commit()
+    await db.refresh(company)
+    return await get_company_admin_detail(str(company.id), db, admin)
 
 
 @router.get("/companies/{company_id}")
@@ -536,6 +720,7 @@ async def get_company_admin_detail(company_id: str, db: DbSession, _: AdminUser)
 
     return {
         "id": str(company.id),
+        "path_key": company.path_key,
         "name": company.name,
         "url": company.url,
         "logo_url": company.logo_url,
@@ -556,6 +741,11 @@ async def get_company_admin_detail(company_id: str, db: DbSession, _: AdminUser)
         "pipeline_status": company.pipeline_status.value,
         "pipeline_error": company.pipeline_error,
         "publish_status": company.publish_status.value,
+        "preview_url": (
+            company_public_path(company)
+            if company.publish_status == PublishStatus.PUBLISHED
+            else f"{company_public_path(company)}?preview={quote(create_company_preview_token(company.id))}"
+        ),
         "raw_html_key": company.raw_html_key,
         "about_html_key": company.about_html_key,
         "screenshots": company.screenshots or [],
@@ -580,6 +770,52 @@ async def get_company_admin_detail(company_id: str, db: DbSession, _: AdminUser)
     }
 
 
+@router.put("/companies/{company_id}")
+async def update_company_admin(company_id: str, data: AdminCompanyRequest, db: DbSession, admin: AdminUser):
+    """管理员编辑公司资料和状态。"""
+    cid = uuid.UUID(company_id)
+    result = await db.execute(select(Company).where(Company.id == cid))
+    company = result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(status_code=404, detail="公司不存在")
+
+    if "url" in data.model_fields_set and data.url is not None:
+        try:
+            normalized_url = normalize_company_url(data.url)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        duplicate = await db.scalar(
+            select(Company.id).where(Company.url == normalized_url, Company.id != cid)
+        )
+        if duplicate:
+            raise HTTPException(status_code=409, detail="公司 URL 已存在")
+        company.url = normalized_url
+
+    values = _company_admin_values(data, partial=True)
+    if "name" in values and not values["name"]:
+        raise HTTPException(status_code=422, detail="公司名称不能为空")
+    requested_publish_status = values.pop("publish_status", None)
+    if requested_publish_status is not None and requested_publish_status != company.publish_status:
+        raise HTTPException(
+            status_code=409,
+            detail="发布状态请通过审核通过或驳回操作变更。",
+        )
+    requested_pipeline_status = values.pop("pipeline_status", None)
+    if requested_pipeline_status is not None and requested_pipeline_status != company.pipeline_status:
+        raise HTTPException(
+            status_code=409,
+            detail="分析状态由流水线维护，请使用重试流水线操作。",
+        )
+    for key, value in values.items():
+        if key == "url":
+            continue
+        setattr(company, key, value)
+    company.updated_at = _utc_now()
+    await db.commit()
+    await db.refresh(company)
+    return await get_company_admin_detail(company_id, db, admin)
+
+
 @router.post("/companies/{company_id}/approve")
 async def approve_company(company_id: str, db: DbSession, _: AdminUser):
     """审核通过 → 发布"""
@@ -589,10 +825,24 @@ async def approve_company(company_id: str, db: DbSession, _: AdminUser):
     if not company:
         raise HTTPException(status_code=404, detail="公司不存在")
 
-    if company.pipeline_status == PipelineStatus.COMPLETED and company_profile_needs_hydration(company):
-        await ensure_company_profile(db, company)
+    if company.pipeline_status != PipelineStatus.COMPLETED:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "公司分析流程尚未完成，暂不能发布",
+                "pipeline_status": company.pipeline_status.value,
+                "pipeline_error": company.pipeline_error,
+            },
+        )
+
     if company_profile_needs_hydration(company):
-        raise HTTPException(status_code=409, detail="公司资料未抽取完整，暂不能发布")
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "公司资料未抽取完整，暂不能发布",
+                "missing_fields": company_profile_missing_fields(company),
+            },
+        )
 
     await db.execute(
         update(Company).where(Company.id == cid).values(publish_status=PublishStatus.PUBLISHED)
@@ -619,35 +869,80 @@ async def reject_company(company_id: str, db: DbSession, _: AdminUser, reason: s
 async def retry_pipeline(company_id: str, db: DbSession, admin_user: AdminUser):
     """重新触发入库流水线"""
     cid = uuid.UUID(company_id)
-    result = await db.execute(select(Company).where(Company.id == cid))
+    result = await db.execute(
+        select(Company).where(Company.id == cid).with_for_update()
+    )
     company = result.scalar_one_or_none()
     if not company:
         raise HTTPException(status_code=404, detail="公司不存在")
 
+    retryable_statuses = {PipelineStatus.FAILED, PipelineStatus.COMPLETED}
+    if company.pipeline_status not in retryable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="公司分析任务仍在运行，请等待当前任务结束后再重试。",
+        )
+    previous_pipeline_status = company.pipeline_status
+    if company.ai_reservation_id:
+        await settle_token_reservation(
+            db,
+            reservation_id=company.ai_reservation_id,
+            actual_tokens=0,
+            succeeded=False,
+        )
+
     usage_user = await _load_user_for_usage(db, company.submitted_by) or admin_user
-    await resolve_async_ai_access(
+    access = await resolve_async_ai_access(
         db=db,
         current_user=usage_user,
         module="companies",
         prompt_text=company.url,
     )
 
-    await db.execute(
-        update(Company).where(Company.id == cid).values(
+    retry_result = await db.execute(
+        update(Company).where(
+            Company.id == cid,
+            Company.pipeline_status == previous_pipeline_status,
+        ).values(
             pipeline_status=PipelineStatus.PENDING,
             pipeline_error=None,
+            crawl_candidates=[],
+            crawl_pages=[],
             submitted_by=usage_user.id,
-        )
+            ai_reservation_id=access.reservation_id,
+        ).returning(Company.id)
     )
+    if retry_result.scalar_one_or_none() is None:
+        await release_ai_access(
+            db,
+            access,
+            error_code="company_pipeline_state_changed",
+        )
+        await db.commit()
+        raise HTTPException(status_code=409, detail="公司分析状态已变化，请刷新后重试。")
     await db.commit()
 
+    queue_failed = False
     try:
         from app.core.celery_app import celery_app
-        celery_app.send_task("app.tasks.crawl.crawl_company_website", args=[company_id, company.url])
+        celery_app.send_task(
+            "app.tasks.crawl.crawl_company_website",
+            args=[company_id, company.url, str(access.reservation_id)],
+        )
     except Exception:
-        pass
+        queue_failed = True
+        await db.execute(
+            update(Company)
+            .where(Company.id == cid)
+            .values(
+                pipeline_status=PipelineStatus.FAILED,
+                pipeline_error="官网分析任务创建失败，请稍后重试。",
+            )
+        )
+        await release_ai_access(db, access, error_code="queue_dispatch_failed")
+        await db.commit()
 
-    return {"status": "retrying", "company_id": company_id}
+    return {"status": "failed" if queue_failed else "retrying", "company_id": company_id}
 
 
 @router.delete("/companies/{company_id}")
@@ -659,6 +954,17 @@ async def delete_company_admin(company_id: str, db: DbSession, _: AdminUser):
     if not company:
         raise HTTPException(status_code=404, detail="公司不存在")
 
+    report_ids = list(
+        (
+            await db.execute(select(DiagnosticReport.id).where(DiagnosticReport.company_id == cid))
+        ).scalars().all()
+    )
+    if report_ids:
+        await db.execute(
+            update(Message)
+            .where(Message.diagnostic_context_id.in_(report_ids))
+            .values(diagnostic_context_id=None)
+        )
     await db.execute(delete(CompanyVote).where(CompanyVote.company_id == cid))
     await db.execute(delete(DiagnosticReport).where(DiagnosticReport.company_id == cid))
     await db.delete(company)
@@ -682,6 +988,7 @@ async def list_solution_conversations_admin(
     """后台问答会话列表，附带摘要统计。"""
     from sqlalchemy import or_
 
+    safe_page, safe_size = _safe_page_size(page, size)
     query = select(Conversation)
     if visibility == "public":
         query = query.where(Conversation.user_id.is_(None))
@@ -727,9 +1034,9 @@ async def list_solution_conversations_admin(
     query = query.order_by(Conversation.updated_at.desc())
 
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-    result = await db.execute(query.offset((page - 1) * size).limit(size))
+    result = await db.execute(query.offset((safe_page - 1) * safe_size).limit(safe_size))
     conversations = result.scalars().all()
-    pages = max(1, (total + size - 1) // size)
+    pages = max(1, ((total or 0) + safe_size - 1) // safe_size)
 
     conversation_ids = [conversation.id for conversation in conversations]
     user_ids = {conversation.user_id for conversation in conversations if conversation.user_id}
@@ -815,9 +1122,9 @@ async def list_solution_conversations_admin(
 
     return {
         "items": items,
-        "total": total,
-        "page": page,
-        "size": size,
+        "total": total or 0,
+        "page": safe_page,
+        "size": safe_size,
         "pages": pages,
         "summary": {
             "message_count": total_message_count,
@@ -1228,6 +1535,7 @@ async def list_diagnostic_reports_admin(
     search: Optional[str] = None,
 ):
     """后台诊断报告列表，附带统计摘要。"""
+    safe_page, safe_size = _safe_page_size(page, size)
     query = select(DiagnosticReport)
     if status_filter:
         query = query.where(DiagnosticReport.status == status_filter)
@@ -1257,9 +1565,9 @@ async def list_diagnostic_reports_admin(
     query = query.order_by(DiagnosticReport.created_at.desc())
 
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-    result = await db.execute(query.offset((page - 1) * size).limit(size))
+    result = await db.execute(query.offset((safe_page - 1) * safe_size).limit(safe_size))
     reports = result.scalars().all()
-    pages = max(1, (total + size - 1) // size)
+    pages = max(1, ((total or 0) + safe_size - 1) // safe_size)
 
     company_ids = {report.company_id for report in reports if report.company_id}
     user_ids = {report.user_id for report in reports if report.user_id}
@@ -1307,9 +1615,9 @@ async def list_diagnostic_reports_admin(
 
     return {
         "items": items,
-        "total": total,
-        "page": page,
-        "size": size,
+        "total": total or 0,
+        "page": safe_page,
+        "size": safe_size,
         "pages": pages,
         "summary": {
             "completed_count": completed_count,
@@ -1364,24 +1672,57 @@ async def retry_diagnostic_report_admin(
 ):
     """重新触发诊断抓取与分析链路。"""
     rid = uuid.UUID(report_id)
-    result = await db.execute(select(DiagnosticReport).where(DiagnosticReport.id == rid))
+    result = await db.execute(
+        select(DiagnosticReport).where(DiagnosticReport.id == rid).with_for_update()
+    )
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(status_code=404, detail="诊断报告不存在")
+    retryable_statuses = {DiagnosticStatus.FAILED, DiagnosticStatus.COMPLETED}
+    if report.status not in retryable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="诊断任务仍在运行，请等待当前任务结束后再重试。",
+        )
+    previous_status = report.status
+    if report.ai_reservation_id:
+        await settle_token_reservation(
+            db,
+            reservation_id=report.ai_reservation_id,
+            actual_tokens=0,
+            succeeded=False,
+        )
 
     usage_user = await _load_user_for_usage(db, report.user_id) or admin_user
-    await resolve_async_ai_access(
+    access = await resolve_async_ai_access(
         db=db,
         current_user=usage_user,
         module="diagnostics",
         prompt_text=report.url,
     )
 
-    await db.execute(
+    retry_result = await db.execute(
         update(DiagnosticReport)
-        .where(DiagnosticReport.id == rid)
-        .values(status=DiagnosticStatus.PENDING, error_message=None, user_id=usage_user.id)
+        .where(
+            DiagnosticReport.id == rid,
+            DiagnosticReport.status == previous_status,
+        )
+        .values(
+            status=DiagnosticStatus.PENDING,
+            error_message=None,
+            user_id=usage_user.id,
+            ai_reservation_id=access.reservation_id,
+        )
+        .returning(DiagnosticReport.id)
     )
+    if retry_result.scalar_one_or_none() is None:
+        await release_ai_access(
+            db,
+            access,
+            error_code="diagnostic_state_changed",
+        )
+        await db.commit()
+        raise HTTPException(status_code=409, detail="诊断状态已变化，请刷新后重试。")
     await db.commit()
 
     try:
@@ -1389,12 +1730,41 @@ async def retry_diagnostic_report_admin(
 
         celery_app.send_task(
             "app.tasks.crawl.crawl_diagnostic_page",
-            args=[report_id, report.url],
+            args=[report_id, report.url, str(access.reservation_id)],
         )
     except Exception:
-        pass
+        await db.execute(
+            update(DiagnosticReport)
+            .where(DiagnosticReport.id == rid)
+            .values(
+                status=DiagnosticStatus.FAILED,
+                error_message="诊断任务创建失败，请稍后重试。",
+            )
+        )
+        await release_ai_access(db, access, error_code="queue_dispatch_failed")
+        await db.commit()
+        return {"status": "failed", "report_id": report_id}
 
     return {"status": "retrying", "report_id": report_id}
+
+
+@router.delete("/diagnostics/reports/{report_id}")
+async def delete_diagnostic_report_admin(report_id: str, db: DbSession, _: AdminUser):
+    """删除诊断报告，并清理方案会话里的诊断上下文引用。"""
+    rid = uuid.UUID(report_id)
+    result = await db.execute(select(DiagnosticReport).where(DiagnosticReport.id == rid))
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(status_code=404, detail="诊断报告不存在")
+
+    await db.execute(
+        update(Message)
+        .where(Message.diagnostic_context_id == rid)
+        .values(diagnostic_context_id=None)
+    )
+    await db.delete(report)
+    await db.commit()
+    return {"status": "deleted", "report_id": report_id}
 
 
 class DiagnosticRulesRequest(BaseModel):
@@ -1581,6 +1951,7 @@ async def list_content_admin(
     search: Optional[str] = None,
 ):
     """后台文章列表（含草稿，支持教程业务筛选与统计）"""
+    safe_page, safe_size = _safe_page_size(page, size)
     filters = []
     if content_type:
         filters.append(Content.content_type == content_type)
@@ -1602,11 +1973,11 @@ async def list_content_admin(
         select(Content)
         .where(*filters)
         .order_by(Content.created_at.desc())
-        .offset((page - 1) * size)
-        .limit(size)
+        .offset((safe_page - 1) * safe_size)
+        .limit(safe_size)
     )
     articles = result.scalars().all()
-    pages = max(1, (total + size - 1) // size)
+    pages = max(1, ((total or 0) + safe_size - 1) // safe_size)
     tutorial_total = await db.scalar(
         select(func.count(Content.id)).where(Content.content_type == ContentType.TUTORIAL)
     )
@@ -1647,9 +2018,9 @@ async def list_content_admin(
             "template_total": template_total or 0,
             "total_views": total_views or 0,
         },
-        "total": total,
-        "page": page,
-        "size": size,
+        "total": total or 0,
+        "page": safe_page,
+        "size": safe_size,
         "pages": pages,
     }
 
@@ -1735,6 +2106,7 @@ async def delete_content(content_id: str, db: DbSession, _: AdminUser):
 # ===== 专家管理 =====
 
 class ExpertProfileRequest(BaseModel):
+    slug: Optional[str] = Field(default=None, max_length=120)
     display_name: str = Field(..., min_length=1, max_length=120)
     avatar_initials: Optional[str] = Field(default=None, max_length=12)
     title: str = Field(..., min_length=1, max_length=160)
@@ -1760,6 +2132,25 @@ def _normalize_string_list(items: list[str] | None, *, limit: int = 12) -> list[
         if len(cleaned) >= limit:
             break
     return cleaned
+
+
+def _normalize_expert_slug(value: Optional[str]) -> Optional[str]:
+    slug = (value or "").strip().lower()
+    if not slug:
+        return None
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
+        raise HTTPException(status_code=422, detail="专家详情链接标识只能包含小写字母、数字和连字符")
+    return slug
+
+
+async def _ensure_expert_slug_available(
+    db: DbSession, slug: str, *, exclude_id: Optional[uuid.UUID] = None
+) -> None:
+    query = select(ExpertProfile.id).where(ExpertProfile.slug == slug)
+    if exclude_id:
+        query = query.where(ExpertProfile.id != exclude_id)
+    if await db.scalar(query):
+        raise HTTPException(status_code=409, detail="专家详情链接标识已存在")
 
 
 def _expert_values(data: ExpertProfileRequest) -> dict:
@@ -1837,6 +2228,7 @@ async def list_experts_admin(
         like = f"%{search.strip()}%"
         filters.append(
             or_(
+                ExpertProfile.slug.ilike(like),
                 ExpertProfile.display_name.ilike(like),
                 ExpertProfile.title.ilike(like),
                 ExpertProfile.specialty_label.ilike(like),
@@ -1868,7 +2260,10 @@ async def list_experts_admin(
 @router.post("/experts", status_code=status.HTTP_201_CREATED)
 async def create_expert_admin(data: ExpertProfileRequest, db: DbSession, admin: AdminUser):
     """创建专家频道画像。"""
-    expert = ExpertProfile(**_expert_values(data), created_by=admin.id)
+    expert_id = uuid.uuid4()
+    slug = _normalize_expert_slug(data.slug) or f"expert-{expert_id.hex[:12]}"
+    await _ensure_expert_slug_available(db, slug)
+    expert = ExpertProfile(id=expert_id, slug=slug, **_expert_values(data), created_by=admin.id)
     db.add(expert)
     await db.commit()
     await db.refresh(expert)
@@ -1893,6 +2288,10 @@ async def update_expert_admin(expert_id: str, data: ExpertProfileRequest, db: Db
     expert = result.scalar_one_or_none()
     if not expert:
         raise HTTPException(status_code=404, detail="专家不存在")
+    slug = _normalize_expert_slug(data.slug)
+    if slug and slug != expert.slug:
+        await _ensure_expert_slug_available(db, slug, exclude_id=expert.id)
+        expert.slug = slug
     for key, value in _expert_values(data).items():
         setattr(expert, key, value)
     await db.commit()
@@ -1914,6 +2313,118 @@ async def delete_expert_admin(expert_id: str, db: DbSession, _: AdminUser):
 
 # ===== 用户管理 =====
 
+def _serialize_admin_user(user: User) -> dict:
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "username": user.username,
+        "phone": user.phone,
+        "role": user.role.value if hasattr(user.role, "value") else user.role,
+        "is_active": user.is_active,
+        "is_verified": user.is_verified,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+async def _load_admin_user_or_404(db: DbSession, user_id: str) -> User:
+    try:
+        uid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    result = await db.execute(select(User).where(User.id == uid))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    return user
+
+
+async def _ensure_unique_user_fields(
+    db: DbSession,
+    user_id: uuid.UUID | None = None,
+    *,
+    email: str | None = None,
+    username: str | None = None,
+    phone: str | None = None,
+):
+    filters = []
+    if email:
+        filters.append(User.email == email)
+    if username:
+        filters.append(User.username == username)
+    if phone:
+        filters.append(User.phone == phone)
+    if not filters:
+        return
+
+    query = select(User.id).where(or_(*filters))
+    if user_id:
+        query = query.where(User.id != user_id)
+    result = await db.execute(query.limit(1))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名、邮箱或手机号已存在")
+
+
+async def _active_admin_count(db: DbSession) -> int:
+    count = await db.scalar(
+        select(func.count(User.id)).where(User.role == UserRole.ADMIN, User.is_active == True)
+    )
+    return int(count or 0)
+
+
+async def _guard_admin_survival(
+    db: DbSession,
+    target: User,
+    *,
+    next_role: UserRole | None = None,
+    next_active: bool | None = None,
+):
+    current_role = target.role if isinstance(target.role, UserRole) else UserRole(target.role)
+    role_after = next_role or current_role
+    active_after = target.is_active if next_active is None else next_active
+    if current_role == UserRole.ADMIN and target.is_active and (
+        role_after != UserRole.ADMIN or not active_after
+    ):
+        if await _active_admin_count(db) <= 1:
+            raise HTTPException(status_code=400, detail="至少需要保留一个可用管理员账号")
+
+
+async def _delete_user_related_data(db: DbSession, user_id: uuid.UUID):
+    voted_company_ids = list(
+        (
+            await db.execute(select(CompanyVote.company_id).where(CompanyVote.user_id == user_id))
+        ).scalars()
+    )
+    if voted_company_ids:
+        await db.execute(delete(CompanyVote).where(CompanyVote.user_id == user_id))
+        for company_id in voted_company_ids:
+            await db.execute(
+                update(Company)
+                .where(Company.id == company_id)
+                .values(upvotes=case((Company.upvotes > 0, Company.upvotes - 1), else_=0))
+            )
+
+    conversation_ids = list(
+        (
+            await db.execute(select(Conversation.id).where(Conversation.user_id == user_id))
+        ).scalars()
+    )
+    if conversation_ids:
+        await db.execute(delete(Message).where(Message.conversation_id.in_(conversation_ids)))
+        await db.execute(delete(Conversation).where(Conversation.id.in_(conversation_ids)))
+
+    await db.execute(delete(UserDailyUsage).where(UserDailyUsage.user_id == user_id))
+    await db.execute(delete(AIPrincipalUser).where(AIPrincipalUser.user_id == user_id))
+    await db.execute(update(AIUsageEvent).where(AIUsageEvent.user_id == user_id).values(user_id=None))
+    await db.execute(update(Company).where(Company.submitted_by == user_id).values(submitted_by=None))
+    await db.execute(update(DiagnosticReport).where(DiagnosticReport.user_id == user_id).values(user_id=None))
+    await db.execute(update(Content).where(Content.author_id == user_id).values(author_id=None))
+    await db.execute(update(Setting).where(Setting.updated_by == user_id).values(updated_by=None))
+    await db.execute(update(KeywordPack).where(KeywordPack.created_by == user_id).values(created_by=None))
+    await db.execute(update(ExpertProfile).where(ExpertProfile.created_by == user_id).values(created_by=None))
+    await db.execute(update(HomepageRelease).where(HomepageRelease.created_by == user_id).values(created_by=None))
+
+
 @router.get("/users")
 async def list_users(
     db: DbSession,
@@ -1926,6 +2437,7 @@ async def list_users(
 ):
     """用户列表（分页，支持搜索/角色/状态筛选）"""
     from sqlalchemy import or_
+    safe_page, safe_size = _safe_page_size(page, size)
     query = select(User)
     if role:
         query = query.where(User.role == role)
@@ -1942,27 +2454,15 @@ async def list_users(
     query = query.order_by(User.created_at.desc())
 
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-    result = await db.execute(query.offset((page - 1) * size).limit(size))
+    result = await db.execute(query.offset((safe_page - 1) * safe_size).limit(safe_size))
     users = result.scalars().all()
-    pages = max(1, (total + size - 1) // size)
+    pages = max(1, ((total or 0) + safe_size - 1) // safe_size)
 
     return {
-        "items": [
-            {
-                "id": str(u.id),
-                "email": u.email,
-                "username": u.username,
-                "phone": u.phone,
-                "role": u.role.value,
-                "is_active": u.is_active,
-                "is_verified": u.is_verified,
-                "created_at": u.created_at.isoformat(),
-            }
-            for u in users
-        ],
-        "total": total,
-        "page": page,
-        "size": size,
+        "items": [_serialize_admin_user(u) for u in users],
+        "total": total or 0,
+        "page": safe_page,
+        "size": safe_size,
         "pages": pages,
     }
 
@@ -1970,23 +2470,33 @@ async def list_users(
 @router.post("/users/{user_id}/toggle-active")
 async def toggle_user_active(user_id: str, db: DbSession, admin: AdminUser):
     """启用/停用用户"""
-    uid = uuid.UUID(user_id)
-    if uid == admin.id:
+    user = await _load_admin_user_or_404(db, user_id)
+    if user.id == admin.id:
         raise HTTPException(status_code=400, detail="不能停用当前登录的管理员账号")
 
-    result = await db.execute(select(User).where(User.id == uid))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-
     next_active = not bool(user.is_active)
-    await db.execute(update(User).where(User.id == uid).values(is_active=next_active))
+    await _guard_admin_survival(db, user, next_active=next_active)
+
+    user.is_active = next_active
     await db.commit()
     return {"user_id": user_id, "is_active": next_active}
 
 
 class RoleUpdateRequest(BaseModel):
     role: str
+
+
+class AdminUserUpdateRequest(BaseModel):
+    email: EmailStr | None = None
+    username: str | None = Field(default=None, min_length=2, max_length=100)
+    phone: str | None = Field(default=None, min_length=6, max_length=30)
+    role: str | None = Field(default=None, pattern="^(admin|enterprise|user)$")
+    is_active: bool | None = None
+    is_verified: bool | None = None
+
+
+class AdminPasswordResetRequest(BaseModel):
+    password: str = Field(min_length=6, max_length=128)
 
 
 class AdminUserCreateRequest(BaseModel):
@@ -2062,18 +2572,22 @@ def _serialize_keyword_pack_detail(pack: KeywordPack, items: list[KeywordItem]) 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user_admin(data: AdminUserCreateRequest, db: DbSession, _: AdminUser):
     """后台创建用户。当前仅创建本地账号，不发送外部邀请邮件。"""
-    phone = _normalize_phone(data.phone) if data.phone else None
-    filters = [User.email == str(data.email), User.username == data.username]
-    if phone:
-        filters.append(User.phone == phone)
+    username = data.username.strip()
+    email = str(data.email).strip()
+    if not username:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="用户名不能为空")
 
-    result = await db.execute(select(User).where(or_(*filters)))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名、邮箱或手机号已存在")
+    phone = _normalize_phone(data.phone) if data.phone else None
+    await _ensure_unique_user_fields(
+        db,
+        email=email,
+        username=username,
+        phone=phone,
+    )
 
     user = User(
-        email=str(data.email),
-        username=data.username,
+        email=email,
+        username=username,
         phone=phone,
         hashed_password=_hash_password(data.password),
         role=UserRole(data.role),
@@ -2084,16 +2598,146 @@ async def create_user_admin(data: AdminUserCreateRequest, db: DbSession, _: Admi
     await db.commit()
     await db.refresh(user)
 
-    return {
-        "id": str(user.id),
-        "email": user.email,
-        "username": user.username,
-        "phone": user.phone,
-        "role": user.role.value,
-        "is_active": user.is_active,
-        "is_verified": user.is_verified,
-        "created_at": user.created_at.isoformat(),
-    }
+    return _serialize_admin_user(user)
+
+
+@router.get("/users/{user_id}")
+async def get_user_admin(user_id: str, db: DbSession, _: AdminUser):
+    """获取用户详情"""
+    user = await _load_admin_user_or_404(db, user_id)
+    return _serialize_admin_user(user)
+
+
+class AdminUserQuotaUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    granted_tokens: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    consumed_tokens: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    frozen: bool | None = None
+    reason: str = Field(min_length=2, max_length=500)
+
+
+@router.get("/users/{user_id}/ai-quota")
+async def get_user_ai_quota_admin(user_id: str, db: DbSession, _: AdminUser):
+    """读取用户所属风险主体的终身 AI 额度。"""
+    user = await _load_admin_user_or_404(db, user_id)
+    return await admin_user_quota_payload(db, user)
+
+
+@router.put("/users/{user_id}/ai-quota")
+async def update_user_ai_quota_admin(
+    user_id: str,
+    data: AdminUserQuotaUpdateRequest,
+    db: DbSession,
+    admin: AdminUser,
+):
+    """调整用户风险主体额度或冻结状态，并写入审计日志。"""
+    if data.granted_tokens is None and data.consumed_tokens is None and data.frozen is None:
+        raise HTTPException(status_code=422, detail="请至少提交一项额度或冻结状态变更")
+    user = await _load_admin_user_or_404(db, user_id)
+    return await update_admin_user_quota(
+        db,
+        user=user,
+        admin=admin,
+        granted_tokens=data.granted_tokens,
+        consumed_tokens=data.consumed_tokens,
+        frozen=data.frozen,
+        reason=data.reason,
+    )
+
+
+@router.put("/users/{user_id}")
+async def update_user_admin(
+    user_id: str,
+    data: AdminUserUpdateRequest,
+    db: DbSession,
+    admin: AdminUser,
+):
+    """编辑用户资料、角色和状态"""
+    user = await _load_admin_user_or_404(db, user_id)
+    updates = data.model_dump(exclude_unset=True)
+
+    if "username" in updates and updates["username"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="用户名不能为空")
+    if "email" in updates and updates["email"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="邮箱不能为空")
+
+    next_email = str(updates["email"]).strip() if "email" in updates and updates["email"] else None
+    next_username = updates["username"].strip() if "username" in updates and updates["username"] else None
+    if "username" in updates and not next_username:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="用户名不能为空")
+    if "email" in updates and not next_email:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="邮箱不能为空")
+    next_phone = None
+    phone_was_provided = "phone" in updates
+    if phone_was_provided:
+        next_phone = _normalize_phone(updates["phone"]) if updates["phone"] else None
+
+    await _ensure_unique_user_fields(
+        db,
+        user.id,
+        email=next_email if next_email and next_email != user.email else None,
+        username=next_username if next_username and next_username != user.username else None,
+        phone=next_phone if phone_was_provided and next_phone != user.phone else None,
+    )
+
+    next_role = UserRole(updates["role"]) if updates.get("role") else None
+    next_active = updates["is_active"] if "is_active" in updates else None
+
+    if user.id == admin.id:
+        if next_role and next_role != UserRole.ADMIN:
+            raise HTTPException(status_code=400, detail="不能修改当前登录管理员的角色")
+        if next_active is False:
+            raise HTTPException(status_code=400, detail="不能停用当前登录的管理员账号")
+
+    await _guard_admin_survival(db, user, next_role=next_role, next_active=next_active)
+
+    if next_email:
+        user.email = next_email
+    if next_username:
+        user.username = next_username
+    if phone_was_provided:
+        user.phone = next_phone
+    if next_role:
+        user.role = next_role
+    if next_active is not None:
+        user.is_active = next_active
+    if "is_verified" in updates:
+        user.is_verified = bool(updates["is_verified"])
+
+    await db.commit()
+    await db.refresh(user)
+    return _serialize_admin_user(user)
+
+
+@router.put("/users/{user_id}/password")
+async def reset_user_password_admin(
+    user_id: str,
+    data: AdminPasswordResetRequest,
+    db: DbSession,
+    admin: AdminUser,
+):
+    """管理员重置用户密码"""
+    user = await _load_admin_user_or_404(db, user_id)
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="请通过个人中心修改当前管理员密码")
+    user.hashed_password = _hash_password(data.password)
+    await db.commit()
+    return {"user_id": user_id, "message": "密码已更新"}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user_admin(user_id: str, db: DbSession, admin: AdminUser):
+    """删除用户账号，并清理或匿名化关联数据"""
+    user = await _load_admin_user_or_404(db, user_id)
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="不能删除当前登录的管理员账号")
+
+    await _guard_admin_survival(db, user, next_active=False)
+    await _delete_user_related_data(db, user.id)
+    await db.execute(delete(User).where(User.id == user.id))
+    await db.commit()
+    return {"status": "deleted", "user_id": user_id}
 
 
 @router.put("/users/{user_id}/role")
@@ -2101,15 +2745,14 @@ async def update_user_role(user_id: str, data: RoleUpdateRequest, db: DbSession,
     """修改用户角色"""
     if data.role not in [r.value for r in UserRole]:
         raise HTTPException(status_code=400, detail=f"无效角色: {data.role}")
-    uid = uuid.UUID(user_id)
-    if uid == admin.id:
+    user = await _load_admin_user_or_404(db, user_id)
+    if user.id == admin.id:
         raise HTTPException(status_code=400, detail="不能修改当前登录管理员的角色")
 
-    result = await db.execute(select(User.id).where(User.id == uid))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="用户不存在")
+    next_role = UserRole(data.role)
+    await _guard_admin_survival(db, user, next_role=next_role)
 
-    await db.execute(update(User).where(User.id == uid).values(role=data.role))
+    user.role = next_role
     await db.commit()
     return {"user_id": user_id, "role": data.role}
 
@@ -2330,6 +2973,36 @@ async def delete_keyword_pack_admin(pack_id: str, db: DbSession, _: AdminUser):
 # ===== API 成本控制 =====
 
 
+class AdminByokGuidanceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str | None = Field(default=None, max_length=50)
+    title: str | None = Field(default=None, max_length=120)
+    message: str | None = Field(default=None, max_length=500)
+    cta_label: str | None = Field(default=None, max_length=80)
+    official_url: str | None = Field(default=None, max_length=500)
+    base_url: str | None = Field(default=None, max_length=240)
+    model: str | None = Field(default=None, max_length=100)
+
+
+class AdminApiPolicyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    access_mode: str | None = Field(default=None, max_length=50)
+    daily_token_limit: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    lifetime_token_grant: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    global_daily_token_limit: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    global_budget_enabled: bool | None = None
+    emergency_byok_only: bool | None = None
+    quota_reset_timezone: str | None = Field(default=None, max_length=100)
+    allow_anonymous_ai_usage: bool | None = None
+    allow_user_byok: bool | None = None
+    byok_transport_mode: str | None = Field(default=None, max_length=50)
+    byok_guidance: AdminByokGuidanceRequest | None = None
+    allowed_byok_providers: list[dict[str, Any]] | None = None
+    metered_modules: list[str] | None = None
+
+
 @router.get("/api-policy")
 async def get_api_policy(db: DbSession, _: AdminUser):
     """读取 AI API 成本控制策略与用量摘要。"""
@@ -2342,15 +3015,28 @@ async def get_api_policy(db: DbSession, _: AdminUser):
 
 
 @router.put("/api-policy")
-async def update_api_policy(request: dict, db: DbSession, admin: AdminUser):
+async def update_api_policy(request: AdminApiPolicyRequest, db: DbSession, admin: AdminUser):
     """更新 AI API 成本控制策略。"""
     current_policy = await get_ai_usage_policy_config()
-    next_policy = normalize_policy_payload(request, current_policy)
+    next_policy = normalize_policy_payload(request.model_dump(exclude_unset=True), current_policy)
     await store_policy_setting(db, admin, next_policy)
     await db.commit()
     await invalidate_runtime_settings_cache()
     return {
         "status": "saved",
+        "policy": public_policy_payload(await get_ai_usage_policy_config(force_refresh=True)),
+    }
+
+
+@router.post("/api-policy/reset")
+async def reset_api_policy(db: DbSession, admin: AdminUser):
+    """恢复 AI API 成本控制策略默认值。"""
+    default_policy = get_default_ai_usage_policy_config()
+    await store_policy_setting(db, admin, default_policy)
+    await db.commit()
+    await invalidate_runtime_settings_cache()
+    return {
+        "status": "reset",
         "policy": public_policy_payload(await get_ai_usage_policy_config(force_refresh=True)),
     }
 
@@ -2797,7 +3483,23 @@ async def update_frontend_modules_admin(
     return _serialize_frontend_module_payload(refreshed, saved_setting, admin)
 
 
+@router.post("/frontend-modules/reset")
+async def reset_frontend_modules_admin(db: DbSession, _: AdminUser):
+    """恢复前台模块默认开关配置。"""
+    await db.execute(delete(Setting).where(Setting.key == FRONTEND_MODULES_SETTING_KEY))
+    await db.commit()
+    await invalidate_runtime_settings_cache()
+    refreshed = await get_frontend_module_config(force_refresh=True)
+    return _serialize_frontend_module_payload(refreshed, None, None)
+
+
 # ===== 自定义首页 =====
+
+
+class HomepageSourceUpdateRequest(BaseModel):
+    html: str = Field(min_length=1, max_length=DEFAULT_LIMITS.max_extracted_size)
+    expected_sha256: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+
 
 def _serialize_homepage_release(release: HomepageRelease) -> dict:
     is_builtin = str(release.id) == DEFAULT_HOMEPAGE_RELEASE_ID
@@ -2931,6 +3633,118 @@ async def create_homepage_release_admin(
 async def get_homepage_release_admin(release_id: uuid.UUID, db: DbSession, _: AdminUser):
     release = await _load_homepage_release_or_404(db, release_id)
     return _serialize_homepage_release(release)
+
+
+@router.post("/homepage/releases/{release_id}/clone", status_code=status.HTTP_201_CREATED)
+async def clone_homepage_release_admin(release_id: uuid.UUID, db: DbSession, admin: AdminUser):
+    source_release = await _load_homepage_release_or_404(db, release_id)
+    if source_release.status == HomepageReleaseStatus.FAILED:
+        raise HTTPException(status_code=400, detail="失败版本不能复制")
+
+    target_id = uuid.uuid4()
+    title_suffix = " 可编辑副本"
+    clone_title = f"{source_release.title[: 200 - len(title_suffix)]}{title_suffix}"
+    source_type = (
+        source_release.source_type.value
+        if hasattr(source_release.source_type, "value")
+        else str(source_release.source_type)
+    )
+    root = homepage_root()
+    try:
+        manifest = clone_homepage_release(
+            root,
+            str(source_release.id),
+            str(target_id),
+            title=clone_title,
+            source_type=source_type,
+        )
+    except HomepageAssetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    cloned_release = HomepageRelease(
+        id=target_id,
+        title=clone_title,
+        source_type=source_release.source_type,
+        status=HomepageReleaseStatus.DRAFT,
+        entry_path=manifest["entry_path"],
+        storage_path=manifest["storage_path"],
+        file_count=manifest["file_count"],
+        compressed_size=manifest["compressed_size"],
+        extracted_size=manifest["extracted_size"],
+        sha256=manifest["sha256"],
+        release_manifest=manifest,
+        created_by=admin.id,
+    )
+    db.add(cloned_release)
+    try:
+        await db.commit()
+        await db.refresh(cloned_release)
+    except Exception:
+        shutil.rmtree(source_release_path(root, str(target_id)).parent, ignore_errors=True)
+        shutil.rmtree(public_release_path(root, str(target_id)), ignore_errors=True)
+        raise
+    return _serialize_homepage_release(cloned_release)
+
+
+@router.get("/homepage/releases/{release_id}/source")
+async def get_homepage_release_source_admin(release_id: uuid.UUID, db: DbSession, _: AdminUser):
+    release = await _load_homepage_release_or_404(db, release_id)
+    if str(release.id) == DEFAULT_HOMEPAGE_RELEASE_ID:
+        raise HTTPException(status_code=400, detail="内置首页版本不能编辑")
+    try:
+        html = read_homepage_entry_source(homepage_root(), str(release.id))
+    except HomepageAssetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "release_id": str(release.id),
+        "html": html,
+        "sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
+    }
+
+
+@router.put("/homepage/releases/{release_id}/source")
+async def update_homepage_release_source_admin(
+    release_id: uuid.UUID,
+    request: HomepageSourceUpdateRequest,
+    db: DbSession,
+    _: AdminUser,
+):
+    release = await _load_homepage_release_or_404(db, release_id)
+    if str(release.id) == DEFAULT_HOMEPAGE_RELEASE_ID:
+        raise HTTPException(status_code=400, detail="内置首页版本不能编辑")
+    is_active = release.status == HomepageReleaseStatus.ACTIVE
+    analytics_code = ""
+    if is_active:
+        analytics_code = await _load_setting_value(db, ANALYTICS_TRACKING_CODE_SETTING_KEY, "")
+    try:
+        manifest = update_homepage_entry_source(
+            homepage_root(),
+            str(release.id),
+            request.html,
+            title=release.title,
+            source_type=release.source_type.value if hasattr(release.source_type, "value") else str(release.source_type),
+            sync_active=is_active,
+            analytics_code=analytics_code,
+            expected_sha256=request.expected_sha256,
+        )
+    except HomepageAssetConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except HomepageAssetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    release.entry_path = manifest["entry_path"]
+    release.storage_path = manifest["storage_path"]
+    release.file_count = manifest["file_count"]
+    release.extracted_size = manifest["extracted_size"]
+    release.sha256 = manifest["sha256"]
+    release.release_manifest = manifest
+    await db.commit()
+    await db.refresh(release)
+    return {
+        "release": _serialize_homepage_release(release),
+        "updated_active": is_active,
+        "source_sha256": manifest["sha256"],
+    }
 
 
 @router.get("/homepage/releases/{release_id}/preview", response_class=HTMLResponse)
@@ -3088,9 +3902,28 @@ async def update_settings(request: dict, db: DbSession, admin: AdminUser):
     """
     analytics_code_to_apply: str | None = None
     for key, val in request.items():
+        if key in {
+            AI_USAGE_POLICY_SETTING_KEY,
+            DIAGNOSTIC_RULES_SETTING_KEY,
+            SOLUTION_TEMPLATES_SETTING_KEY,
+            SOLUTION_CHANNELS_SETTING_KEY,
+            LLM_PROVIDERS_SETTING_KEY,
+            LLM_PROVIDER_KEYS_SETTING_KEY,
+            FRONTEND_MODULES_SETTING_KEY,
+            HOMEPAGE_RUNTIME_SETTING_KEY,
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail=f"配置项 {key} 必须通过对应的专用管理接口更新",
+            )
         value = val.get("value", val) if isinstance(val, dict) else val
         if key == "admin_entry_path":
             value = _normalize_admin_entry_path(value)
+        if key == NAVIGATION_MENU_SETTING_KEY:
+            try:
+                value = normalize_navigation_menu_payload(value)
+            except NavigationMenuValidationError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
         if key == ANALYTICS_TRACKING_CODE_SETTING_KEY:
             value = str(value or "").strip()
             if len(value.encode("utf-8")) > 20000:
@@ -3113,12 +3946,12 @@ async def update_settings(request: dict, db: DbSession, admin: AdminUser):
                 "category": category,
                 "updated_by": admin.id,
             }
-            if key == ANALYTICS_TRACKING_CODE_SETTING_KEY:
+            if key in {ANALYTICS_TRACKING_CODE_SETTING_KEY, NAVIGATION_MENU_SETTING_KEY}:
                 update_values["is_public"] = True
             await db.execute(update(Setting).where(Setting.key == key).values(**update_values))
         else:
             is_public = (
-                True if key == ANALYTICS_TRACKING_CODE_SETTING_KEY
+                True if key in {ANALYTICS_TRACKING_CODE_SETTING_KEY, NAVIGATION_MENU_SETTING_KEY}
                 else bool(val.get("is_public")) if isinstance(val, dict) else False
             )
             db.add(
@@ -3137,3 +3970,21 @@ async def update_settings(request: dict, db: DbSession, admin: AdminUser):
     await invalidate_runtime_settings_cache()
     await ai_client.reset_clients()
     return {"status": "saved", "updated_keys": list(request.keys())}
+
+
+@router.delete("/settings/{key}")
+async def delete_setting(key: str, db: DbSession, _: AdminUser):
+    """删除非保护系统设置。关键运行配置请使用对应模块的重置接口。"""
+    if key in PROTECTED_SETTING_KEYS or is_sensitive_setting(key):
+        raise HTTPException(status_code=400, detail="该配置项受保护，不能直接删除")
+    result = await db.execute(select(Setting).where(Setting.key == key))
+    setting = result.scalar_one_or_none()
+    if not setting:
+        raise HTTPException(status_code=404, detail="配置项不存在")
+    await db.delete(setting)
+    await db.commit()
+    if key == ANALYTICS_TRACKING_CODE_SETTING_KEY:
+        apply_analytics_to_active_homepage(homepage_root(), "")
+    await invalidate_runtime_settings_cache()
+    await ai_client.reset_clients()
+    return {"status": "deleted", "key": key}

@@ -5,7 +5,7 @@ import secrets
 import string
 import uuid
 from datetime import datetime, date
-from sqlalchemy import String, Text, Integer, Float, DateTime, Date, Boolean
+from sqlalchemy import String, Text, Integer, BigInteger, Float, DateTime, Date, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 import enum
@@ -102,7 +102,11 @@ class Company(Base):
     # 投票
     upvotes: Mapped[int] = mapped_column(Integer, default=0)
 
+    # 公司详情页访问量（PV）
+    view_count: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+
     # 时间戳
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     submitted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    ai_reservation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)

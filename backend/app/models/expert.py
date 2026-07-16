@@ -15,6 +15,7 @@ class ExpertProfile(Base):
     __tablename__ = "expert_profiles"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str | None] = mapped_column(String(120), unique=True)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
     avatar_initials: Mapped[str | None] = mapped_column(String(12))
     title: Mapped[str] = mapped_column(String(160), nullable=False)

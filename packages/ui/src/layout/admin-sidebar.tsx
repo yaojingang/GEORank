@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {useTranslations} from 'next-intl';
 
 import {localizeHref} from '@georank/i18n/routing';
@@ -17,14 +18,16 @@ export function AdminSidebar({ locale = 'zh-CN' }: AdminSidebarProps) {
     <aside className="admin-sidebar">
       <div className="admin-sidebar__brand">{admin('brand')}</div>
       <nav className="admin-sidebar__nav">
-        <a href={localizeHref(locale, '/')}>{nav('dashboard')}</a>
-        <a href={localizeHref(locale, '/companies')}>{nav('companies')}</a>
-        <a href={localizeHref(locale, '/diagnostics')}>{nav('diagnostics')}</a>
-        <a href={localizeHref(locale, '/solutions')}>{nav('solutions')}</a>
-        <a href={localizeHref(locale, '/keywords')}>{nav('keywords')}</a>
-        <a href={localizeHref(locale, '/tutorials')}>{nav('tutorials')}</a>
-        <a href={localizeHref(locale, '/users')}>{nav('users')}</a>
-        <a href={localizeHref(locale, '/settings')}>{nav('settings')}</a>
+        <Link href={localizeHref(locale, '/')}>{nav('dashboard')}</Link>
+        <Link href={localizeHref(locale, '/companies')}>{nav('companies')}</Link>
+        <Link href={localizeHref(locale, '/diagnostics')}>{nav('diagnostics')}</Link>
+        <Link href={localizeHref(locale, '/solutions')}>{nav('solutions')}</Link>
+        <Link href={localizeHref(locale, '/keywords')}>{nav('keywords')}</Link>
+        <Link href={localizeHref(locale, '/experts')}>{nav('experts')}</Link>
+        <Link href={localizeHref(locale, '/homepage')}>{nav('homepage')}</Link>
+        <Link href={localizeHref(locale, '/tutorials')}>{nav('tutorials')}</Link>
+        <Link href={localizeHref(locale, '/users')}>{nav('users')}</Link>
+        <Link href={localizeHref(locale, '/settings')}>{nav('settings')}</Link>
       </nav>
       <div className="admin-sidebar__footer">
         <LanguageSwitcher locale={locale} variant="admin" />

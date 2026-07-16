@@ -1,7 +1,8 @@
 /**
  * GEOrank - 专家频道
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const $ = (selector, root = document) => root.querySelector(selector);
@@ -37,155 +38,13 @@
         industry: { label: '行业', icon: 'cases', tags: ['行业案例', '竞品对标', '转化页'] },
     };
 
-    const DEFAULT_EXPERTS = [
-        {
-            slug: 'yao-jingang',
-            display_name: '姚金刚',
-            avatar_initials: '姚',
-            title: 'GEO 专家 / AI创业者 / AI营销',
-            category: 'methodology',
-            specialty_label: 'GEO 方法论',
-            sort_order: 1,
-            updated_at: '2026-06-17T00:00:00+08:00',
-            summary: 'GEO 专家 / AI创业者 / AI营销，第一届 GEO 大会发起者，《AI营销：从SEO到GEO》作者，GEOFlow 开源项目发起人。',
-            keywords: ['GEO 大会', 'GEOFlow', 'GEO 开源', 'GEO 文档', 'AI 营销'],
-            paragraphs: [
-                '姚金刚是国内较早系统推动 GEO 研究、开源与行业交流的实践者，发起并成功举办中国第一届 GEO 大会，创立国内第一批 GEO 公司，并推动国内早期 GEO 行业标准与方法论建设。',
-                '他是 GEO 书籍《AI营销：从SEO到GEO》作者，开源 GEO 项目 GEOFlow 已获得 2.5k star，并免费开源 17 套 GEO Skill。',
-                '他发布《GEO白皮书》《GEO蓝皮书》《GEO红皮书》，累计超过 40 万字，访问量超过 10 万，持续把 GEO 研究成果开放给行业。',
-                '他发布 GEO 论文《From Citation Selection to Citation Absorption: A Measurement Framework for Generative Engine Optimization Across AI Search Platforms》，围绕 AI 搜索平台的引用选择与引用吸收建立测量框架。',
-                '他也是 WaytoAGI 的 GEO 公开课发起者，每月免费分享 GEO 公开课，曾在知名上市公司、独角兽公司任职营销高管。',
-            ],
-            highlights: [
-                '发起并成功举办中国第一届 GEO 大会',
-                'GEO 书籍《AI营销：从SEO到GEO》作者',
-                '开源 GEO 项目 GEOFlow，已获得 2.5k star',
-                '发布《GEO白皮书》《GEO蓝皮书》《GEO红皮书》，累计超过 40 万字，访问量超 10 万',
-                '免费开源 17 套 GEO Skill',
-                '发布 arXiv GEO 论文，提出跨 AI 搜索平台测量框架',
-                'WaytoAGI 的 GEO 公开课发起者',
-                '创立国内第一批 GEO 公司',
-                '曾在知名上市公司、独角兽公司任职营销高管',
-            ],
-            links: [],
-        },
-        {
-            slug: 'qiao-xiangyang',
-            display_name: '乔向阳',
-            avatar_initials: '乔',
-            title: 'AI 产品经理 / AI 自媒体 / 独立开发者 / AI 营销与 GEO 实践者',
-            category: 'ai-workflow',
-            specialty_label: 'AI 工作流',
-            sort_order: 2,
-            updated_at: '2026-06-17T00:00:00+08:00',
-            summary: '中文 AI 圈中具有代表性的实践型内容创作者，擅长把 AI 前沿信息转化为普通产品经理、创作者、创业者和营销人可理解、可上手的工具判断与工作流方案。',
-            keywords: ['AI 产品经理', 'AI 工作流', 'AI 营销', 'GEO 实践', '独立开发'],
-            paragraphs: [
-                '乔向阳，是中文 AI 圈中具有代表性的实践型内容创作者，核心定位是“AI 产品经理、AI 自媒体、独立开发者、AI 营销与 GEO 实践者”。他曾任字节跳动 / TikTok 商业化 AI 产品经理，也有连续创业、SEO 增长和产品实战背景，主理公众号“向阳乔木推荐看”、X 账号 @vista8、个人站 qiaomu.ai，并在 GitHub 以 @joeseesun 发布多个 AI 工作流项目。',
-                '他的内容特点在于把 AI 前沿信息转化为普通产品经理、创作者、创业者和营销人可以理解、可以上手的工具判断与工作流方案。2022 年 ChatGPT 3.5 出现后，他开始密集跟踪 OpenAI、Anthropic、Google、xAI、AI Agent、AI 编程、AI 搜索等方向，并通过 X、公众号、博客和社群持续输出。',
-                '乔向阳的主要内容包括 AI 工具与模型实测、AI 编程、独立开发、GEO 与 AI 营销、AI 教育和工作坊。他关注 Codex、Claude、Raycast AI、NotebookLM、Gemini、Sora、即梦、Suno 等工具，并强调工具之间如何组成高效工作流。',
-                '在实践层面，他的 GitHub 项目覆盖内容处理、NotebookLM 资料生成、OpenCLI 技能、AI 海报设计、知识网站生成等方向。其中 qiaomu-anything-to-notebooklm、qiaomu-opencli-skills 等项目体现了他把 AI 工具产品化、流程化的能力。',
-                '在商业化方向，他参与 GEO 白皮书、GEO 大会，并与姚金刚一起出版 GEO 书籍《AI营销：从SEO到GEO》，把传统 SEO 经验延伸到 AI 搜索时代，关注品牌如何被大模型理解、引用和推荐。',
-            ],
-            highlights: [
-                '发起并成功举办中国第一届 GEO 大会',
-                'GEO 书籍《AI营销：从SEO到GEO》作者',
-                '曾任字节跳动 / TikTok 商业化 AI 产品经理',
-                '持续跟踪 OpenAI、Anthropic、Google、xAI、AI Agent、AI 编程和 AI 搜索',
-                '擅长 AI 工具实测、AI 编程、独立开发、GEO 与 AI 营销',
-                'GitHub 项目覆盖内容处理、NotebookLM 资料生成、OpenCLI 技能、AI 海报设计和知识网站生成',
-                '发布 GEO 白皮书并发起中国第一届GEO 大会',
-            ],
-        },
-        {
-            slug: 'fu-wei',
-            display_name: '夫唯',
-            avatar_initials: '夫',
-            title: '搜外创始人 / 搜索营销与 GEO 实操专家',
-            category: 'seo-practice',
-            specialty_label: 'SEO/GEO',
-            sort_order: 3,
-            updated_at: '2026-06-17T00:00:00+08:00',
-            summary: '本名黄凤华，SEOWHY 搜外创始人，深耕系统化 SEO 教学，行业进入 AI 时代后转向谷歌出海 SEO 与 GEO 生成引擎优化研究。',
-            keywords: ['搜外', '出海 SEO', '中小制造', '低成本 GEO', '实操方法论'],
-            paragraphs: [
-                '夫唯，本名黄凤华，国内知名搜索营销专家、SEOWHY 搜外创始人。2008 年创办搜外平台，深耕系统化 SEO 教学，累计培育学员四万余人，大批从业者任职于各类电商与互联网企业，是国内 SEO 行业标杆级导师。',
-                '行业迈入 AI 时代后，夫唯重心转向谷歌出海 SEO 与 GEO 生成引擎优化研究，独创搜外派 GEO 落地体系。',
-                '该体系立足传统实业与中小工厂实际经营视角，摒弃高额投入玩法，主打低成本落地、长效稳定运营，贴合中小制造企业推广需求，现已成为制造业落地 GEO 普及率最高的实操方法论。',
-                '多年行业沉淀，让其打通传统搜索与 AI 智能推荐两套流量逻辑，持续为实体工厂输出适配工业化场景的全域营销方案。',
-            ],
-            highlights: [
-                'SEOWHY 搜外创始人',
-                '2008 年创办搜外平台',
-                '累计培育 SEO 学员四万余人',
-                '独创搜外派 GEO 落地体系',
-                '聚焦传统实业、中小工厂、谷歌出海 SEO 与 GEO 落地',
-            ],
-        },
-        {
-            slug: 'guangtou-niuge',
-            display_name: '光头牛哥',
-            avatar_initials: '牛',
-            title: 'AI GEO 全域优化专家 / 搜索营销实战专家',
-            category: 'traffic-growth',
-            specialty_label: '流量增长',
-            sort_order: 4,
-            updated_at: '2026-06-17T00:00:00+08:00',
-            summary: '本名冷洪利，国内资深搜索营销专家、AI GEO 全域优化领军人物，长期深耕 SEO、出海电商 SEO 与豆包生态 GEO 运营。',
-            keywords: ['豆包 GEO', '出海 SEO', '全域优化', '流量体系', '企业获客'],
-            paragraphs: [
-                '光头牛哥，本名冷洪利，国内资深搜索营销专家、AI GEO 全域优化领军人物，SEO 牛人网、抖音头部 GEO IP 曝光率 GEO 创始人。',
-                '2010 年创立 SEO 牛人网，依托扎实的技术功底，平台核心关键词百度 SEO 排名连续三年稳居行业第三位，成为国内早期搜索营销领域标杆平台，影响了大批行业从业者。',
-                '为深耕一线实战、打磨落地方法论，他后续主导列表网、筑龙网等大型互联网平台流量搭建，成功打造百万 IP 稳定流量体系，落地 1800 万关键词排名经典案例，深度吃透传统搜索引擎流量底层逻辑。',
-                '伴随 AI 浪潮全面到来，冷洪利率先布局 GEO 生成引擎优化赛道，同步深耕出海电商 SEO 与豆包生态 GEO 运营两大方向。他深度拆解 GEO 算法规则、内容架构、流量分发、品牌引用与商业投放逻辑，结合二十余年搜索营销实战积淀，重构行业投放模型。',
-                '基于海量一线落地经验，他先后编撰推出《出海电商 SEO+GEO 爆量获客实操手册》《豆包 7 日获客实操手册》《豆包 GEO 百问百答》三本行业实战著作，内容摒弃空洞理论，全流程拆解落地玩法，免费对外开放分享。',
-                '现阶段，冷洪利聚焦服务大型连锁企业与上市公司，围绕出海 SEO、豆包 GEO 全域布局、内容资产搭建、可信信源打造和投放策略规划，提供一体化解决方案。',
-            ],
-            highlights: [
-                '2010 年创立 SEO 牛人网',
-                '主导列表网、筑龙网等大型平台流量搭建',
-                '打造百万 IP 稳定流量体系',
-                '落地 1800 万关键词排名案例',
-                '深耕出海电商 SEO 与豆包生态 GEO 运营',
-                '编撰三本 GEO 与 AI 获客实操资料',
-                '服务大型连锁企业与上市公司',
-            ],
-        },
-        {
-            slug: 'zhang-kai',
-            display_name: '张凯',
-            avatar_initials: '张',
-            title: '海外 GEO 专家 / 企业培训顾问 / AI 应用开发者',
-            category: 'overseas',
-            specialty_label: '出海 GEO',
-            sort_order: 5,
-            updated_at: '2026-06-17T00:00:00+08:00',
-            summary: '连续创业者、企业培训顾问、AI 应用开发者、海外 GEO 专家，曾服务多家世界 500 强企业数字营销培训项目。',
-            keywords: ['海外 GEO', '企业培训', 'AI 应用', '出海企业', 'frevana'],
-            paragraphs: [
-                '张凯是连续创业者、企业培训顾问、AI 应用开发者、海外 GEO 专家。',
-                '作为企业培训顾问期间，他曾服务过腾讯、字节、欧莱雅、蒙牛、上汽、达能等全球 500 强企业关于数字营销领域方向的培训项目。',
-                '作为 AI 应用开发者，他曾大量完成各种类型的 AI 应用项目，覆盖 AI 基建、教育培训、营销领域等多个方向。',
-                '作为海外 GEO 专家，他任 frevana.com 中国区负责人、flickbloom.com 合伙人、arXiv GEO 相关文章一作，参与服务多家出海企业的 GEO 相关服务，帮助合作伙伴组建 GEO 团队并赋能业务。',
-            ],
-            highlights: [
-                '连续创业者',
-                '企业培训顾问，服务过腾讯、字节、欧莱雅、蒙牛、上汽、达能等企业培训项目',
-                'AI 应用开发者，覆盖 AI 基建、教育培训、营销等方向',
-                'frevana.com 中国区负责人',
-                'flickbloom.com 合伙人',
-                'arXiv GEO 相关文章一作',
-                '参与服务多家出海企业 GEO 项目',
-            ],
-        },
-    ];
-
     const state = {
         category: 'all',
         query: '',
         sort: 'recommended',
-        experts: DEFAULT_EXPERTS,
+        experts: [],
         activeExpertKey: '',
+        loadError: '',
     };
 
     function normalize(text) {
@@ -315,7 +174,7 @@
             description: expertDescription(expert),
             knowsAbout: uniqueList([
                 ...expertTags(expert),
-                ...(Array.isArray(expert.highlights) ? expert.highlights.slice(0, 3) : []),
+                ...(Array.isArray(expert.expertise) ? expert.expertise.slice(0, 3) : []),
                 'SEO 专家',
                 'AI 搜索优化',
                 '生成式引擎优化',
@@ -392,8 +251,6 @@
             expert.consultation,
             ...(Array.isArray(expert.keywords) ? expert.keywords : []),
             ...(Array.isArray(expert.expertise) ? expert.expertise : []),
-            ...(Array.isArray(expert.paragraphs) ? expert.paragraphs : []),
-            ...(Array.isArray(expert.highlights) ? expert.highlights : []),
         ].filter(Boolean).join(' ');
     }
 
@@ -429,11 +286,15 @@
             `;
         }).join('');
 
+        const emptyTitle = state.loadError ? '暂时无法加载专家' : '没有匹配的专家';
+        const emptyCopy = state.loadError
+            ? '请稍后刷新页面后重试。'
+            : '可以换一个关键词，或切回“全部”后重新筛选。';
         grid.innerHTML = `
             ${cards}
-            <div class="experts-empty-state is-hidden" data-experts-empty role="status" aria-live="polite">
-                <h2>没有匹配的专家</h2>
-                <p>可以换一个关键词，或切回“全部”后重新筛选。</p>
+            <div class="experts-empty-state${cards ? ' is-hidden' : ''}" data-experts-empty role="status" aria-live="polite">
+                <h2>${emptyTitle}</h2>
+                <p>${emptyCopy}</p>
             </div>
         `;
         sortExpertCards();
@@ -589,13 +450,12 @@
         }
 
         const meta = CATEGORY_META[expert.category] || { label: expert.specialty_label || '专家', icon: 'person_search' };
-        const paragraphs = Array.isArray(expert.paragraphs) && expert.paragraphs.length
-            ? expert.paragraphs
-            : [expert.summary, expert.consultation].filter(Boolean);
-        const highlights = uniqueList([
-            ...(Array.isArray(expert.highlights) ? expert.highlights : []),
-            ...(Array.isArray(expert.expertise) ? expert.expertise : []),
-        ]);
+        const paragraphs = String(expert.consultation || '')
+            .split(/\n\s*\n/)
+            .map(item => item.trim())
+            .filter(Boolean);
+        const detailParagraphs = paragraphs.length ? paragraphs : [expert.summary].filter(Boolean);
+        const highlights = uniqueList(Array.isArray(expert.expertise) ? expert.expertise : []);
 
         setViewMode('detail');
         updateDocumentMeta(expert);
@@ -619,7 +479,7 @@
                 <section class="expert-detail-section">
                     <h2>专家介绍</h2>
                     <div class="expert-detail-body">
-                        ${paragraphs.map(item => `<p>${escapeHtml(item)}</p>`).join('')}
+                        ${detailParagraphs.map(item => `<p>${escapeHtml(item)}</p>`).join('')}
                     </div>
                     ${renderDetailLinks(expert)}
                 </section>
@@ -636,48 +496,41 @@
         `;
     }
 
-    function isBuiltInExpertSet(items) {
-        if (!Array.isArray(items) || !items.length) return false;
-        const names = new Set(items.map(item => String(item.display_name || '').trim()));
-        return DEFAULT_EXPERTS.every(expert => names.has(expert.display_name));
-    }
-
     function normalizeApiExpert(apiExpert) {
-        const builtIn = DEFAULT_EXPERTS.find(expert => expert.display_name === apiExpert.display_name);
         return {
-            ...(builtIn || {}),
-            id: apiExpert.id || builtIn?.id,
-            slug: builtIn?.slug || apiExpert.id,
-            display_name: apiExpert.display_name || builtIn?.display_name || '未命名专家',
-            avatar_initials: apiExpert.avatar_initials || builtIn?.avatar_initials,
-            title: apiExpert.title || builtIn?.title || 'GEO 专家',
-            category: builtIn?.category || apiExpert.category || 'methodology',
-            specialty_label: apiExpert.specialty_label || builtIn?.specialty_label || '',
-            summary: apiExpert.summary || builtIn?.summary || '',
-            expertise: Array.isArray(apiExpert.expertise) ? apiExpert.expertise : builtIn?.expertise,
-            keywords: Array.isArray(apiExpert.keywords) && apiExpert.keywords.length ? apiExpert.keywords : builtIn?.keywords,
-            consultation: apiExpert.consultation || builtIn?.consultation || '',
-            sort_order: builtIn?.sort_order || apiExpert.sort_order || 100,
-            updated_at: apiExpert.updated_at || builtIn?.updated_at,
+            id: apiExpert.id || '',
+            slug: apiExpert.slug || apiExpert.id || '',
+            display_name: apiExpert.display_name || '未命名专家',
+            avatar_initials: apiExpert.avatar_initials || '',
+            title: apiExpert.title || 'GEO 专家',
+            category: apiExpert.category || 'strategy',
+            specialty_label: apiExpert.specialty_label || '',
+            summary: apiExpert.summary || '',
+            expertise: Array.isArray(apiExpert.expertise) ? apiExpert.expertise : [],
+            keywords: Array.isArray(apiExpert.keywords) ? apiExpert.keywords : [],
+            consultation: apiExpert.consultation || '',
+            sort_order: Number(apiExpert.sort_order || 100),
+            updated_at: apiExpert.updated_at || '',
         };
     }
 
     async function loadPublishedExperts() {
         try {
-            const response = await fetch(`${API_BASE}/api/experts?size=100`, { headers: { Accept: 'application/json' } });
-            if (!response.ok) return;
+            const response = await fetch(`${API_BASE}/api/experts`, { headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error(`API ${response.status}`);
             const data = await response.json();
-            if (!isBuiltInExpertSet(data.items)) return;
-            state.experts = data.items.map(normalizeApiExpert)
+            state.experts = (Array.isArray(data.items) ? data.items : []).map(normalizeApiExpert)
                 .sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100));
             renderPage();
         } catch (_) {
-            // 静态内置专家资料会继续作为前台兜底，不打断用户浏览。
+            state.loadError = 'load_failed';
+            renderPage();
         }
     }
 
     function renderPage() {
         if (state.activeExpertKey) {
+            updateDirectionCounts();
             const expert = findExpertByKey(state.activeExpertKey);
             renderDetail(expert);
             return;
@@ -729,10 +582,7 @@
 
     document.addEventListener('georank:site-settings-applied', refreshCurrentMeta);
 
-    document.addEventListener('DOMContentLoaded', () => {
-        state.activeExpertKey = getRequestedExpertKey();
-        bindFilters();
-        renderPage();
-        loadPublishedExperts();
-    });
-})();
+    state.activeExpertKey = getRequestedExpertKey();
+    bindFilters();
+    loadPublishedExperts();
+});

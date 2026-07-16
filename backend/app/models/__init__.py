@@ -7,7 +7,17 @@ from app.models.vote import CompanyVote
 from app.models.settings import Setting
 from app.models.keyword import KeywordPack, KeywordItem
 from app.models.expert import ExpertProfile
-from app.models.ai_usage import AIUsageEvent, UserDailyUsage
+from app.models.ai_usage import (
+    AICreditWallet,
+    AIGlobalDailyBudget,
+    AIPrincipalDevice,
+    AIPrincipalUser,
+    AIQuotaAuditLog,
+    AIQuotaPrincipal,
+    AITokenReservation,
+    AIUsageEvent,
+    UserDailyUsage,
+)
 from app.models.homepage import HomepageRelease
 
 __all__ = [
@@ -24,5 +34,12 @@ __all__ = [
     "ExpertProfile",
     "AIUsageEvent",
     "UserDailyUsage",
+    "AIQuotaPrincipal",
+    "AIPrincipalUser",
+    "AIPrincipalDevice",
+    "AICreditWallet",
+    "AIGlobalDailyBudget",
+    "AITokenReservation",
+    "AIQuotaAuditLog",
     "HomepageRelease",
 ]

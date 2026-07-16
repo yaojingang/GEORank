@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {useTranslations} from 'next-intl';
 
 import type { SolutionConversationDetail, SolutionConversationSummary, SolutionStreamEvent, UserOut } from '@georank/api-sdk';
-import { getSolutionConversation, listSolutionConversations, streamSolutionChat } from '@georank/api-sdk';
+import { ApiRequestError, getSolutionConversation, listSolutionConversations, streamSolutionChat } from '@georank/api-sdk';
+import {localizeHref} from '@georank/i18n/routing';
 
 import { SessionGuard } from '../auth/session-guard';
 
@@ -73,11 +74,11 @@ function SolutionsWorkbenchInner({
   const t = useTranslations('web.solutions');
   const [conversations, setConversations] = useState<SolutionConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState(initialConversationId || '');
-  const [activeConversation, setActiveConversation] = useState<SolutionConversationDetail | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState('');
+  const [quotaGuidance, setQuotaGuidance] = useState<{label: string; officialUrl?: string} | null>(null);
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [recommendedCount, setRecommendedCount] = useState(0);
   const [followups, setFollowups] = useState<Array<{ label: string; prompt: string }>>([]);
@@ -93,7 +94,6 @@ function SolutionsWorkbenchInner({
   const loadConversation = useCallback(
     async (conversationId: string) => {
       const next = await getSolutionConversation(token, conversationId);
-      setActiveConversation(next);
       setMessages(toChatMessages(next));
       setActiveConversationId(next.id);
       setRecommendedCount(
@@ -105,39 +105,59 @@ function SolutionsWorkbenchInner({
   );
 
   useEffect(() => {
-    loadConversations().catch((reason: unknown) => {
-      setError(reason instanceof Error ? reason.message : t('historyLoadFailed'));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      loadConversations().catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : t('historyLoadFailed'));
+        }
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [loadConversations, t]);
 
   useEffect(() => {
     if (!activeConversationId) return;
-    loadConversation(activeConversationId).catch((reason: unknown) => {
-      setError(reason instanceof Error ? reason.message : t('detailLoadFailed'));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      loadConversation(activeConversationId).catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : t('detailLoadFailed'));
+        }
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [activeConversationId, loadConversation, t]);
 
   async function sendMessage(prompt: string) {
     const content = prompt.trim();
     if (!content || streaming) return;
 
+    const createdAt = new Date().toISOString();
     const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: `user-${createdAt}`,
       role: 'user',
       content,
-      created_at: new Date().toISOString()
+      created_at: createdAt
     };
 
-    const assistantId = `assistant-${Date.now()}`;
+    const assistantId = `assistant-${createdAt}`;
     const assistantMessage: ChatMessage = {
       id: assistantId,
       role: 'assistant',
       content: '',
-      created_at: new Date().toISOString()
+      created_at: createdAt
     };
 
     setInput('');
     setError('');
+    setQuotaGuidance(null);
     setStreaming(true);
     setFollowups([]);
     setMessages((current) => [...current, userMessage, assistantMessage]);
@@ -183,6 +203,16 @@ function SolutionsWorkbenchInner({
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('sendFailed'));
+      if (reason instanceof ApiRequestError && reason.guidance) {
+        const label = typeof reason.guidance.cta_label === 'string'
+          ? reason.guidance.cta_label
+          : t('configureApi');
+        const officialUrl = typeof reason.guidance.official_url === 'string'
+          && /^https?:\/\//i.test(reason.guidance.official_url)
+          ? reason.guidance.official_url
+          : undefined;
+        setQuotaGuidance({label, officialUrl});
+      }
       setStreaming(false);
     }
   }
@@ -300,6 +330,18 @@ function SolutionsWorkbenchInner({
               </button>
             </div>
             {error ? <p className="tool-error">{error}</p> : null}
+            {quotaGuidance ? (
+              <div className="tool-chip-row">
+                <a className="tool-chip" href={`${localizeHref(locale, '/profile')}#model-api`}>
+                  {t('configureApi')}
+                </a>
+                {quotaGuidance.officialUrl ? (
+                  <a className="tool-chip" href={quotaGuidance.officialUrl} rel="noreferrer" target="_blank">
+                    {quotaGuidance.label}
+                  </a>
+                ) : null}
+              </div>
+            ) : null}
           </form>
         </section>
       </div>

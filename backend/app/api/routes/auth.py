@@ -13,7 +13,14 @@ from sqlalchemy import or_, select
 from app.core.config import settings
 from app.core.deps import DbSession, CurrentUser
 from app.models.user import User, UserRole
-from app.schemas.user import RegisterRequest, LoginRequest, PasswordChangeRequest, TokenResponse, UserOut
+from app.schemas.user import (
+    LoginRequest,
+    PasswordChangeRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserOut,
+    UserProfileUpdateRequest,
+)
 
 router = APIRouter()
 
@@ -147,6 +154,64 @@ async def get_me(current_user: CurrentUser):
         role=current_user.role.value if hasattr(current_user.role, "value") else current_user.role,
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
+    )
+
+
+@router.put("/me", response_model=UserOut)
+async def update_me(data: UserProfileUpdateRequest, current_user: CurrentUser, db: DbSession):
+    """修改当前登录用户资料"""
+    updates = data.model_dump(exclude_unset=True)
+
+    if "username" in updates and updates["username"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="用户名不能为空")
+    if "email" in updates and updates["email"] is None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="邮箱不能为空")
+
+    next_username = updates["username"].strip() if "username" in updates and updates["username"] else None
+    if "username" in updates and not next_username:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="用户名不能为空")
+    if next_username and next_username != current_user.username:
+        result = await db.execute(
+            select(User.id).where(User.username == next_username, User.id != current_user.id)
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名已被占用")
+        current_user.username = next_username
+
+    next_email = str(updates["email"]).strip() if "email" in updates and updates["email"] else None
+    if "email" in updates and not next_email:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="邮箱不能为空")
+    if next_email and next_email != current_user.email:
+        result = await db.execute(
+            select(User.id).where(User.email == next_email, User.id != current_user.id)
+        )
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="邮箱已被注册")
+        current_user.email = next_email
+
+    if "phone" in updates:
+        raw_phone = updates["phone"]
+        next_phone = _normalize_phone(raw_phone) if raw_phone and str(raw_phone).strip() else None
+        if next_phone != current_user.phone:
+            if next_phone:
+                result = await db.execute(
+                    select(User.id).where(User.phone == next_phone, User.id != current_user.id)
+                )
+                if result.scalar_one_or_none():
+                    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="手机号已被注册")
+            current_user.phone = next_phone
+
+    await db.commit()
+    await db.refresh(current_user)
+    return UserOut(
+        id=str(current_user.id),
+        email=current_user.email,
+        username=current_user.username,
+        phone=current_user.phone,
+        role=current_user.role.value if hasattr(current_user.role, "value") else current_user.role,
+        is_active=current_user.is_active,
+        is_verified=current_user.is_verified,
+        created_at=current_user.created_at.isoformat() if current_user.created_at else None,
     )
 
 

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <title>专家管理 - Admin | GEOrank</title>
-    <style>body{opacity:0}</style>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
@@ -90,6 +89,11 @@
                     <select id="expert-category-filter" class="form-input w-full xl:w-[180px] text-sm py-2.5">
                         <option value="">全部方向</option>
                         <option value="strategy">策略</option>
+                        <option value="methodology">方法论</option>
+                        <option value="ai-workflow">AI 工作流</option>
+                        <option value="seo-practice">SEO/GEO</option>
+                        <option value="traffic-growth">流量增长</option>
+                        <option value="overseas">出海 GEO</option>
                         <option value="technical">技术</option>
                         <option value="content">内容</option>
                         <option value="reputation">品牌治理</option>
@@ -175,6 +179,10 @@
                         <input id="expert-display-name" class="form-input" placeholder="例如：许然" required>
                     </label>
                     <label class="space-y-2 text-sm">
+                        <span class="font-semibold text-slate-700">详情链接标识</span>
+                        <input id="expert-slug" class="form-input" placeholder="例如：xu-ran" pattern="[a-z0-9]+(?:-[a-z0-9]+)*">
+                    </label>
+                    <label class="space-y-2 text-sm">
                         <span class="font-semibold text-slate-700">头像缩写</span>
                         <input id="expert-avatar-initials" class="form-input" placeholder="例如：XR">
                     </label>
@@ -187,6 +195,11 @@
                             <span class="font-semibold text-slate-700">方向</span>
                             <select id="expert-category" class="form-input">
                                 <option value="strategy">策略</option>
+                                <option value="methodology">方法论</option>
+                                <option value="ai-workflow">AI 工作流</option>
+                                <option value="seo-practice">SEO/GEO</option>
+                                <option value="traffic-growth">流量增长</option>
+                                <option value="overseas">出海 GEO</option>
                                 <option value="technical">技术</option>
                                 <option value="content">内容</option>
                                 <option value="reputation">品牌治理</option>

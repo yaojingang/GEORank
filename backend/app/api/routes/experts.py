@@ -16,6 +16,7 @@ router = APIRouter()
 def serialize_expert(expert: ExpertProfile) -> dict:
     return {
         "id": str(expert.id),
+        "slug": expert.slug,
         "display_name": expert.display_name,
         "avatar_initials": expert.avatar_initials,
         "title": expert.title,
@@ -47,6 +48,7 @@ async def list_public_experts(
         like = f"%{search.strip()}%"
         query = query.where(
             or_(
+                ExpertProfile.slug.ilike(like),
                 ExpertProfile.display_name.ilike(like),
                 ExpertProfile.title.ilike(like),
                 ExpertProfile.specialty_label.ilike(like),

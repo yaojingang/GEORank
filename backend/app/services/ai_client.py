@@ -13,6 +13,10 @@ DEFAULT_CHAT_MAX_TOKENS = 4096
 ACTION_PLAN_MAX_TOKENS = 6000
 
 
+class EmbeddingNotConfiguredError(ValueError):
+    """Raised when no dedicated embedding provider is configured."""
+
+
 class AIClient:
     """OpenAI API 封装，懒初始化"""
 
@@ -48,7 +52,9 @@ class AIClient:
         if self._embed_client is None or self._embed_client_signature != signature:
             key = config["embedding_api_key"]
             if not key:
-                raise ValueError("Embedding API Key 未配置，请在 .env 中填入 EMBEDDING_API_KEY 或在后台系统设置中配置")
+                raise EmbeddingNotConfiguredError(
+                    "Embedding API Key 未配置，请在 .env 中填入 EMBEDDING_API_KEY 或在后台系统设置中配置"
+                )
             from openai import AsyncOpenAI
             # 如果配置了专用 Embedding base_url 则用它，否则用默认 OpenAI
             base_url = config["embedding_base_url"] or None
@@ -335,8 +341,10 @@ class AIClient:
                     merged = "".join(chunks)
                     if self._is_blank_text(merged):
                         raise ValueError(f"{target_model} 流式返回空内容")
-                    for token in chunks:
-                        yield token
+                    # The upstream stream has already completed and is buffered.
+                    # Yield the merged reply once so a downstream SSE disconnect
+                    # cannot leave accounting with only the first buffered chunk.
+                    yield merged
                     return
                 except Exception as exc:
                     errors.append(exc)
@@ -378,8 +386,7 @@ class AIClient:
                 merged = "".join(chunks)
                 if self._is_blank_text(merged):
                     raise ValueError(f"{target_model} 流式返回空内容")
-                for token in chunks:
-                    yield token
+                yield merged
                 return
             except Exception as exc:
                 errors.append(exc)
@@ -501,13 +508,16 @@ class AIClient:
         from sqlalchemy import select
         from app.models.company import Company, PublishStatus
 
-        # Step 1: Embedding
-        try:
-            query_vector = await self.embed(message)
-            # Step 2: Qdrant 检索
-            search_results = vector_store.search_companies(query_vector, top_k=5)
-        except Exception:
-            search_results = []
+        # BYOK 请求只能使用用户自己的模型凭据。平台 Embedding 属于平台成本，
+        # 因此 BYOK 路径直接使用数据库中的确定性推荐作为上下文。
+        search_results = []
+        if provider_override is None:
+            try:
+                query_vector = await self.embed(message)
+                # Step 2: Qdrant 检索
+                search_results = vector_store.search_companies(query_vector, top_k=5)
+            except Exception:
+                search_results = []
 
         # Step 3: 获取公司详情
         company_ids = list({r["company_id"] for r in search_results if r.get("company_id")})
@@ -604,11 +614,13 @@ class AIClient:
         from app.services.company_retrieval import fallback_company_recommendations
         from app.services.runtime_settings import get_solution_template_config
 
-        try:
-            query_vector = await self.embed(message)
-            search_results = vector_store.search_companies(query_vector, top_k=5)
-        except Exception:
-            search_results = []
+        search_results = []
+        if provider_override is None:
+            try:
+                query_vector = await self.embed(message)
+                search_results = vector_store.search_companies(query_vector, top_k=5)
+            except Exception:
+                search_results = []
         company_ids = list({r["company_id"] for r in search_results if r.get("company_id")})
 
         if not company_ids and db is not None:
@@ -647,13 +659,13 @@ class AIClient:
             yield {"type": "text", "content": token}
 
     async def extract_company_info(self, html: str) -> dict:
-        """从 HTML 中提取结构化公司信息（用于爬取清洗任务）"""
-        system = """你是企业官网结构化提取专家。从 HTML 中提取公司信息，严格返回 JSON：
+        """从官网页面正文中提取结构化公司信息（用于爬取清洗任务）。"""
+        system = """你是企业官网结构化提取专家。从带页面来源标记的官网正文中提取公司信息，严格返回 JSON：
 {
   "name": "公司名",
   "description": "300字内完整介绍",
   "short_description": "80字内一句话简介",
-  "category": "GEO工具/AI搜索/GEO咨询/知识图谱/AI写作/企业AI/其他",
+  "category": "教育培训/企业服务/AI与软件/营销广告/金融/医疗健康/消费零售/工业制造/文化传媒/交通出行/房地产/专业服务/其他",
   "headquarters": "总部城市或地区",
   "funding_stage": "种子轮/天使轮/A轮/B轮/C轮/已盈利/未知",
   "employee_count": "1-10人/10-50人/50-200人/200-500人/500-1000人/1000人以上/未知",
@@ -664,12 +676,13 @@ class AIClient:
 }
 要求：
 1. 只提取页面明确出现或可高度确定的信息。
-2. tags 更偏业务语义标签，如 GEO优化、AI搜索、品牌可见度。
-3. tech_stack 只填明确出现的技术、平台、工具名。
-4. team_members 最多 6 人。
-5. 严格返回 JSON，不要额外解释。"""
+2. category 必须选择最贴近公司主营业务的一项，禁止因页面使用 AI 技术就统一归为 AI与软件。
+3. tags 使用主营产品、服务对象、业务场景等语义标签。
+4. tech_stack 只填明确出现的技术、平台、工具名。
+5. team_members 最多 6 人。
+6. 严格返回 JSON，不要额外解释。"""
 
-        raw = await self.complete(system, f"HTML 内容：\n{html[:5000]}", temperature=0.1)
+        raw = await self.complete(system, f"官网页面正文：\n{html[:24000]}", temperature=0.1)
         start, end = raw.find("{"), raw.rfind("}") + 1
         if start >= 0 and end > start:
             return json.loads(raw[start:end])

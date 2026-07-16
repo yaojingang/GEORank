@@ -29,6 +29,7 @@ class CompanyBrief(BaseModel):
     pipeline_status: str
     publish_status: str
     upvotes: int = 0
+    view_count: int = 0
 
     model_config = {"from_attributes": True}
 

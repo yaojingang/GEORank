@@ -1,11 +1,12 @@
 import unittest
 import uuid
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app.services.company_retrieval import (
     fallback_company_recommendations,
     fallback_similar_companies,
+    rank_similar_companies,
 )
 
 
@@ -113,3 +114,21 @@ class CompanyRetrievalTests(unittest.IsolatedAsyncioTestCase):
             results = await fallback_similar_companies(None, target, limit=2)
 
         self.assertEqual(results[0].name, "GraphPulse")
+
+    async def test_rank_similar_companies_uses_vector_results_before_fallback(self):
+        target = _company("Target", category="教育培训", tags=["教育"])
+        vector_match = _company("Vector Match", category="企业服务", tags=["软件"])
+
+        with patch(
+            "app.services.vector_store.vector_store.get_similar_company_ids",
+            new=AsyncMock(return_value=[str(target.id), str(vector_match.id)]),
+        ), patch(
+            "app.services.company_retrieval._get_published_companies_by_ids",
+            new=AsyncMock(return_value=[vector_match]),
+        ), patch(
+            "app.services.company_retrieval.fallback_similar_companies",
+            new=AsyncMock(return_value=[]),
+        ):
+            results = await rank_similar_companies(None, target, limit=3)
+
+        self.assertEqual([company.name for company in results], ["Vector Match"])

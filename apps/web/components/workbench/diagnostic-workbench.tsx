@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {useTranslations} from 'next-intl';
 
 import type { DiagnosticHistoryItem, DiagnosticReportResponse } from '@georank/api-sdk';
-import { getDiagnosticReport, listDiagnosticHistory, startDiagnosis } from '@georank/api-sdk';
+import { ApiRequestError, getDiagnosticReport, listDiagnosticHistory, startDiagnosis } from '@georank/api-sdk';
+import {localizeHref} from '@georank/i18n/routing';
 
 import { SessionGuard } from '../auth/session-guard';
 
@@ -92,6 +93,7 @@ function DiagnosticWorkbenchInner({
   const [activeReportId, setActiveReportId] = useState(initialReportId || '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showApiGuidance, setShowApiGuidance] = useState(false);
 
   const loadHistory = useCallback(async () => {
     const nextHistory = await listDiagnosticHistory(token);
@@ -112,9 +114,18 @@ function DiagnosticWorkbenchInner({
   );
 
   useEffect(() => {
-    loadHistory().catch((reason: unknown) => {
-      setError(reason instanceof Error ? reason.message : t('historyLoadFailed'));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      loadHistory().catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : t('historyLoadFailed'));
+        }
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [loadHistory, t]);
 
   useEffect(() => {
@@ -156,6 +167,7 @@ function DiagnosticWorkbenchInner({
 
     setSubmitting(true);
     setError('');
+    setShowApiGuidance(false);
     try {
       const response = await startDiagnosis(token, { url: normalizedUrl });
       setUrl(normalizedUrl);
@@ -163,6 +175,7 @@ function DiagnosticWorkbenchInner({
       await loadHistory();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('startFailed'));
+      setShowApiGuidance(reason instanceof ApiRequestError && Boolean(reason.guidance));
     } finally {
       setSubmitting(false);
     }
@@ -247,6 +260,11 @@ function DiagnosticWorkbenchInner({
               </button>
             </div>
             {error ? <p className="tool-error">{error}</p> : null}
+            {showApiGuidance ? (
+              <a className="tool-chip" href={`${localizeHref(locale, '/profile')}#model-api`}>
+                {t('configureApi')}
+              </a>
+            ) : null}
           </form>
         </section>
 

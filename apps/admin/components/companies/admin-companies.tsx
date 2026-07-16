@@ -1,17 +1,20 @@
 'use client';
 
+import type {Dispatch, FormEvent, SetStateAction} from 'react';
 import {useEffect, useMemo, useState} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {useTranslations} from 'next-intl';
 
-import type {AdminCompanyDetail, AdminCompanySummary} from '@georank/api-sdk';
+import type {AdminCompanyDetail, AdminCompanyPayload, AdminCompanySummary} from '@georank/api-sdk';
 import {
   approveAdminCompany,
+  createAdminCompany,
   deleteAdminCompany,
   getAdminCompanyDetail,
   listAdminCompanies,
   rejectAdminCompany,
-  retryAdminCompanyPipeline
+  retryAdminCompanyPipeline,
+  updateAdminCompany
 } from '@georank/api-sdk';
 
 type AdminCompaniesProps = {
@@ -24,6 +27,95 @@ type ListState = {
   page: number;
   pages: number;
 };
+
+type CompanyDraft = {
+  name: string;
+  url: string;
+  logo_url: string;
+  short_description: string;
+  description: string;
+  category: string;
+  tags: string;
+  tech_stack: string;
+  is_geo_certified: boolean;
+  geo_score: string;
+  publish_status: string;
+  pipeline_status: string;
+  founded_date: string;
+  headquarters: string;
+  employee_count: string;
+  funding_stage: string;
+  tech_level: string;
+};
+
+const emptyCompanyDraft: CompanyDraft = {
+  name: '',
+  url: '',
+  logo_url: '',
+  short_description: '',
+  description: '',
+  category: '',
+  tags: '',
+  tech_stack: '',
+  is_geo_certified: false,
+  geo_score: '',
+  publish_status: 'draft',
+  pipeline_status: 'completed',
+  founded_date: '',
+  headquarters: '',
+  employee_count: '',
+  funding_stage: '',
+  tech_level: ''
+};
+
+function parseList(value: string) {
+  return value
+    .split(/[\n,，]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function companyToDraft(company: AdminCompanyDetail): CompanyDraft {
+  return {
+    name: company.name || '',
+    url: company.url || '',
+    logo_url: company.logo_url || '',
+    short_description: company.short_description || '',
+    description: company.description || '',
+    category: company.category || '',
+    tags: (company.tags || []).join(', '),
+    tech_stack: (company.tech_stack || []).join(', '),
+    is_geo_certified: Boolean(company.is_geo_certified),
+    geo_score: typeof company.geo_score === 'number' ? String(company.geo_score) : '',
+    publish_status: company.publish_status || 'draft',
+    pipeline_status: company.pipeline_status || 'completed',
+    founded_date: company.founded_date || '',
+    headquarters: company.headquarters || '',
+    employee_count: company.employee_count || '',
+    funding_stage: company.funding_stage || '',
+    tech_level: company.tech_level || ''
+  };
+}
+
+function draftToPayload(draft: CompanyDraft): AdminCompanyPayload {
+  return {
+    name: draft.name.trim(),
+    url: draft.url.trim(),
+    logo_url: draft.logo_url.trim() || null,
+    short_description: draft.short_description.trim() || null,
+    description: draft.description.trim() || null,
+    category: draft.category.trim() || null,
+    tags: parseList(draft.tags),
+    tech_stack: parseList(draft.tech_stack),
+    is_geo_certified: draft.is_geo_certified,
+    geo_score: draft.geo_score.trim() ? Number(draft.geo_score) : null,
+    founded_date: draft.founded_date.trim() || null,
+    headquarters: draft.headquarters.trim() || null,
+    employee_count: draft.employee_count.trim() || null,
+    funding_stage: draft.funding_stage.trim() || null,
+    tech_level: draft.tech_level.trim() || null
+  };
+}
 
 export function AdminCompanies({token}: AdminCompaniesProps) {
   const t = useTranslations('admin.companies');
@@ -45,6 +137,10 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
   });
   const [selectedCompanyId, setSelectedCompanyId] = useState(searchParams.get('company') || '');
   const [detail, setDetail] = useState<AdminCompanyDetail | null>(null);
+  const [editDraft, setEditDraft] = useState<CompanyDraft>(emptyCompanyDraft);
+  const [createDraft, setCreateDraft] = useState<CompanyDraft>(emptyCompanyDraft);
+  const [showCreate, setShowCreate] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState('');
@@ -54,7 +150,6 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
     let active = true;
     setLoading(true);
     setError('');
-    setActionMessage('');
 
     listAdminCompanies(token, {
       page,
@@ -71,14 +166,15 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
           page: payload.page,
           pages: payload.pages
         });
-
-        const preferredId =
-          searchParams.get('company') ||
-          selectedCompanyId ||
-          payload.items.find((item) => item.publish_status === 'pending_review')?.id ||
-          payload.items[0]?.id ||
-          '';
-        setSelectedCompanyId(preferredId);
+        setSelectedCompanyId((current) => {
+          if (current && payload.items.some((item) => item.id === current)) return current;
+          return (
+            searchParams.get('company') ||
+            payload.items.find((item) => item.publish_status === 'pending_review')?.id ||
+            payload.items[0]?.id ||
+            ''
+          );
+        });
       })
       .catch((loadError: unknown) => {
         if (!active) return;
@@ -91,11 +187,11 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
     return () => {
       active = false;
     };
-  }, [token, page, query, publishStatus, pipelineStatus, searchParams, selectedCompanyId, t]);
+  }, [token, page, query, publishStatus, pipelineStatus, refreshKey, searchParams, t]);
 
   useEffect(() => {
-    if (!selectedCompanyId) {
-      setDetail(null);
+    if (!selectedCompanyId || showCreate) {
+      if (!selectedCompanyId) setDetail(null);
       return;
     }
 
@@ -105,6 +201,7 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
       .then((payload) => {
         if (!active) return;
         setDetail(payload);
+        setEditDraft(companyToDraft(payload));
       })
       .catch((loadError: unknown) => {
         if (!active) return;
@@ -117,7 +214,7 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
     return () => {
       active = false;
     };
-  }, [token, selectedCompanyId, t]);
+  }, [token, selectedCompanyId, showCreate, t]);
 
   const stats = useMemo(() => {
     return {
@@ -126,6 +223,15 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
       published: listState.items.filter((item) => item.publish_status === 'published').length
     };
   }, [listState.items]);
+
+  async function refreshDetail(companyId = selectedCompanyId) {
+    setRefreshKey((current) => current + 1);
+    if (companyId) {
+      const refreshed = await getAdminCompanyDetail(token, companyId);
+      setDetail(refreshed);
+      setEditDraft(companyToDraft(refreshed));
+    }
+  }
 
   async function runAction(
     action: 'approve' | 'reject' | 'retry' | 'delete',
@@ -143,44 +249,221 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
         await retryAdminCompanyPipeline(token, companyId);
         setActionMessage(t('retryMessage'));
       } else if (action === 'delete') {
-        const shouldDelete = window.confirm(t('deleteConfirm'));
-        if (!shouldDelete) return;
+        if (!window.confirm(t('deleteConfirm'))) return;
         await deleteAdminCompany(token, companyId);
         setActionMessage(t('deletedMessage'));
-      }
-
-      const payload = await listAdminCompanies(token, {
-        page,
-        size: 12,
-        search: query || undefined,
-        publishStatus: publishStatus || undefined,
-        pipelineStatus: pipelineStatus || undefined
-      });
-      setListState({
-        items: payload.items,
-        total: payload.total,
-        page: payload.page,
-        pages: payload.pages
-      });
-
-      if (action === 'delete' && selectedCompanyId === companyId) {
-        setSelectedCompanyId(payload.items[0]?.id || '');
-        if (payload.items.length === 0) {
+        if (selectedCompanyId === companyId) {
+          setSelectedCompanyId('');
           setDetail(null);
         }
-      } else if (selectedCompanyId) {
-        const refreshed = await getAdminCompanyDetail(token, selectedCompanyId);
-        setDetail(refreshed);
       }
+      await refreshDetail(action === 'delete' ? '' : companyId);
     } catch (actionError: unknown) {
       setActionMessage(actionError instanceof Error ? actionError.message : t('actionFailed'));
+    }
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setActionMessage('');
+    try {
+      const created = await createAdminCompany(token, draftToPayload(createDraft));
+      setActionMessage(t('createdMessage'));
+      setCreateDraft(emptyCompanyDraft);
+      setShowCreate(false);
+      setSelectedCompanyId(created.id);
+      setDetail(created);
+      setEditDraft(companyToDraft(created));
+      setRefreshKey((current) => current + 1);
+    } catch (actionError: unknown) {
+      setActionMessage(actionError instanceof Error ? actionError.message : t('createFailed'));
+    }
+  }
+
+  async function handleUpdate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!detail) return;
+    setActionMessage('');
+    try {
+      const updated = await updateAdminCompany(token, detail.id, draftToPayload(editDraft));
+      setActionMessage(t('updatedMessage'));
+      setDetail(updated);
+      setEditDraft(companyToDraft(updated));
+      setRefreshKey((current) => current + 1);
+    } catch (actionError: unknown) {
+      setActionMessage(actionError instanceof Error ? actionError.message : t('updateFailed'));
     }
   }
 
   function getPublishStatusLabel(value: string) {
     if (value === 'pending_review') return status('pendingReview');
     if (value === 'published') return status('published');
+    if (value === 'archived') return status('archived');
     return status('draft');
+  }
+
+  function renderCompanyForm(
+    draft: CompanyDraft,
+    setDraft: Dispatch<SetStateAction<CompanyDraft>>,
+    onSubmit: (event: FormEvent<HTMLFormElement>) => void,
+    submitLabel: string
+  ) {
+    return (
+      <form className="admin-form-stack" onSubmit={onSubmit}>
+        <div className="admin-form-grid admin-form-grid--two">
+          <label className="admin-field">
+            <span>{t('nameField')}</span>
+            <input
+              className="admin-input"
+              required
+              value={draft.name}
+              onChange={(event) => setDraft((current) => ({...current, name: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('urlField')}</span>
+            <input
+              className="admin-input"
+              required
+              value={draft.url}
+              onChange={(event) => setDraft((current) => ({...current, url: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('category')}</span>
+            <input
+              className="admin-input"
+              value={draft.category}
+              onChange={(event) => setDraft((current) => ({...current, category: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('logoUrl')}</span>
+            <input
+              className="admin-input"
+              value={draft.logo_url}
+              onChange={(event) => setDraft((current) => ({...current, logo_url: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('geoScore')}</span>
+            <input
+              className="admin-input"
+              max="100"
+              min="0"
+              type="number"
+              value={draft.geo_score}
+              onChange={(event) => setDraft((current) => ({...current, geo_score: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('foundedDate')}</span>
+            <input
+              className="admin-input"
+              type="date"
+              value={draft.founded_date}
+              onChange={(event) => setDraft((current) => ({...current, founded_date: event.target.value}))}
+            />
+          </label>
+        </div>
+
+        <label className="admin-field">
+          <span>{t('shortDescription')}</span>
+          <input
+            className="admin-input"
+            value={draft.short_description}
+            onChange={(event) => setDraft((current) => ({...current, short_description: event.target.value}))}
+          />
+        </label>
+        <label className="admin-field">
+          <span>{t('descriptionField')}</span>
+          <textarea
+            className="admin-textarea"
+            value={draft.description}
+            onChange={(event) => setDraft((current) => ({...current, description: event.target.value}))}
+          />
+        </label>
+        <div className="admin-form-grid admin-form-grid--two">
+          <label className="admin-field">
+            <span>{t('tags')}</span>
+            <input
+              className="admin-input"
+              value={draft.tags}
+              onChange={(event) => setDraft((current) => ({...current, tags: event.target.value}))}
+              placeholder={t('commaSeparated')}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('techStack')}</span>
+            <input
+              className="admin-input"
+              value={draft.tech_stack}
+              onChange={(event) => setDraft((current) => ({...current, tech_stack: event.target.value}))}
+              placeholder={t('commaSeparated')}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('headquarters')}</span>
+            <input
+              className="admin-input"
+              value={draft.headquarters}
+              onChange={(event) => setDraft((current) => ({...current, headquarters: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('employeeCount')}</span>
+            <input
+              className="admin-input"
+              value={draft.employee_count}
+              onChange={(event) => setDraft((current) => ({...current, employee_count: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('fundingStage')}</span>
+            <input
+              className="admin-input"
+              value={draft.funding_stage}
+              onChange={(event) => setDraft((current) => ({...current, funding_stage: event.target.value}))}
+            />
+          </label>
+          <label className="admin-field">
+            <span>{t('techLevel')}</span>
+            <input
+              className="admin-input"
+              value={draft.tech_level}
+              onChange={(event) => setDraft((current) => ({...current, tech_level: event.target.value}))}
+            />
+          </label>
+        </div>
+
+        <label className="admin-checkbox-row">
+          <span>{t('geoCertified')}</span>
+          <input
+            checked={draft.is_geo_certified}
+            type="checkbox"
+            onChange={(event) => setDraft((current) => ({...current, is_geo_certified: event.target.checked}))}
+          />
+        </label>
+
+        <div className="admin-company-detail__actions">
+          <button className="admin-button admin-button--primary" type="submit">
+            {submitLabel}
+          </button>
+          {showCreate ? (
+            <button
+              className="admin-button admin-button--ghost"
+              type="button"
+              onClick={() => {
+                setShowCreate(false);
+                setCreateDraft(emptyCompanyDraft);
+              }}
+            >
+              {actions('cancel')}
+            </button>
+          ) : null}
+        </div>
+      </form>
+    );
   }
 
   return (
@@ -233,6 +516,7 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
             <option value="pending_review">{status('pendingReview')}</option>
             <option value="published">{status('published')}</option>
             <option value="draft">{status('draft')}</option>
+            <option value="archived">{status('archived')}</option>
           </select>
           <select
             className="admin-select"
@@ -260,6 +544,8 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
         </div>
       </section>
 
+      {error ? <div className="admin-inline-error">{error}</div> : null}
+
       <section className="admin-two-column">
         <article className="admin-panel">
           <div className="admin-panel__header">
@@ -267,13 +553,26 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
               <p className="admin-panel__eyebrow">List</p>
               <h2>{t('listTitle')}</h2>
             </div>
-            <span className="admin-pill admin-pill--neutral">{units('itemCount', {count: listState.total})}</span>
+            <div className="admin-detail-list__actions">
+              <span className="admin-pill admin-pill--neutral">{units('itemCount', {count: listState.total})}</span>
+              <button
+                className="admin-button admin-button--primary admin-button--small"
+                type="button"
+                onClick={() => {
+                  setShowCreate(true);
+                  setDetail(null);
+                  setSelectedCompanyId('');
+                }}
+              >
+                {t('newCompany')}
+              </button>
+            </div>
           </div>
 
           {loading ? (
             <p className="admin-feed__empty">{t('loadingList')}</p>
-          ) : error ? (
-            <p className="admin-feed__empty">{error}</p>
+          ) : listState.items.length === 0 ? (
+            <p className="admin-feed__empty">{t('emptyList')}</p>
           ) : (
             <div className="admin-company-list">
               {listState.items.map((item) => {
@@ -282,7 +581,10 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
                   <button
                     className={`admin-company-row${isActive ? ' is-active' : ''}`}
                     key={item.id}
-                    onClick={() => setSelectedCompanyId(item.id)}
+                    onClick={() => {
+                      setShowCreate(false);
+                      setSelectedCompanyId(item.id);
+                    }}
                     type="button"
                   >
                     <div className="admin-company-row__main">
@@ -326,9 +628,7 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
             >
               {actions('previousPage')}
             </button>
-            <span>
-              {units('pageCounter', {page: listState.page, pages: listState.pages})}
-            </span>
+            <span>{units('pageCounter', {page: listState.page, pages: listState.pages})}</span>
             <button
               className="admin-button admin-button--ghost admin-button--small"
               disabled={page >= listState.pages}
@@ -343,17 +643,19 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
         <article className="admin-panel">
           <div className="admin-panel__header">
             <div>
-              <p className="admin-panel__eyebrow">Detail</p>
-              <h2>{t('detailTitle')}</h2>
+              <p className="admin-panel__eyebrow">{showCreate ? 'Create' : 'Detail'}</p>
+              <h2>{showCreate ? t('createTitle') : t('detailTitle')}</h2>
             </div>
-            {detail?.publish_status ? (
+            {detail?.publish_status && !showCreate ? (
               <span className={`admin-pill admin-pill--status admin-pill--${detail.publish_status}`}>
                 {getPublishStatusLabel(detail.publish_status)}
               </span>
             ) : null}
           </div>
 
-          {detailLoading ? (
+          {showCreate ? (
+            renderCompanyForm(createDraft, setCreateDraft, handleCreate, t('createSubmit'))
+          ) : detailLoading ? (
             <p className="admin-feed__empty">{t('loadingDetail')}</p>
           ) : detail ? (
             <div className="admin-company-detail">
@@ -364,25 +666,34 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
                 </div>
                 <div className="admin-company-detail__actions">
                   <button
-                    className="admin-button admin-button--primary"
+                    className="admin-button admin-button--primary admin-button--small"
                     onClick={() => void runAction('approve', detail.id)}
                     type="button"
                   >
                     {actions('approve')}
                   </button>
                   <button
-                    className="admin-button admin-button--ghost"
+                    className="admin-button admin-button--ghost admin-button--small"
                     onClick={() => void runAction('reject', detail.id)}
                     type="button"
                   >
                     {actions('reject')}
                   </button>
+                  {['failed', 'completed'].includes(detail.pipeline_status) ? (
+                    <button
+                      className="admin-button admin-button--ghost admin-button--small"
+                      onClick={() => void runAction('retry', detail.id)}
+                      type="button"
+                    >
+                      {actions('retry')}
+                    </button>
+                  ) : null}
                   <button
-                    className="admin-button admin-button--ghost"
-                    onClick={() => void runAction('retry', detail.id)}
+                    className="admin-button admin-button--danger admin-button--small"
+                    onClick={() => void runAction('delete', detail.id)}
                     type="button"
                   >
-                    {actions('retry')}
+                    {actions('delete')}
                   </button>
                 </div>
               </div>
@@ -406,16 +717,7 @@ export function AdminCompanies({token}: AdminCompaniesProps) {
                 </div>
               </div>
 
-              <div className="admin-detail-section">
-                <h4>{t('tagsTech')}</h4>
-                <div className="admin-tag-cloud">
-                  {[...(detail.tags || []), ...(detail.tech_stack || [])].slice(0, 12).map((tag) => (
-                    <span className="admin-tag" key={tag}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
+              {renderCompanyForm(editDraft, setEditDraft, handleUpdate, t('saveCompany'))}
 
               <div className="admin-detail-section">
                 <h4>{t('latestDiagnosticSolutions')}</h4>

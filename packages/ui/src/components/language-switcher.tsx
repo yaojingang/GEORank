@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {usePathname} from 'next/navigation';
 import {useTranslations} from 'next-intl';
 import clsx from 'clsx';
@@ -39,7 +40,7 @@ export function LanguageSwitcher({
         const isActive = targetLocale === currentLocale;
         const label = targetLocale === 'zh-CN' ? t('zh') : t('en');
         return (
-          <a
+          <Link
             key={targetLocale}
             className={clsx('language-switcher__option', isActive && 'is-active')}
             href={localizePathname(targetLocale, pathname)}
@@ -47,7 +48,7 @@ export function LanguageSwitcher({
             aria-label={`${isActive ? t('current') : t('switchTo')} ${label}`}
           >
             {label}
-          </a>
+          </Link>
         );
       })}
     </nav>

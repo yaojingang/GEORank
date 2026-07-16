@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>georank Skill 生成审计报告</title>
+  <style>
+:root {
+      --paper: #ffffff;
+      --wash: #f8fafc;
+      --wash-strong: #f2f5f8;
+      --line: #e6e0d4;
+      --line-soft: #eee9df;
+      --brand: #1B365D;
+      --brand-soft: #EEF3F8;
+      --brand-mid: #315982;
+      --ink: #151515;
+      --text: #2f2d29;
+      --muted: #68625a;
+      --faint: #8b857b;
+      --success: #2f6f5e;
+      --warn: #8a5a19;
+      --serif: "TsangerJinKai02", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", "STSong", Charter, Georgia, serif;
+      --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      --shadow-soft: 0 1px 2px rgba(27, 54, 93, 0.06), 0 16px 44px rgba(27, 54, 93, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: var(--ink);
+      font-family: var(--serif);
+      line-height: 1.62;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    body[data-report-lang="zh-CN"] [data-lang="en"],
+    body[data-report-lang="en"] [data-lang="zh-CN"] { display: none !important; }
+    .skip-link {
+      position: fixed;
+      left: 18px;
+      top: 10px;
+      z-index: 40;
+      transform: translateY(-140%);
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #fff;
+      text-decoration: none;
+      transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .skip-link:focus-visible { transform: translateY(0); outline: 2px solid var(--brand-mid); outline-offset: 2px; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+    }
+    .progress-track {
+      height: 2px;
+      background: transparent;
+    }
+    .progress-bar {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: var(--brand);
+      transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: left center;
+      transform: scaleX(0);
+    }
+    .topbar-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 9px 28px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+    .nav-shell {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+      min-width: 0;
+    }
+    .report-mark {
+      color: var(--brand);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .report-nav {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      min-width: 0;
+    }
+    .report-nav::-webkit-scrollbar { display: none; }
+    .report-nav a {
+      flex: 0 0 auto;
+      min-width: 76px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      color: var(--brand);
+      text-decoration: none;
+      text-align: center;
+      font-size: 13px;
+      border-radius: 8px;
+      white-space: nowrap;
+      transition-property: background-color, color, transform;
+      transition-duration: 160ms;
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @media (hover: hover) {
+      .report-nav a:hover { background: var(--brand-soft); }
+    }
+    .report-nav a:focus-visible {
+      outline: 2px solid var(--brand-mid);
+      outline-offset: 2px;
+      background: var(--brand-soft);
+    }
+    .report-nav a[aria-current="true"] {
+      background: var(--brand);
+      color: #ffffff;
+    }
+    .report-nav a[aria-current="true"] span { color: #ffffff; }
+    .language-switch {
+      display: inline-flex;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      box-shadow: 0 1px 2px rgba(27, 54, 93, 0.05);
+    }
+    .language-switch button {
+      appearance: none;
+      min-width: 42px;
+      min-height: 34px;
+      border: 0;
+      border-radius: 6px;
+      padding: 0 10px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition-property: background-color, color, transform;
+      transition-duration: 160ms;
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .language-switch button:active { transform: scale(0.96); }
+    .language-switch button:focus-visible { outline: 2px solid var(--brand-mid); outline-offset: 2px; }
+    .language-switch button[aria-pressed="true"] {
+      background: var(--brand-soft);
+      color: var(--brand);
+    }
+    .wrap {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 58px 28px 92px;
+    }
+    .hero {
+      padding: 16px 0 34px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 44px;
+      align-items: end;
+    }
+    .eyebrow, .report-mark {
+      letter-spacing: 0;
+    }
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--brand);
+      font-family: var(--mono);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .slug {
+      margin: 0 0 18px;
+      color: var(--faint);
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    h1, h2, h3 {
+      margin: 0;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+    h1 {
+      max-width: 8em;
+      color: var(--ink);
+      font-size: 4rem;
+      line-height: 1.02;
+    }
+    .lead {
+      max-width: 760px;
+      margin: 20px 0 0;
+      color: var(--text);
+      font-size: 1.08rem;
+      text-wrap: pretty;
+    }
+    .hero-meta, .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .hero-meta span, .badges span, .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+    .hero-card {
+      position: relative;
+      padding: 22px 22px 24px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfaf7 100%);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--line-soft);
+    }
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 38px;
+      height: 2px;
+      background: var(--brand);
+    }
+    .score-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+    .score-chip {
+      padding: 14px 14px 12px;
+      border-radius: 8px;
+      background: var(--wash);
+      border: 1px solid var(--line-soft);
+    }
+    .score-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .score-chip strong {
+      display: block;
+      margin: 5px 0 8px;
+      color: var(--brand);
+      font-family: var(--mono);
+      font-size: 1.65rem;
+      font-weight: 500;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .score-chip i {
+      display: block;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--brand) var(--score), #dfe6ee var(--score));
+    }
+    .score-chip small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    section {
+      scroll-margin-top: 78px;
+      padding-top: 44px;
+      margin-top: 44px;
+      border-top: 1px solid var(--line);
+    }
+    section.hero {
+      scroll-margin-top: 0;
+      padding-top: 16px;
+      margin-top: 0;
+      border-top: 0;
+    }
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+    h2 {
+      color: var(--ink);
+      font-size: 1.5rem;
+      line-height: 1.18;
+    }
+    h2::before {
+      content: "";
+      display: block;
+      width: 32px;
+      height: 2px;
+      margin-bottom: 12px;
+      background: var(--brand);
+    }
+    h3 {
+      color: var(--ink);
+      font-size: 1.02rem;
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+    .section-head > div:first-child p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      max-width: 68ch;
+      text-wrap: pretty;
+    }
+    .section-body {
+      margin-top: 24px;
+    }
+    .two-col, .metric-grid, .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: stretch;
+    }
+    .quality-panels {
+      margin-top: 16px;
+    }
+    .metrics-flow {
+      display: grid;
+      gap: 30px;
+    }
+    .metrics-primary {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.08fr);
+      gap: 22px;
+      align-items: start;
+    }
+    .metrics-primary .chart-figure {
+      min-height: 0;
+      display: grid;
+      align-content: center;
+    }
+    .metrics-primary .chart-figure svg {
+      max-height: 520px;
+    }
+    .metrics-note {
+      display: grid;
+      align-content: start;
+      gap: 14px;
+    }
+    .metrics-note p {
+      margin: 0;
+      max-width: none;
+      color: var(--text);
+    }
+    .metric-summary-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+    .metric-summary-list li {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 8px 10px;
+      align-items: baseline;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .metric-summary-list li:last-child { border-bottom: 0; }
+    .metric-summary-list b {
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .metric-summary-list em {
+      color: var(--brand);
+      font-family: var(--mono);
+      font-style: normal;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-summary-list small {
+      grid-column: 2 / 4;
+      color: var(--muted);
+      line-height: 1.5;
+      overflow-wrap: break-word;
+    }
+    .metric-detail-section {
+      display: grid;
+      gap: 14px;
+    }
+    .detail-section-kicker {
+      display: inline-flex;
+      width: fit-content;
+      min-height: 28px;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 12px;
+    }
+    .metric-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 12px;
+    }
+    .metric-detail-grid {
+      grid-template-columns: repeat(2, minmax(min(100%, 420px), 1fr));
+      align-items: stretch;
+    }
+    .list, .compact-list, .step-list {
+      margin: 0;
+      padding-left: 1.15em;
+      display: grid;
+      gap: 8px;
+    }
+    .list li::marker, .compact-list li::marker, .step-list li::marker { color: var(--brand); }
+    .compact-list {
+      gap: 6px;
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .compact-list li, .list li, .step-list li {
+      min-width: 0;
+      overflow-wrap: break-word;
+    }
+    .panel, .metric-card, .roadmap-item {
+      background: #ffffff;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 1px 2px rgba(27, 54, 93, 0.04);
+      min-width: 0;
+    }
+    .metric-card {
+      display: grid;
+      grid-template-columns: minmax(112px, 0.28fr) minmax(0, 1fr);
+      gap: 18px;
+      align-content: start;
+      min-height: 0;
+    }
+    .metric-card-head {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+    .metric-card strong {
+      display: block;
+      margin: 0;
+      color: var(--brand);
+      font-family: var(--mono);
+      font-size: 2rem;
+      font-weight: 500;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      overflow-wrap: break-word;
+    }
+    .metric-card-body {
+      min-width: 0;
+    }
+    .metric-card-body .compact-list {
+      gap: 7px;
+      max-width: 76ch;
+    }
+    .metric-card-body .compact-list li {
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    .chart-figure {
+      margin: 0;
+      padding: 18px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(27, 54, 93, 0.04);
+    }
+    .chart-figure svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+    .chart-figure text {
+      fill: var(--ink);
+      font-family: var(--serif);
+      font-size: 13px;
+    }
+    .chart-title {
+      fill: var(--brand);
+      font-size: 16px;
+      font-weight: 500;
+    }
+    .chart-line {
+      fill: none;
+      stroke: var(--brand);
+      stroke-width: 2;
+    }
+    figcaption {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      text-wrap: pretty;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--line-soft);
+      vertical-align: top;
+    }
+    th {
+      color: var(--brand);
+      font-weight: 500;
+      font-size: 12px;
+    }
+    td:first-child, th:first-child { width: 96px; }
+    .world-readiness {
+      margin-top: 16px;
+      display: grid;
+      gap: 16px;
+    }
+    .section-head > .world-readiness { grid-column: 1; }
+    .world-readiness-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+    }
+    .world-readiness-head p {
+      margin-top: 8px;
+      max-width: 72ch;
+    }
+    .world-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .evidence-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .evidence-kpi {
+      padding: 14px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--wash);
+      min-width: 0;
+    }
+    .evidence-kpi span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .evidence-kpi strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--brand);
+      font-family: var(--mono);
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .evidence-kpi small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      line-height: 1.45;
+      overflow-wrap: break-word;
+    }
+    .evidence-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .evidence-item {
+      padding: 14px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+      min-width: 0;
+    }
+    .evidence-item span {
+      color: var(--brand);
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .evidence-item h4 {
+      margin: 4px 0 8px;
+      color: var(--ink);
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+    .evidence-item h5 {
+      margin: 12px 0 6px;
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .evidence-item p {
+      margin: 0;
+      max-width: none;
+      color: var(--muted);
+      overflow-wrap: break-word;
+    }
+    .blocked-checks {
+      margin: 0;
+      padding-left: 1.05em;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .blocked-checks li {
+      overflow-wrap: break-word;
+    }
+    .blocked-checks li::marker {
+      color: var(--brand);
+    }
+    .blocked-checks-empty {
+      font-size: 13px;
+    }
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .step {
+      display: inline-flex;
+      margin-bottom: 12px;
+      min-height: 28px;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 12px;
+    }
+    .unlock {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 980px) {
+      .topbar-inner {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 8px 16px;
+      }
+      .nav-shell { grid-template-columns: 1fr; gap: 6px; }
+      .report-mark { display: none; }
+      .report-nav a { min-width: 72px; }
+      .hero-grid, .section-head { grid-template-columns: 1fr; }
+      .section-head > .world-readiness { grid-column: auto; }
+      .hero-grid { gap: 24px; }
+      .score-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metrics-primary, .metric-detail-grid, .two-col, .metric-grid, .chart-grid, .roadmap { grid-template-columns: 1fr; }
+      .evidence-list { grid-template-columns: 1fr; }
+      .metric-card { grid-template-columns: 1fr; }
+      h1 { font-size: 2.75rem; }
+    }
+    @media (max-width: 540px) {
+      .wrap { padding: 34px 16px 72px; }
+      .topbar-inner { gap: 10px; }
+      .report-nav {
+        display: flex;
+        gap: 2px;
+      }
+      .report-nav a {
+        min-width: 66px;
+        min-height: 38px;
+        padding: 0 8px;
+        font-size: 12px;
+      }
+      .language-switch button { min-width: 38px; min-height: 32px; padding: 0 8px; }
+      .hero { padding-top: 8px; }
+      h1 { max-width: 8em; font-size: 2.35rem; }
+      .lead { font-size: 1rem; }
+      .hero-meta span, .badges span { font-size: 12px; }
+      .score-strip { grid-template-columns: 1fr; }
+      section { margin-top: 34px; padding-top: 34px; }
+      .panel, .metric-card, .roadmap-item, .chart-figure, .hero-card { padding: 18px; }
+      .world-readiness-head, .evidence-kpis { grid-template-columns: 1fr; }
+      .metric-card { grid-template-columns: 1fr; gap: 10px; }
+      .metric-card strong { margin-bottom: 2px; }
+      .metric-summary-list li { grid-template-columns: auto minmax(0, 1fr) auto; }
+      table { font-size: 13px; }
+      th, td { padding: 10px 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body data-report-lang="zh-CN">
+  <a class="skip-link" href="#overview"><span data-lang="zh-CN">跳到正文</span><span data-lang="en">Skip to content</span></a>
+  <header class="topbar">
+    <div class="progress-track" aria-hidden="true"><span class="progress-bar"></span></div>
+    <div class="topbar-inner">
+      <div class="nav-shell">
+        <span class="report-mark">Skill audit</span>
+        <nav class="report-nav" aria-label="报告导航"><a href="#overview"><span data-lang="zh-CN">技能概述</span><span data-lang="en">Overview</span></a><a href="#metrics"><span data-lang="zh-CN">总览指标</span><span data-lang="en">Metrics</span></a><a href="#capability"><span data-lang="zh-CN">能力画像</span><span data-lang="en">Profile</span></a><a href="#principle"><span data-lang="zh-CN">原理结构</span><span data-lang="en">Principle</span></a><a href="#contract"><span data-lang="zh-CN">契约边界</span><span data-lang="en">Contract</span></a><a href="#quality"><span data-lang="zh-CN">质量评估</span><span data-lang="en">Quality</span></a><a href="#risk"><span data-lang="zh-CN">风险治理</span><span data-lang="en">Risk</span></a><a href="#assets"><span data-lang="zh-CN">包体资产</span><span data-lang="en">Assets</span></a><a href="#roadmap"><span data-lang="zh-CN">迭代路线</span><span data-lang="en">Roadmap</span></a></nav>
+      </div>
+      <div class="language-switch" aria-label="语言切换"><button type="button" data-set-lang="zh-CN" aria-pressed="true">简体</button><button type="button" data-set-lang="en" aria-pressed="false">EN</button></div>
+    </div>
+  </header>
+  <main id="main-content" class="wrap">
+    <section class="hero" aria-labelledby="report-title">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow"><span data-lang="zh-CN">YAO Skill 生成审计报告</span><span data-lang="en">YAO Skill Generation Audit</span></p>
+          <p class="slug">georank</p>
+          <h1 id="report-title"><span data-lang="zh-CN">技能审计报告</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></h1>
+          <p class="lead"><span data-lang="zh-CN">这份报告默认使用中文简体，把新 Skill 的定位、指标、原理、契约、质量、风险、资产和迭代路线整理为一份可审计的 HTML 报告。</span><span data-lang="en">Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.</span></p>
+          <div class="hero-meta"><span><span data-lang="zh-CN">技能名称：georank</span><span data-lang="en">Skill name: georank</span></span><span><span data-lang="zh-CN">成熟度：治理</span><span data-lang="en">Maturity: governed</span></span><span><span data-lang="zh-CN">格式：Agent Skills</span><span data-lang="en">Format: agent-skills</span></span><span><span data-lang="zh-CN">更新时间：2026-07-16</span><span data-lang="en">Updated: 2026-07-16</span></span></div>
+          <div class="badges"><span><span data-lang="zh-CN">openai</span><span data-lang="en">openai</span></span><span><span data-lang="zh-CN">claude</span><span data-lang="en">claude</span></span><span><span data-lang="zh-CN">generic</span><span data-lang="en">generic</span></span><span><span data-lang="zh-CN">vscode</span><span data-lang="en">vscode</span></span></div>
+        </div>
+        <aside class="hero-card">
+          <h3><span data-lang="zh-CN">核心判断</span><span data-lang="en">Core reading</span></h3>
+          <ul class="list"><li><span data-lang="zh-CN">统一承载 GEOrank 普通用户与管理员操作，并通过实时角色校验、预检和脱敏回执控制风险。</span><span data-lang="en">Unify ordinary-user and administrator operations for GEOrank with live role checks, preflight gates, and redacted receipts.</span></li><li><span data-lang="zh-CN">GEOrank 普通用户、管理员与平台维护者。</span><span data-lang="en">GEOrank users, administrators, and platform maintainers.</span></li><li><span data-lang="zh-CN">执行操作前先确认实例地址与权限；管理员写操作先查看预检。</span><span data-lang="en">Confirm the instance and access level first; review the preflight before administrator writes.</span></li></ul>
+        </aside>
+      </div>
+      <div class="score-strip" aria-label="报告关键指标"><article class='score-chip'><span><span data-lang="zh-CN">完整度</span><span data-lang="en">Completeness</span></span><strong>90</strong><i style='--score:90%'></i><small><span data-lang="zh-CN">SKILL.md 已存在，是 Skill 的入口。</span><span data-lang="en">SKILL.md exists and acts as the skill entrypoint.</span></small></article><article class='score-chip'><span><span data-lang="zh-CN">触发清晰</span><span data-lang="en">Trigger clarity</span></span><strong>100</strong><i style='--score:100%'></i><small><span data-lang="zh-CN">frontmatter description 已存在，具备基础路由面。</span><span data-lang="en">The frontmatter description exists, giving the skill a basic routing surface.</span></small></article><article class='score-chip'><span><span data-lang="zh-CN">证据充分</span><span data-lang="en">Evidence depth</span></span><strong>70</strong><i style='--score:70%'></i><small><span data-lang="zh-CN">已生成 14 / 20 类报告证据。</span><span data-lang="en">Generated 14 / 20 evidence report types.</span></small></article><article class='score-chip'><span><span data-lang="zh-CN">上下文成本</span><span data-lang="en">Context cost</span></span><strong>78</strong><i style='--score:78%'></i><small><span data-lang="zh-CN">入口约 513 个词/字，references 约 1234 个词/字。</span><span data-lang="en">Entrypoint is about 513 words/characters; references are about 1234.</span></small></article></div>
+    </section>
+
+    <section id="overview">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">技能概述</span><span data-lang="en">Overview</span></h2>
+          <p><span data-lang="zh-CN">先用一屏说明这个 Skill 是什么、给谁用、交付什么。</span><span data-lang="en">A first-screen explanation of what this skill is, who it serves, and what it delivers.</span></p>
+        </div>
+        <div class="two-col">
+          <article class="panel">
+            <h3><span data-lang="zh-CN">作用定位</span><span data-lang="en">Role</span></h3>
+            <ul class="list"><li><span data-lang="zh-CN">用于登录、查询和安全管理正在运行的自托管 GEOrank 实例。</span><span data-lang="en">Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.</span></li><li><span data-lang="zh-CN">统一承载 GEOrank 普通用户与管理员操作，并通过实时角色校验、预检和脱敏回执控制风险。</span><span data-lang="en">Unify ordinary-user and administrator operations for GEOrank with live role checks, preflight gates, and redacted receipts.</span></li><li><span data-lang="zh-CN">交付结果：SKILL.md, agents/interface.yaml, reports/skill-ir.json, reports/compiled_targets.md, reports/output_quality_scorecard.md, reports/output_execution_runs.md, reports/output_blind_review_pack.md, reports/output_blind_answer_key.json, reports/conformance_matrix.md, reports/security_trust_report.md, reports/runtime_permission_probes.md, reports/skill_atlas.html, reports/registry_audit.md, reports/package_verification.md, reports/install_simulation.md, reports/upgrade_check.md, reports/adoption_drift_report.md, reports/review_waivers.md, reports/review_annotations.md, reports/review-studio.html, reports/skill-interpretation.html, reports/skill-overview.html</span><span data-lang="en">Deliverables: SKILL.md, agents/interface.yaml, reports/skill-ir.json, reports/compiled_targets.md, reports/output_quality_scorecard.md, reports/output_execution_runs.md, reports/output_blind_review_pack.md, reports/output_blind_answer_key.json, reports/conformance_matrix.md, reports/security_trust_report.md, reports/runtime_permission_probes.md, reports/skill_atlas.html, reports/registry_audit.md, reports/package_verification.md, reports/install_simulation.md, reports/upgrade_check.md, reports/adoption_drift_report.md, reports/review_waivers.md, reports/review_annotations.md, reports/review-studio.html, reports/skill-interpretation.html, reports/skill-overview.html</span></li></ul>
+          </article>
+          <figure class="chart-figure" data-chart="flow"><svg viewBox="0 0 620 170" role="img" aria-label="交付流程"><text data-lang="zh-CN" x="20" y="28" class="chart-title">交付流程</text><text data-lang="en" x="20" y="28" class="chart-title">Delivery Flow</text><path d="M188 93 H248 M398 93 H458" class="chart-line"/><g><rect x="38" y="56" width="150" height="74" rx="8" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="113" y="99" text-anchor="middle">用户请求</text><text data-lang="en" x="113" y="99" text-anchor="middle">User request</text></g><g><rect x="248" y="56" width="150" height="74" rx="8" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="323" y="99" text-anchor="middle">权限与安全预检</text><text data-lang="en" x="323" y="99" text-anchor="middle">Access and safety preflight</text></g><g><rect x="458" y="56" width="150" height="74" rx="8" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="533" y="99" text-anchor="middle">GEOrank API 回执</text><text data-lang="en" x="533" y="99" text-anchor="middle">GEOrank API receipt</text></g></svg><figcaption><span data-lang="zh-CN">流程依次确认用户请求、权限门禁与 GEOrank API 回执。</span><span data-lang="en">The flow confirms the request, permission gates, and GEOrank API receipt in sequence.</span></figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="metrics">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">总览指标</span><span data-lang="en">Metrics</span></h2>
+          <p><span data-lang="zh-CN">分数来自本地文件和 reports 证据，缺失时明确标为证据不足。</span><span data-lang="en">Scores are derived from package files and reports; missing inputs are shown as evidence gaps.</span></p>
+        </div>
+        <article class="panel metrics-note">
+          <h3><span data-lang="zh-CN">指标判读</span><span data-lang="en">Reading</span></h3>
+          <p><span data-lang="zh-CN">先看雷达图判断能力短板，再看每项分数的证据原因。分数不是装饰数字，必须和本地文件、reports 证据或证据不足提示对应。</span><span data-lang="en">Read the radar first for weak spots, then inspect each score with its evidence. Scores must map to local files, reports, or explicit evidence gaps.</span></p>
+        </article>
+      </div>
+      <div class="section-body metrics-report">
+        <div class="metrics-flow">
+          <div class="metrics-primary" aria-label="指标图表与成熟度摘要">
+            <figure class="chart-figure" data-chart="radar"><svg viewBox="0 0 300 300" role="img" aria-label="评分雷达"><text data-lang="zh-CN" x="20" y="28" class="chart-title">评分雷达</text><text data-lang="en" x="20" y="28" class="chart-title">Rating Radar</text><polygon points="150.0,127.0 171.9,142.9 163.5,168.6 136.5,168.6 128.1,142.9" fill="none" stroke="#e8e6dc" stroke-width="1"/><polygon points="150.0,104.0 193.7,135.8 177.0,187.2 123.0,187.2 106.3,135.8" fill="none" stroke="#e8e6dc" stroke-width="1"/><polygon points="150.0,81.0 215.6,128.7 190.6,205.8 109.4,205.8 84.4,128.7" fill="none" stroke="#e8e6dc" stroke-width="1"/><polygon points="150.0,58.0 237.5,121.6 204.1,224.4 95.9,224.4 62.5,121.6" fill="none" stroke="#e8e6dc" stroke-width="1"/><polygon points="150.0,67.2 237.5,121.6 187.9,202.1 95.9,224.4 62.5,121.6" fill="#E4ECF5" stroke="#1B365D" stroke-width="2"/><text data-lang="zh-CN" x="150.0" y="26.0" text-anchor="middle" dominant-baseline="middle">完整度</text><text data-lang="en" x="150.0" y="26.0" text-anchor="middle" dominant-baseline="middle">Completeness</text><text data-lang="zh-CN" x="267.9" y="111.7" text-anchor="middle" dominant-baseline="middle">触发清晰</text><text data-lang="en" x="267.9" y="111.7" text-anchor="middle" dominant-baseline="middle">Trigger clarity</text><text data-lang="zh-CN" x="222.9" y="250.3" text-anchor="middle" dominant-baseline="middle">证据充分</text><text data-lang="en" x="222.9" y="250.3" text-anchor="middle" dominant-baseline="middle">Evidence depth</text><text data-lang="zh-CN" x="77.1" y="250.3" text-anchor="middle" dominant-baseline="middle">可维护性</text><text data-lang="en" x="77.1" y="250.3" text-anchor="middle" dominant-baseline="middle">Maintainability</text><text data-lang="zh-CN" x="32.1" y="111.7" text-anchor="middle" dominant-baseline="middle">可迁移性</text><text data-lang="en" x="32.1" y="111.7" text-anchor="middle" dominant-baseline="middle">Portability</text></svg><figcaption><span data-lang="zh-CN">评分雷达展示结构完整度、触发边界、证据、维护和迁移的相对强弱。</span><span data-lang="en">The radar chart compares completeness, trigger clarity, evidence, maintainability, and portability.</span></figcaption></figure>
+            <article class="panel metrics-note metrics-summary-panel">
+              <h3><span data-lang="zh-CN">成熟度条</span><span data-lang="en">Maturity Bar</span></h3>
+              <p><span data-lang="zh-CN">这里把每个指标压缩为状态、分数和第一条证据，先给出整体判断，再进入下方明细。</span><span data-lang="en">This compresses each metric into status, score, and the first evidence item before the detailed cards below.</span></p>
+              <ol class='metric-summary-list'><li><span class='metric-status'><span data-lang="zh-CN">稳定</span><span data-lang="en">Stable</span></span><b><span data-lang="zh-CN">完整度</span><span data-lang="en">Completeness</span></b><em>90</em><small><span data-lang="zh-CN">SKILL.md 已存在，是 Skill 的入口。</span><span data-lang="en">SKILL.md exists and acts as the skill entrypoint.</span></small></li><li><span class='metric-status'><span data-lang="zh-CN">稳定</span><span data-lang="en">Stable</span></span><b><span data-lang="zh-CN">触发清晰</span><span data-lang="en">Trigger clarity</span></b><em>100</em><small><span data-lang="zh-CN">frontmatter description 已存在，具备基础路由面。</span><span data-lang="en">The frontmatter description exists, giving the skill a basic routing surface.</span></small></li><li><span class='metric-status'><span data-lang="zh-CN">可用</span><span data-lang="en">Usable</span></span><b><span data-lang="zh-CN">证据充分</span><span data-lang="en">Evidence depth</span></b><em>70</em><small><span data-lang="zh-CN">已生成 14 / 20 类报告证据。</span><span data-lang="en">Generated 14 / 20 evidence report types.</span></small></li><li><span class='metric-status'><span data-lang="zh-CN">稳定</span><span data-lang="en">Stable</span></span><b><span data-lang="zh-CN">可维护性</span><span data-lang="en">Maintainability</span></b><em>100</em><small><span data-lang="zh-CN">SKILL.md 约 513 个词/字。</span><span data-lang="en">SKILL.md is about 513 words/characters.</span></small></li><li><span class='metric-status'><span data-lang="zh-CN">稳定</span><span data-lang="en">Stable</span></span><b><span data-lang="zh-CN">可迁移性</span><span data-lang="en">Portability</span></b><em>100</em><small><span data-lang="zh-CN">agents/interface.yaml 已存在。</span><span data-lang="en">agents/interface.yaml exists.</span></small></li><li><span class='metric-status'><span data-lang="zh-CN">可用</span><span data-lang="en">Usable</span></span><b><span data-lang="zh-CN">上下文成本</span><span data-lang="en">Context cost</span></b><em>78</em><small><span data-lang="zh-CN">入口约 513 个词/字，references 约 1234 个词/字。</span><span data-lang="en">Entrypoint is about 513 words/characters; references are about 1234.</span></small></li></ol>
+            </article>
+          </div>
+          <div class="metric-detail-section">
+            <div class="detail-section-kicker"><span data-lang="zh-CN">指标明细</span><span data-lang="en">Metric Details</span></div>
+            <div class="metric-grid metric-detail-grid"><article class='metric-card'><div class='metric-card-head'><span class='metric-label'><span data-lang="zh-CN">完整度</span><span data-lang="en">Completeness</span></span><strong>90</strong></div><div class='metric-card-body'><ul class="compact-list"><li><span data-lang="zh-CN">SKILL.md 已存在，是 Skill 的入口。</span><span data-lang="en">SKILL.md exists and acts as the skill entrypoint.</span></li><li><span data-lang="zh-CN">README.md 未发现或为空，完整度扣分。</span><span data-lang="en">README.md was not found or is empty, reducing completeness.</span></li><li><span data-lang="zh-CN">agents/interface.yaml 已存在，便于跨平台适配。</span><span data-lang="en">agents/interface.yaml exists for cross-platform adaptation.</span></li></ul></div></article><article class='metric-card'><div class='metric-card-head'><span class='metric-label'><span data-lang="zh-CN">触发清晰</span><span data-lang="en">Trigger clarity</span></span><strong>100</strong></div><div class='metric-card-body'><ul class="compact-list"><li><span data-lang="zh-CN">frontmatter description 已存在，具备基础路由面。</span><span data-lang="en">The frontmatter description exists, giving the skill a basic routing surface.</span></li><li><span data-lang="zh-CN">description 有足够长度说明任务边界。</span><span data-lang="en">The description is long enough to explain the task boundary.</span></li><li><span data-lang="zh-CN">description 已包含使用场景或排除边界信号。</span><span data-lang="en">The description includes usage-scenario or exclusion-boundary signals.</span></li></ul></div></article><article class='metric-card'><div class='metric-card-head'><span class='metric-label'><span data-lang="zh-CN">证据充分</span><span data-lang="en">Evidence depth</span></span><strong>70</strong></div><div class='metric-card-body'><ul class="compact-list"><li><span data-lang="zh-CN">已生成 14 / 20 类报告证据。</span><span data-lang="en">Generated 14 / 20 evidence report types.</span></li><li><span data-lang="zh-CN">skill-ir.json 已存在。</span><span data-lang="en">skill-ir.json exists.</span></li><li><span data-lang="zh-CN">compiled_targets.json 已存在。</span><span data-lang="en">compiled_targets.json exists.</span></li></ul></div></article><article class='metric-card'><div class='metric-card-head'><span class='metric-label'><span data-lang="zh-CN">可维护性</span><span data-lang="en">Maintainability</span></span><strong>100</strong></div><div class='metric-card-body'><ul class="compact-list"><li><span data-lang="zh-CN">SKILL.md 约 513 个词/字。</span><span data-lang="en">SKILL.md is about 513 words/characters.</span></li><li><span data-lang="zh-CN">入口文件保持克制，可维护性较好。</span><span data-lang="en">The entrypoint stays restrained, which supports maintainability.</span></li><li><span data-lang="zh-CN">references/ 已承载扩展指导。</span><span data-lang="en">references/ carries extended guidance.</span></li></ul></div></article><article class='metric-card'><div class='metric-card-head'><span class='metric-label'><span data-lang="zh-CN">可迁移性</span><span data-lang="en">Portability</span></span><strong>100</strong></div><div class='metric-card-body'><ul class="compact-list"><li><span data-lang="zh-CN">agents/interface.yaml 已存在。</span><span data-lang="en">agents/interface.yaml exists.</span></li><li><span data-lang="zh-CN">manifest.json 已存在。</span><span data-lang="en">manifest.json exists.</span></li><li><span data-lang="zh-CN">目标平台或 adapter target 已声明。</span><span data-lang="en">Target platforms or adapter targets are declared.</span></li></ul></div></article><article class='metric-card'><div class='metric-card-head'><span class='metric-label'><span data-lang="zh-CN">上下文成本</span><span data-lang="en">Context cost</span></span><strong>78</strong></div><div class='metric-card-body'><ul class="compact-list"><li><span data-lang="zh-CN">入口约 513 个词/字，references 约 1234 个词/字。</span><span data-lang="en">Entrypoint is about 513 words/characters; references are about 1234.</span></li><li><span data-lang="zh-CN">分数越高代表上下文成本越低。</span><span data-lang="en">A higher score means lower context cost.</span></li><li><span data-lang="zh-CN">上下文成本处于可控区间。</span><span data-lang="en">Context cost is within a controlled range.</span></li></ul></div></article></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="capability">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">能力画像</span><span data-lang="en">Capability</span></h2>
+          <p><span data-lang="zh-CN">判断这个 Skill 在能力地图中的位置和复用范围。</span><span data-lang="en">Places this skill on a capability map and clarifies reuse scope.</span></p>
+        </div>
+        <div class="two-col">
+          <figure class="chart-figure" data-chart="matrix"><svg viewBox="0 0 520 460" role="img" aria-label="能力矩阵"><text data-lang="zh-CN" x="20" y="30" class="chart-title">能力矩阵</text><text data-lang="en" x="20" y="30" class="chart-title">Capability Matrix</text><rect x="70" y="70" width="380" height="320" fill="#faf9f5" stroke="#e8e6dc"/><line x1="260" y1="70" x2="260" y2="390" stroke="#e8e6dc"/><line x1="70" y1="230" x2="450" y2="230" stroke="#e8e6dc"/><text data-lang="zh-CN" x="260" y="424" text-anchor="middle">执行确定性</text><text data-lang="en" x="260" y="424" text-anchor="middle">Execution certainty</text><text data-lang="zh-CN" x="22" y="230" transform="rotate(-90 22 230)" text-anchor="middle">知识密度</text><text data-lang="en" x="22" y="230" transform="rotate(-90 22 230)" text-anchor="middle">Knowledge density</text><circle cx="343.6" cy="231.6" r="12" fill="#1B365D"/><text data-lang="zh-CN" x="361.6" y="236.6">Skill workflow</text><text data-lang="en" x="361.6" y="236.6">Skill workflow</text></svg><figcaption><span data-lang="zh-CN">能力矩阵说明这个 Skill 更偏知识密集还是执行确定。</span><span data-lang="en">The capability matrix shows whether the skill leans toward knowledge density or execution certainty.</span></figcaption></figure>
+          <article class="panel">
+            <h3><span data-lang="zh-CN">画像摘要</span><span data-lang="en">Profile</span></h3>
+            <ul class="list"><li><span data-lang="zh-CN">能力类型：Skill workflow</span><span data-lang="en">Capability type: Skill workflow</span></li><li><span data-lang="zh-CN">成熟度：governed</span><span data-lang="en">Maturity: governed</span></li><li><span data-lang="zh-CN">触发强度：手动触发 + description 路由</span><span data-lang="en">Trigger strength: Manual activation plus description-based routing</span></li><li><span data-lang="zh-CN">复用范围：跨平台</span><span data-lang="en">Reuse scope: Cross-platform</span></li></ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="principle">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">原理结构</span><span data-lang="en">Principle</span></h2>
+          <p><span data-lang="zh-CN">说明入口、参考、脚本、评估和报告如何组成一个稳定闭环。</span><span data-lang="en">Explains how entrypoint, references, scripts, evals, and reports form a stable loop.</span></p>
+        </div>
+        <div>
+          <div class="chart-grid"><figure class="chart-figure" data-chart="layers"><svg viewBox="0 0 520 320" role="img" aria-label="Skill principle flow"><text data-lang="zh-CN" x="20" y="30" class="chart-title">分层结构</text><text data-lang="en" x="20" y="30" class="chart-title">Layered Structure</text><rect x="70" y="55" width="380" height="34" rx="7" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="260" y="77" text-anchor="middle">入口层</text><text data-lang="en" x="260" y="77" text-anchor="middle">Entrypoint layer</text><rect x="88" y="103" width="344" height="34" rx="7" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="260" y="125" text-anchor="middle">参考层</text><text data-lang="en" x="260" y="125" text-anchor="middle">Reference layer</text><rect x="106" y="151" width="308" height="34" rx="7" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="260" y="173" text-anchor="middle">脚本层</text><text data-lang="en" x="260" y="173" text-anchor="middle">Script layer</text><rect x="124" y="199" width="272" height="34" rx="7" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="260" y="221" text-anchor="middle">评估层</text><text data-lang="en" x="260" y="221" text-anchor="middle">Evaluation layer</text><rect x="142" y="247" width="236" height="34" rx="7" fill="#F6F8FB" stroke="#e8e6dc"/><text data-lang="zh-CN" x="260" y="269" text-anchor="middle">报告层</text><text data-lang="en" x="260" y="269" text-anchor="middle">Report layer</text></svg><figcaption><span data-lang="zh-CN">分层结构展示入口、参考、脚本、评估和报告如何各司其职。</span><span data-lang="en">The layered structure shows how entrypoint, references, scripts, evals, and reports each carry a distinct role.</span></figcaption></figure></div>
+          <div class="two-col">
+            <article class="panel">
+              <h3><span data-lang="zh-CN">执行流程</span><span data-lang="en">Execution Flow</span></h3>
+              <ol class="step-list"><li><span data-lang="zh-CN">确认目标 GEOrank 实例地址；远程实例必须使用 HTTPS。</span><span data-lang="en">Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.</span></li><li><span data-lang="zh-CN">解析当前认证状态。</span><span data-lang="en">Resolve authentication:</span></li><li><span data-lang="zh-CN">登录默认采用普通用户流程，不要求用户选择角色。</span><span data-lang="en">Treat login as an ordinary-user flow and never ask the user to choose a role.</span></li><li><span data-lang="zh-CN">没有会话时运行登录命令。</span><span data-lang="en">Run `python3 scripts/georank_client.py login --account &lt;account&gt;` when no session exists.</span></li><li><span data-lang="zh-CN">登录后读取实时角色；enterprise 按普通认证用户处理。</span><span data-lang="en">Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user.</span></li></ol>
+            </article>
+            <article class="panel">
+              <h3><span data-lang="zh-CN">调用方式</span><span data-lang="en">How To Use</span></h3>
+              <ol class="step-list"><li><span data-lang="zh-CN">使用 GEOrank Skill 操作实例；登录默认普通用户，实时识别角色，并对管理员变更执行预检与显式确认。</span><span data-lang="en">Use $georank to operate this GEOrank instance. Guide login as an ordinary user, detect the role with /api/auth/me, and gate administrator changes with a preflight and explicit confirmation.</span></li><li><span data-lang="zh-CN">当用户请求与该 Skill 的触发描述匹配时使用。</span><span data-lang="en">Use this skill when the request matches the frontmatter description.</span></li></ol>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contract">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">契约边界</span><span data-lang="en">Contract</span></h2>
+          <p><span data-lang="zh-CN">把触发、输入、输出和排除场景放在同一屏。</span><span data-lang="en">Keeps trigger, inputs, outputs, and exclusions on the same screen.</span></p>
+        </div>
+        <div class="two-col">
+          <article class="panel">
+            <h3><span data-lang="zh-CN">触发描述</span><span data-lang="en">Trigger</span></h3>
+            <p><span data-lang="zh-CN">该 Skill 的触发描述来自 SKILL.md frontmatter；默认中文报告先呈现能力边界，原始英文描述可切换到英文查看。</span><span data-lang="en">Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.</span></p>
+            <h3><span data-lang="zh-CN">用户请求</span><span data-lang="en">Inputs</span></h3>
+            <ul class="list"><li><span data-lang="zh-CN">GEOrank 实例地址。</span><span data-lang="en">GEOrank base URL</span></li><li><span data-lang="zh-CN">账号或手机号。</span><span data-lang="en">account or phone identity</span></li><li><span data-lang="zh-CN">通过隐藏提示或指定环境变量提供的密码。</span><span data-lang="en">password supplied through a hidden prompt or named environment variable</span></li><li><span data-lang="zh-CN">相对 API 路径与 HTTP 方法。</span><span data-lang="en">relative /api path and HTTP method</span></li><li><span data-lang="zh-CN">可选的受保护 JSON 请求体。</span><span data-lang="en">optional protected JSON request body</span></li></ul>
+          </article>
+          <article class="panel">
+            <h3><span data-lang="zh-CN">输出结果</span><span data-lang="en">Outputs</span></h3>
+            <ul class="list"><li><span data-lang="zh-CN">包含访问级别、操作状态、资源标识、请求 ID 与安全下一步的脱敏回执。</span><span data-lang="en">A redacted execution receipt containing detected access level, operation, target, dry-run or executed status, API status, resource identifiers, request ID, next safe step, and rollback guidance when applicable.</span></li><li><span data-lang="zh-CN">管理员变更的回滚指导与可追踪请求 ID。</span><span data-lang="en">Rollback guidance and a traceable request ID for administrator changes.</span></li></ul>
+            <h3><span data-lang="zh-CN">不应触发</span><span data-lang="en">Should Not Trigger</span></h3>
+            <ul class="list"><li><span data-lang="zh-CN">通用 GEO/SEO 解释、策略或文章写作。</span><span data-lang="en">General GEO/SEO explanations, strategy, or article writing.</span></li><li><span data-lang="zh-CN">GEOrank 代码开发、仓库评审或部署。</span><span data-lang="en">GEOrank code development, repository review, or deployment.</span></li><li><span data-lang="zh-CN">未获明确授权的写操作或权限不足的管理员操作。</span><span data-lang="en">Writes without clear authorization or administrator actions without sufficient permission.</span></li></ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="quality">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">质量评估</span><span data-lang="en">Quality</span></h2>
+          <p><span data-lang="zh-CN">展示强项、缺口和建议，避免只给分不解释。</span><span data-lang="en">Shows strengths, gaps, and recommendations instead of scores without explanation.</span></p>
+        </div>
+        <div>
+          <table>
+            <thead><tr><th><span data-lang="zh-CN">类型</span><span data-lang="en">Type</span></th><th><span data-lang="zh-CN">证据</span><span data-lang="en">Evidence</span></th><th><span data-lang="zh-CN">建议</span><span data-lang="en">Action</span></th></tr></thead>
+            <tbody><tr><td><span data-lang="zh-CN">强项</span><span data-lang="en">Strength</span></td><td><span data-lang="zh-CN">触发面保持精简，并锚定在 frontmatter description。</span><span data-lang="en">The trigger surface stays lean and anchored in the frontmatter description.</span></td><td><span data-lang="zh-CN">保留并复用</span><span data-lang="en">Keep</span></td></tr><tr><td><span data-lang="zh-CN">强项</span><span data-lang="en">Strength</span></td><td><span data-lang="zh-CN">已生成 Skill IR，核心语义可先于平台打包被审查和迁移。</span><span data-lang="en">Skill IR is generated so core semantics can be reviewed and migrated before platform packaging.</span></td><td><span data-lang="zh-CN">保留并复用</span><span data-lang="en">Keep</span></td></tr><tr><td><span data-lang="zh-CN">强项</span><span data-lang="en">Strength</span></td><td><span data-lang="zh-CN">已生成目标编译报告，可审查 IR 到 OpenAI、Claude、generic 等目标契约的映射。</span><span data-lang="en">Target compilation evidence is generated to review how IR maps to OpenAI, Claude, generic, and other target contracts.</span></td><td><span data-lang="zh-CN">保留并复用</span><span data-lang="en">Keep</span></td></tr><tr><td><span data-lang="zh-CN">缺口</span><span data-lang="en">Gap</span></td><td><span data-lang="zh-CN">当前关键证据较完整，优先保持轻量。</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></td><td><span data-lang="zh-CN">纳入下一轮修复</span><span data-lang="en">Fix next</span></td></tr></tbody>
+          </table>
+          <div class="two-col quality-panels">
+            <article class="panel">
+              <h3><span data-lang="zh-CN">执行证据</span><span data-lang="en">Execution Evidence</span></h3>
+              <ul class="list"><li><span data-lang="zh-CN">变体运行：10</span><span data-lang="en">Variant runs: 10</span></li><li><span data-lang="zh-CN">模型执行：0</span><span data-lang="en">Model executions: 0</span></li><li><span data-lang="zh-CN">记录样本：0</span><span data-lang="en">Recorded fixtures: 0</span></li><li><span data-lang="zh-CN">Token 估算：10</span><span data-lang="en">Token estimates: 10</span></li></ul>
+            </article>
+            <article class="panel">
+              <h3><span data-lang="zh-CN">盲评审定</span><span data-lang="en">Blind Adjudication</span></h3>
+              <ul class="list"><li><span data-lang="zh-CN">尚未生成盲评审定报告。</span><span data-lang="en">The blind review adjudication report has not been generated yet.</span></li></ul>
+            </article>
+          </div>
+          <div class="two-col quality-panels">
+            <article class="panel">
+              <h3><span data-lang="zh-CN">评审原则</span><span data-lang="en">Review Rule</span></h3>
+              <ul class="list"><li><span data-lang="zh-CN">先记录 reviewer 对 A/B 的选择，再打开答案 key 计算一致率。</span><span data-lang="en">Record the reviewer&#x27;s A/B choice before opening the answer key and calculating agreement.</span></li><li><span data-lang="zh-CN">缺少真实 reviewer 决策时只显示待评审，不伪造人工结论。</span><span data-lang="en">When real reviewer decisions are missing, show pending status instead of fabricating human conclusions.</span></li></ul>
+            </article>
+            <article class="panel">
+              <h3><span data-lang="zh-CN">运行原则</span><span data-lang="en">Run Rule</span></h3>
+              <ul class="list"><li><span data-lang="zh-CN">recorded fixture 只能证明可复现样本，不等同于模型执行。</span><span data-lang="en">A recorded fixture proves reproducible samples only; it is not model execution.</span></li><li><span data-lang="zh-CN">只有 provider runner 返回 model metadata 时才计入 model-executed。</span><span data-lang="en">Only provider runners that return model metadata count as model-executed.</span></li></ul>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="risk">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">风险治理</span><span data-lang="en">Risk</span></h2>
+          <p><span data-lang="zh-CN">提前暴露误触发、漂移、证据不足和迁移风险。</span><span data-lang="en">Surfaces trigger, drift, evidence, and portability risks before the package grows.</span></p>
+        </div>
+        <div class="two-col">
+          <figure class="chart-figure" data-chart="risk_heatmap"><svg viewBox="0 0 380 300" role="img" aria-label="风险热力"><text data-lang="zh-CN" x="20" y="30" class="chart-title">风险热力</text><text data-lang="en" x="20" y="30" class="chart-title">Risk Heatmap</text><rect x="80" y="190" width="78" height="58" rx="6" fill="#faf9f5" stroke="#e8e6dc"/><text x="119" y="224" text-anchor="middle">0</text><rect x="166" y="190" width="78" height="58" rx="6" fill="#faf9f5" stroke="#e8e6dc"/><text x="205" y="224" text-anchor="middle">0</text><rect x="252" y="190" width="78" height="58" rx="6" fill="#faf9f5" stroke="#e8e6dc"/><text x="291" y="224" text-anchor="middle">0</text><rect x="80" y="124" width="78" height="58" rx="6" fill="#EEF2F7" stroke="#e8e6dc"/><text x="119" y="158" text-anchor="middle">1</text><rect x="166" y="124" width="78" height="58" rx="6" fill="#EEF2F7" stroke="#e8e6dc"/><text x="205" y="158" text-anchor="middle">1</text><rect x="252" y="124" width="78" height="58" rx="6" fill="#faf9f5" stroke="#e8e6dc"/><text x="291" y="158" text-anchor="middle">0</text><rect x="80" y="58" width="78" height="58" rx="6" fill="#D0DCE9" stroke="#e8e6dc"/><text x="119" y="92" text-anchor="middle">2</text><rect x="166" y="58" width="78" height="58" rx="6" fill="#EEF2F7" stroke="#e8e6dc"/><text x="205" y="92" text-anchor="middle">1</text><rect x="252" y="58" width="78" height="58" rx="6" fill="#faf9f5" stroke="#e8e6dc"/><text x="291" y="92" text-anchor="middle">0</text><text data-lang="zh-CN" x="210" y="278" text-anchor="middle">发生概率</text><text data-lang="en" x="210" y="278" text-anchor="middle">Probability</text><text data-lang="zh-CN" x="24" y="160" transform="rotate(-90 24 160)" text-anchor="middle">影响程度</text><text data-lang="en" x="24" y="160" transform="rotate(-90 24 160)" text-anchor="middle">Impact</text></svg><figcaption><span data-lang="zh-CN">风险热力图用影响程度和发生概率标出当前治理重点。</span><span data-lang="en">The risk heatmap marks governance priorities by impact and probability.</span></figcaption></figure>
+          <div>
+            <table>
+              <thead><tr><th><span data-lang="zh-CN">风险</span><span data-lang="en">Risk</span></th><th><span data-lang="zh-CN">信号</span><span data-lang="en">Signal</span></th><th><span data-lang="zh-CN">应对</span><span data-lang="en">Response</span></th></tr></thead>
+              <tbody><tr><td><span data-lang="zh-CN">误触发风险</span><span data-lang="en">Trigger risk</span></td><td><span data-lang="zh-CN">frontmatter description 已存在，具备基础路由面。</span><span data-lang="en">The frontmatter description exists, giving the skill a basic routing surface.</span></td><td><span data-lang="zh-CN">先补证据和边界，再增加包体复杂度。</span><span data-lang="en">Improve evidence and boundaries before adding package complexity.</span></td></tr><tr><td><span data-lang="zh-CN">输出漂移风险</span><span data-lang="en">Output drift risk</span></td><td><span data-lang="zh-CN">已生成 14 / 20 类报告证据。</span><span data-lang="en">Generated 14 / 20 evidence report types.</span></td><td><span data-lang="zh-CN">先补证据和边界，再增加包体复杂度。</span><span data-lang="en">Improve evidence and boundaries before adding package complexity.</span></td></tr><tr><td><span data-lang="zh-CN">证据不足风险</span><span data-lang="en">Evidence gap risk</span></td><td><span data-lang="zh-CN">已生成 14 / 20 类报告证据。</span><span data-lang="en">Generated 14 / 20 evidence report types.</span></td><td><span data-lang="zh-CN">先补证据和边界，再增加包体复杂度。</span><span data-lang="en">Improve evidence and boundaries before adding package complexity.</span></td></tr><tr><td><span data-lang="zh-CN">包体膨胀风险</span><span data-lang="en">Package bloat risk</span></td><td><span data-lang="zh-CN">SKILL.md 约 513 个词/字。</span><span data-lang="en">SKILL.md is about 513 words/characters.</span></td><td><span data-lang="zh-CN">先补证据和边界，再增加包体复杂度。</span><span data-lang="en">Improve evidence and boundaries before adding package complexity.</span></td></tr><tr><td><span data-lang="zh-CN">跨平台迁移风险</span><span data-lang="en">Portability risk</span></td><td><span data-lang="zh-CN">agents/interface.yaml 已存在。</span><span data-lang="en">agents/interface.yaml exists.</span></td><td><span data-lang="zh-CN">先补证据和边界，再增加包体复杂度。</span><span data-lang="en">Improve evidence and boundaries before adding package complexity.</span></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <article class='panel world-readiness'><div class='world-readiness-head'><div><h3><span data-lang="zh-CN">世界证据</span><span data-lang="en">World Evidence</span></h3><p><span data-lang="zh-CN">未生成 world-class ledger；当前报告不会宣称世界级完成。</span><span data-lang="en">No world-class ledger was generated; this report does not claim world-class completion.</span></p></div><span class='world-status'><span data-lang="zh-CN">证据待补</span><span data-lang="en">Evidence pending</span></span></div><div class='evidence-kpis'><article class='evidence-kpi'><span><span data-lang="zh-CN">待补证据</span><span data-lang="en">Pending</span></span><strong>0</strong><small><span data-lang="zh-CN">仍需外部或人工证据接受。</span><span data-lang="en">External or human evidence still needs acceptance.</span></small></article><article class='evidence-kpi'><span><span data-lang="zh-CN">已接受</span><span data-lang="en">Accepted</span></span><strong>0</strong><small><span data-lang="zh-CN">已通过 source check 与提交契约。</span><span data-lang="en">Passed source checks and submission contract.</span></small></article><article class='evidence-kpi'><span><span data-lang="zh-CN">源检查</span><span data-lang="en">Source Checks</span></span><strong>0 / 0</strong><small><span data-lang="zh-CN">通过数 / 总检查数。</span><span data-lang="en">Passed checks / total checks.</span></small></article></div><div class='evidence-list'><article class='evidence-item empty'><p><span data-lang="zh-CN">尚未生成 world-class ledger；这里只保留反过度承诺提示。</span><span data-lang="en">No world-class ledger has been generated; this panel keeps the anti-overclaim guard visible.</span></p></article></div></article>
+      </div>
+    </section>
+
+    <section id="assets">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">包体资产</span><span data-lang="en">Assets</span></h2>
+          <p><span data-lang="zh-CN">让 reviewer 快速确认关键文件、目录和资产分布。</span><span data-lang="en">Lets reviewers confirm key files, directories, and asset distribution quickly.</span></p>
+        </div>
+        <div class="two-col">
+          <figure class="chart-figure" data-chart="asset_donut"><svg viewBox="0 0 430 270" role="img" aria-label="资产分布"><text data-lang="zh-CN" x="20" y="30" class="chart-title">资产分布</text><text data-lang="en" x="20" y="30" class="chart-title">Asset Distribution</text><circle cx="130" cy="130" r="70" fill="none" stroke="#1B365D" stroke-width="24" stroke-dasharray="9.1 90.9" stroke-dashoffset="0.0" pathLength="100" transform="rotate(-90 130 130)"/><circle cx="130" cy="130" r="70" fill="none" stroke="#2D5A8A" stroke-width="24" stroke-dasharray="9.1 90.9" stroke-dashoffset="-9.1" pathLength="100" transform="rotate(-90 130 130)"/><circle cx="130" cy="130" r="70" fill="none" stroke="#D0DCE9" stroke-width="24" stroke-dasharray="9.1 90.9" stroke-dashoffset="-18.2" pathLength="100" transform="rotate(-90 130 130)"/><circle cx="130" cy="130" r="70" fill="none" stroke="#E4ECF5" stroke-width="24" stroke-dasharray="27.3 72.7" stroke-dashoffset="-27.3" pathLength="100" transform="rotate(-90 130 130)"/><circle cx="130" cy="130" r="70" fill="none" stroke="#e8e6dc" stroke-width="24" stroke-dasharray="9.1 90.9" stroke-dashoffset="-54.5" pathLength="100" transform="rotate(-90 130 130)"/><circle cx="130" cy="130" r="70" fill="none" stroke="#504e49" stroke-width="24" stroke-dasharray="36.4 63.6" stroke-dashoffset="-63.6" pathLength="100" transform="rotate(-90 130 130)"/><text data-lang="zh-CN" x="130" y="136" text-anchor="middle">63项</text><text data-lang="en" x="130" y="136" text-anchor="middle">63 items</text><text data-lang="zh-CN" x="235" y="78">SKILL.md</text><text data-lang="en" x="235" y="78">SKILL.md</text><text data-lang="zh-CN" x="235" y="100">agents/interface.yaml</text><text data-lang="en" x="235" y="100">agents/interface.yaml</text><text data-lang="zh-CN" x="235" y="122">manifest.json</text><text data-lang="en" x="235" y="122">manifest.json</text><text data-lang="zh-CN" x="235" y="144">references</text><text data-lang="en" x="235" y="144">references</text><text data-lang="zh-CN" x="235" y="166">scripts</text><text data-lang="en" x="235" y="166">scripts</text><text data-lang="zh-CN" x="235" y="188">evals</text><text data-lang="en" x="235" y="188">evals</text></svg><figcaption><span data-lang="zh-CN">资产分布图展示当前包体的文件和目录重心。</span><span data-lang="en">The asset distribution chart shows where files and directories are concentrated.</span></figcaption></figure>
+          <table>
+            <thead><tr><th><span data-lang="zh-CN">路径</span><span data-lang="en">Path</span></th><th><span data-lang="zh-CN">作用</span><span data-lang="en">Role</span></th><th><span data-lang="zh-CN">类型</span><span data-lang="en">Type</span></th></tr></thead>
+            <tbody><tr><td>SKILL.md</td><td><span data-lang="zh-CN">Skill 入口文件</span><span data-lang="en">Skill entrypoint</span></td><td><span data-lang="zh-CN">文件</span><span data-lang="en">file</span></td></tr><tr><td>agents/interface.yaml</td><td><span data-lang="zh-CN">跨平台接口元数据</span><span data-lang="en">Neutral interface metadata</span></td><td><span data-lang="zh-CN">文件</span><span data-lang="en">file</span></td></tr><tr><td>manifest.json</td><td><span data-lang="zh-CN">生命周期与打包元数据</span><span data-lang="en">Lifecycle and portability metadata</span></td><td><span data-lang="zh-CN">文件</span><span data-lang="en">file</span></td></tr><tr><td>references</td><td><span data-lang="zh-CN">扩展指导与复用资料</span><span data-lang="en">Extended guidance and reusable notes</span></td><td><span data-lang="zh-CN">目录</span><span data-lang="en">folder</span></td></tr><tr><td>scripts</td><td><span data-lang="zh-CN">确定性脚本或本地工具</span><span data-lang="en">Deterministic helpers or local tooling</span></td><td><span data-lang="zh-CN">目录</span><span data-lang="en">folder</span></td></tr><tr><td>evals</td><td><span data-lang="zh-CN">触发与质量检查</span><span data-lang="en">Trigger and quality checks</span></td><td><span data-lang="zh-CN">目录</span><span data-lang="en">folder</span></td></tr><tr><td>reports</td><td><span data-lang="zh-CN">生成的证据与总结报告</span><span data-lang="en">Generated evidence and overview artifacts</span></td><td><span data-lang="zh-CN">目录</span><span data-lang="en">folder</span></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head">
+        <div>
+          <h2><span data-lang="zh-CN">迭代路线</span><span data-lang="en">Roadmap</span></h2>
+          <p><span data-lang="zh-CN">把下一步升级收束为少数高价值动作。</span><span data-lang="en">Keeps next iteration moves focused and actionable.</span></p>
+        </div>
+        <div>
+          <div class="chart-grid"><figure class="chart-figure" data-chart="timeline"><svg viewBox="0 0 520 210" role="img" aria-label="迭代时间"><text data-lang="zh-CN" x="20" y="30" class="chart-title">迭代时间</text><text data-lang="en" x="20" y="30" class="chart-title">Iteration Timeline</text><line x1="60" y1="92" x2="60" y2="92" class="chart-line"/><circle cx="60" cy="92" r="10" fill="#1B365D"/><text data-lang="zh-CN" x="60" y="126" text-anchor="middle">下一步 1</text><text data-lang="en" x="60" y="126" text-anchor="middle">Next 1</text><text data-lang="zh-CN" x="60" y="150" text-anchor="middle">收紧触发</text><text data-lang="en" x="60" y="150" text-anchor="middle">Skill-specific source t...</text></svg><figcaption><span data-lang="zh-CN">迭代时间线把下一步升级收束成少数可执行动作。</span><span data-lang="en">The iteration timeline narrows the next upgrade into a few executable moves.</span></figcaption></figure></div>
+          <div class="roadmap"><article class='roadmap-item'><span class='step'><span data-lang="zh-CN">下一步 1</span><span data-lang="en">Next 1</span></span><h3><span data-lang="zh-CN">收紧触发</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></h3><p><span data-lang="zh-CN">先让 Skill 在正确场景被调用，再扩展资产。</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></p><ul class="compact-list"><li><span data-lang="zh-CN">增加正例、反例和近邻用例。</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></li><li><span data-lang="zh-CN">压缩 frontmatter description。</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></li></ul><p class='unlock'><span data-lang="zh-CN">更稳定的路由边界。</span><span data-lang="en">Skill-specific source text is authored in Chinese; switch to Simplified Chinese for the exact wording.</span></p></article></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+(function () {
+      var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-set-lang]"));
+      var navLinks = Array.prototype.slice.call(document.querySelectorAll(".report-nav a"));
+      var sections = navLinks
+        .map(function (link) { return document.querySelector(link.getAttribute("href")); })
+        .filter(Boolean);
+      var progressBar = document.querySelector(".progress-bar");
+      function setLanguage(lang) {
+        document.body.setAttribute("data-report-lang", lang);
+        document.documentElement.setAttribute("lang", lang);
+        buttons.forEach(function (button) {
+          button.setAttribute("aria-pressed", button.getAttribute("data-set-lang") === lang ? "true" : "false");
+        });
+      }
+      function updateProgress() {
+        var scrollTop = window.scrollY || document.documentElement.scrollTop;
+        var height = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        var pct = Math.min(100, Math.max(0, (scrollTop / height) * 100));
+        if (progressBar) progressBar.style.transform = "scaleX(" + pct / 100 + ")";
+        var active = sections[0];
+        sections.forEach(function (section) {
+          if (section.getBoundingClientRect().top <= 110) active = section;
+        });
+        navLinks.forEach(function (link) {
+          link.setAttribute("aria-current", link.getAttribute("href") === "#" + active.id ? "true" : "false");
+        });
+      }
+      buttons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          setLanguage(button.getAttribute("data-set-lang"));
+        });
+      });
+      window.addEventListener("scroll", updateProgress, { passive: true });
+      window.addEventListener("resize", updateProgress);
+      setLanguage("zh-CN");
+      updateProgress();
+    })();
+  </script>
+</body>
+</html>

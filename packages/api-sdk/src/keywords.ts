@@ -1,3 +1,6 @@
+import {getByokHeaders} from './byok';
+import {parseApiResponse} from './api-error';
+
 const API_BASE = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 export type KeywordExpandRequest = {
@@ -44,11 +47,7 @@ export type KeywordExpandResponse = {
 };
 
 async function parseJson<T>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((payload as { detail?: string }).detail || `API ${response.status}`);
-  }
-  return payload as T;
+  return parseApiResponse<T>(response);
 }
 
 export async function expandKeywords(
@@ -59,7 +58,8 @@ export async function expandKeywords(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...getByokHeaders()
     },
     body: JSON.stringify(body)
   });

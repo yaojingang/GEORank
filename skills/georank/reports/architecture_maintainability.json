@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "generated_at": "2026-07-16",
+  "skill_dir": ".",
+  "summary": {
+    "python_file_count": 2,
+    "script_file_count": 1,
+    "test_file_count": 1,
+    "internal_module_count": 0,
+    "cli_script_count": 1,
+    "command_handler_count": 0,
+    "entrypoint_command_handler_count": 0,
+    "command_module_count": 0,
+    "warn_line_threshold": 900,
+    "watch_line_threshold": 720,
+    "early_watch_line_threshold": 600,
+    "block_line_threshold": 1500,
+    "largest_file_lines": 574,
+    "watchlist_count": 0,
+    "early_watchlist_count": 0,
+    "hotspot_count": 0,
+    "blocker_count": 0,
+    "decision": "pass"
+  },
+  "largest_files": [
+    {
+      "path": "scripts/georank_client.py",
+      "lines": 574,
+      "kind": "cli-script",
+      "severity": "pass",
+      "early_watch": false,
+      "recommendation": "Watch this file before adding new responsibilities; extract a helper module when one concern dominates."
+    },
+    {
+      "path": "tests/test_georank_client.py",
+      "lines": 301,
+      "kind": "test",
+      "severity": "pass",
+      "early_watch": false,
+      "recommendation": "Break broad integration assertions into focused verifier helpers when the next behavior change lands."
+    }
+  ],
+  "watchlist": [],
+  "early_watchlist": [],
+  "hotspots": [],
+  "actions": [],
+  "artifacts": {
+    "json": "reports/architecture_maintainability.json",
+    "markdown": "reports/architecture_maintainability.md"
+  }
+}

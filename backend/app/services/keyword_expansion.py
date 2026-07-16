@@ -327,12 +327,15 @@ async def _ai_expand(seeds: list[str], profile: dict, provider_override=None) ->
         },
         ensure_ascii=False,
     )
-    raw = await ai_client.complete(
-        system,
-        user,
-        temperature=0.45,
-        provider_override=provider_override,
-    )
+    try:
+        raw = await ai_client.complete(
+            system,
+            user,
+            temperature=0.45,
+            provider_override=provider_override,
+        )
+    except Exception as exc:
+        raise KeywordProviderCallError("关键词模型调用失败") from exc
     start, end = raw.find("{"), raw.rfind("}") + 1
     if start < 0 or end <= start:
         raise ValueError("AI 返回的拓词结果不是有效 JSON")
@@ -380,12 +383,20 @@ def _build_summary(dimensions: list[dict]) -> dict:
     }
 
 
-async def expand_keywords(seeds: list[str], provider_override=None) -> dict:
+class KeywordProviderCallError(RuntimeError):
+    """The provider call did not return a usable response."""
+
+
+async def expand_keywords_with_status(
+    seeds: list[str],
+    provider_override=None,
+) -> tuple[dict, bool]:
     normalized = normalize_seeds(seeds)
     if not normalized:
         raise ValueError("请至少输入一个关键词")
 
     profile = _infer_keyword_profile(normalized)
+    provider_succeeded = True
 
     try:
         dimensions = await asyncio.wait_for(
@@ -395,6 +406,7 @@ async def expand_keywords(seeds: list[str], provider_override=None) -> dict:
     except Exception:
         if provider_override is not None:
             raise
+        provider_succeeded = False
         dimensions = _fallback_expand(normalized, profile)
 
     return {
@@ -408,4 +420,12 @@ async def expand_keywords(seeds: list[str], provider_override=None) -> dict:
         },
         "dimensions": dimensions,
         "summary": _build_summary(dimensions),
-    }
+    }, provider_succeeded
+
+
+async def expand_keywords(seeds: list[str], provider_override=None) -> dict:
+    payload, _ = await expand_keywords_with_status(
+        seeds,
+        provider_override=provider_override,
+    )
+    return payload

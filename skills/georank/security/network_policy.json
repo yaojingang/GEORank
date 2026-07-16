@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "default_policy": {
+    "require_https": true,
+    "custom_hosts": "explicit-user-config-only",
+    "review_rule": "Remote GEOrank hosts must use HTTPS. Plain HTTP is accepted only for loopback development instances."
+  },
+  "scripts": {
+    "scripts/georank_client.py": {
+      "purpose": "Authenticate to and operate the user-selected self-hosted GEOrank HTTP API.",
+      "allowed_hosts": [
+        "localhost",
+        "127.0.0.1",
+        "::1"
+      ],
+      "allowed_path_prefixes": [
+        "/api/"
+      ],
+      "requires_https": true,
+      "custom_url_policy": "A custom host is accepted only through --base-url, GEORANK_BASE_URL, or an existing private session; non-loopback HTTP is rejected.",
+      "timeout_seconds": 30,
+      "maximum_request_bytes": 16777216,
+      "maximum_response_bytes": 33554432,
+      "auth": "GEORANK_TOKEN or an owner-only session file; login password comes from a hidden prompt or GEORANK_PASSWORD."
+    }
+  }
+}

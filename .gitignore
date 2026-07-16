@@ -19,6 +19,7 @@ venv/
 # Node
 node_modules/
 .next/
+.turbo/
 packages/api-sdk/openapi-ts-error-*.log
 coverage/
 playwright-report/
@@ -73,4 +74,5 @@ tmp/
 *.sql
 *.backup
 *.jsonl
+!skills/georank/evals/output/cases.jsonl
 *.parquet

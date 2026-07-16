@@ -1,7 +1,8 @@
 /**
  * Solutions Page - GEO AI 问答交互
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = ['80', '443', ''].includes(window.location.port)
@@ -47,7 +48,7 @@
             {
                 key: 'diagnostic-explain',
                 name: '诊断报告解读',
-                description: '把诊断分数、Schema、内容结构、Meta 和引用问题解释成可执行建议。',
+                description: '把 GEO 诊断分数、Schema、内容结构、Meta 和引用问题解释成可理解的行动建议。',
                 icon: 'monitoring',
                 enabled: true,
                 sample_questions: [
@@ -59,13 +60,37 @@
             {
                 key: 'content-structure',
                 name: '内容结构优化',
-                description: '围绕官网页面、FAQ、案例和结构化答案，生成适合 AI 读取的内容建议。',
+                description: '围绕官网页面、教程、FAQ、案例和结构化答案，生成适合 AI 读取的内容建议。',
                 icon: 'article',
                 enabled: true,
                 sample_questions: [
                     '一个 SaaS 官网首页怎样写更容易被 AI 摘要？',
                     '帮我设计一组适合 AI 搜索的 FAQ。',
                     '产品页应该如何增加可被引用的内容块？',
+                ],
+            },
+            {
+                key: 'brand-visibility',
+                name: '品牌可见性问答',
+                description: '回答品牌在 ChatGPT、Perplexity、Gemini 等 AI 答案中被理解、引用和推荐的问题。',
+                icon: 'travel_explore',
+                enabled: true,
+                sample_questions: [
+                    'AI 为什么没有推荐我的品牌？',
+                    '如何让 AI 更准确理解我们的公司定位？',
+                    '品牌引用和第三方提及应该怎么建设？',
+                ],
+            },
+            {
+                key: 'action-plan',
+                name: '行动方案拆解',
+                description: '把问答结论进一步拆成 30/60/90 天计划、任务优先级和团队分工。',
+                icon: 'checklist',
+                enabled: true,
+                sample_questions: [
+                    '给我一份 30/60/90 天 GEO 执行计划。',
+                    '市场团队和内容团队应该如何分工做 GEO？',
+                    '把上面的建议拆成下周可以开始做的任务。',
                 ],
             },
         ],
@@ -117,7 +142,7 @@
         companyId: initialCompanyId,
         sourceUrl: initialUrl,
         prompt: initialPrompt,
-        selectedChannelKey: initialChannelKey || localStorage.getItem('georank_solution_channel') || '',
+        selectedChannelKey: initialChannelKey || DEFAULT_QA_CHANNELS.default_channel_key,
         defaultChannelKey: DEFAULT_QA_CHANNELS.default_channel_key,
         channels: DEFAULT_QA_CHANNELS.channels.slice(),
         contextReport: null,
@@ -128,10 +153,12 @@
         sidebarCollapsed: localStorage.getItem('georank_solutions_sidebar_collapsed') === '1',
     };
 
-    init().catch((error) => {
-        console.error('[solutions] init failed', error);
-        setStatus(error.message || '问答页初始化失败，请稍后重试。', 'error');
-    });
+    init()
+        .catch((error) => {
+            console.error('[solutions] init failed', error);
+            setStatus(error.message || '问答页初始化失败，请稍后重试。', 'error');
+        })
+        .finally(finishInitialPresentation);
 
     async function init() {
         bindStaticEvents();
@@ -154,14 +181,21 @@
             autoResizeInput();
         }
 
-        await loadChannels();
-        renderChannels();
-        renderHistory();
-        renderMessages();
-        updateContextBadge();
-        updateMetrics();
-        updateExportState();
-        updateInputHelper();
+        const channelsChanged = await loadChannels();
+        const reusePrerenderedFrame = canReusePrerenderedFrame(
+            state,
+            channelsChanged,
+            DEFAULT_QA_CHANNELS.default_channel_key
+        );
+        if (!reusePrerenderedFrame) {
+            renderChannels();
+            renderHistory();
+            renderMessages();
+            updateContextBadge();
+            updateMetrics();
+            updateExportState();
+            updateInputHelper();
+        }
         applySidebarState();
 
         if (state.diagnosticReportId) {
@@ -281,7 +315,33 @@
         bindPromptCards();
     }
 
+    function channelConfigSignature(channels, defaultChannelKey) {
+        return JSON.stringify({
+            defaultChannelKey,
+            channels: channels.map((channel) => ({
+                key: channel.key || '',
+                name: channel.name || '',
+                description: channel.description || '',
+                icon: channel.icon || '',
+                enabled: channel.enabled !== false,
+                sampleQuestions: Array.isArray(channel.sample_questions) ? channel.sample_questions : [],
+            })),
+        });
+    }
+
+    function canReusePrerenderedFrame(currentState, channelsChanged, defaultChannelKey) {
+        return !currentState.isAuthenticated
+            && !currentState.currentConversationId
+            && !currentState.diagnosticReportId
+            && !currentState.companyId
+            && !currentState.sourceUrl
+            && !currentState.prompt
+            && currentState.selectedChannelKey === defaultChannelKey
+            && !channelsChanged;
+    }
+
     async function loadChannels() {
+        const previousSignature = channelConfigSignature(state.channels, state.defaultChannelKey);
         try {
             const data = await request('/api/solutions/channels');
             const channels = Array.isArray(data.channels) ? data.channels.filter((item) => item.enabled !== false) : [];
@@ -298,6 +358,13 @@
                 ? state.defaultChannelKey
                 : state.channels[0]?.key || 'geo-basics';
         }
+        return channelConfigSignature(state.channels, state.defaultChannelKey) !== previousSignature;
+    }
+
+    function finishInitialPresentation() {
+        const root = document.documentElement;
+        root.classList.remove('solutions-sidebar-pref-collapsed');
+        window.requestAnimationFrame(() => root.classList.remove('solutions-initializing'));
     }
 
     function getActiveChannel() {
@@ -402,6 +469,7 @@
     async function request(path, options = {}) {
         const headers = {
             ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+            ...(window.GEOrank?.DeviceIdentity?.getHeaders?.() || {}),
             ...(options.headers || {}),
         };
 
@@ -465,9 +533,17 @@
         updateMetrics();
     }
 
+    function whenDeferredDependenciesReady() {
+        if (document.readyState === 'complete') return Promise.resolve();
+        return new Promise((resolve) => {
+            window.addEventListener('load', resolve, { once: true });
+        });
+    }
+
     async function loadConversation(conversationId, options = {}) {
         const { keepStatus = true } = options;
         try {
+            await whenDeferredDependenciesReady();
             if (keepStatus) {
                 setStatus('正在恢复问答会话...');
             }
@@ -1579,4 +1655,4 @@
         div.textContent = value == null ? '' : String(value);
         return div.innerHTML;
     }
-})();
+});

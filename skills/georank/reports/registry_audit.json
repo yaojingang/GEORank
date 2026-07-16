@@ -1,0 +1,93 @@
+{
+  "ok": true,
+  "schema_version": "2.0",
+  "skill_dir": "[workspace]/skills/georank",
+  "registry_dir": "[workspace]/tmp/georank-skill-review-20260716/registry",
+  "package": {
+    "schema_version": "2.0",
+    "name": "georank",
+    "version": "0.1.0",
+    "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+    "targets": [
+      "openai",
+      "claude",
+      "generic",
+      "agent-skills-compatible",
+      "vscode"
+    ],
+    "maturity": "governed",
+    "owner": "GEOrank Maintainers",
+    "review_cadence": "monthly",
+    "trust_level": "local",
+    "license": "Apache License",
+    "checksums": {
+      "package_sha256": "c8aa3180fca3ca4100058bb08d75d70a1328b042c7e891e4b2cae76bd5af9a81",
+      "archive_sha256": "45f2038c923615ee4cdddb02604df674f4540a4a0fd39ddb55d6f0ac2a700645"
+    },
+    "compatibility": {
+      "openai": "pass",
+      "claude": "pass",
+      "agent-skills": "pass",
+      "vscode": "pass",
+      "generic": "pass",
+      "agent-skills-compatible": "pass"
+    },
+    "source": {
+      "skill_dir": "[workspace]/skills/georank",
+      "skill_ir": "reports/skill-ir.json",
+      "ir_schema_version": "2.0.0",
+      "canonical_metadata": "agents/interface.yaml"
+    },
+    "artifacts": {
+      "overview_html": "reports/skill-overview.html",
+      "review_studio_html": "reports/review-studio.html",
+      "trust_report": "reports/security_trust_report.md",
+      "conformance_matrix": "reports/conformance_matrix.md",
+      "compiled_targets": "reports/compiled_targets.md",
+      "package_verification": "reports/package_verification.md",
+      "install_simulation": "reports/install_simulation.md",
+      "adoption_drift": "reports/adoption_drift_report.md",
+      "review_waivers": "reports/review_waivers.md",
+      "review_annotations": "reports/review_annotations.md",
+      "package_metadata": "registry/packages/georank.json"
+    },
+    "distribution": {
+      "archive_verified": true,
+      "archive_sha256": "45f2038c923615ee4cdddb02604df674f4540a4a0fd39ddb55d6f0ac2a700645",
+      "package_verification": "reports/package_verification.json",
+      "install_simulated": true,
+      "install_simulation": "reports/install_simulation.json"
+    },
+    "generated_at": "2026-07-16"
+  },
+  "index": {
+    "schema_version": "2.0",
+    "generated_at": "2026-07-16",
+    "package_count": 1,
+    "packages": [
+      {
+        "name": "georank",
+        "version": "0.1.0",
+        "maturity": "governed",
+        "owner": "GEOrank Maintainers",
+        "targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ],
+        "package_metadata": "registry/packages/georank.json",
+        "package_sha256": "c8aa3180fca3ca4100058bb08d75d70a1328b042c7e891e4b2cae76bd5af9a81"
+      }
+    ]
+  },
+  "failures": [],
+  "warnings": [],
+  "artifacts": {
+    "index": "[workspace]/tmp/georank-skill-review-20260716/registry/index.json",
+    "package": "[workspace]/tmp/georank-skill-review-20260716/registry/packages/georank.json",
+    "json": "[workspace]/skills/georank/reports/registry_audit.json",
+    "markdown": "[workspace]/skills/georank/reports/registry_audit.md"
+  }
+}

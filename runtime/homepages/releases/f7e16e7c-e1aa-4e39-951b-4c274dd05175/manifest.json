@@ -3,17 +3,17 @@
   "title": "首页 8 模块工作台入口 2026-06-16",
   "source_type": "zip_package",
   "entry_path": "index.html",
-  "storage_path": "/app/runtime/homepages/releases/f7e16e7c-e1aa-4e39-951b-4c274dd05175",
-  "public_path": "/app/runtime/homepages/public/releases/f7e16e7c-e1aa-4e39-951b-4c274dd05175",
+  "storage_path": "runtime/homepages/releases/f7e16e7c-e1aa-4e39-951b-4c274dd05175",
+  "public_path": "runtime/homepages/public/releases/f7e16e7c-e1aa-4e39-951b-4c274dd05175",
   "file_count": 4,
   "compressed_size": 14105,
-  "extracted_size": 1525609,
-  "sha256": "8e03d99ce95cfffb003a48258eb76457aa75869297e0f7e16655a1c9b5eaba99",
+  "extracted_size": 1524815,
+  "sha256": "9ca18e1aceebfc01802089418779015fd7da9ba748982e75c8f03885965b5e5a",
   "files": [
     {
       "path": "css/style.css",
-      "size": 35442,
-      "sha256": "8072bf21c8297c981a9ba83fbf05fee408f49e01bfa22cae23808f8fb740b927"
+      "size": 34551,
+      "sha256": "3ddcaea50bb52ad04cd5034bebaa7208f7e21c3f5f2b015422b4231650f2bc5a"
     },
     {
       "path": "favicon.svg",
@@ -27,9 +27,10 @@
     },
     {
       "path": "index.html",
-      "size": 33338,
-      "sha256": "0f7aa384c88a9b62930796dc38a4f02d9ddd950b67979240f26771f730ae5c88"
+      "size": 32950,
+      "sha256": "7de365d372216ecabe66edb10e7fc749283fb0bff10916a1628422fd270113f8"
     }
   ],
-  "created_at": "2026-06-16T06:58:21.368734Z"
+  "created_at": "2026-06-16T06:58:21.368734Z",
+  "updated_at": "2026-07-16T02:15:32Z"
 }

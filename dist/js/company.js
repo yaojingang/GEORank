@@ -1,7 +1,8 @@
 /**
  * Company Detail Page - 动态公司详情
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = ['80', '443', ''].includes(window.location.port)
@@ -412,9 +413,5 @@
         }
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
+    init();
+});

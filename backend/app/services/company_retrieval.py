@@ -190,3 +190,49 @@ async def fallback_similar_companies(db, company: Company, *, limit: int = 3) ->
         reverse=True,
     )
     return ranked[:limit]
+
+
+async def _get_published_companies_by_ids(db, company_ids: list[str]) -> list[Company]:
+    valid_ids: list[uuid.UUID] = []
+    for company_id in company_ids:
+        try:
+            valid_ids.append(uuid.UUID(company_id))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    if not valid_ids:
+        return []
+    result = await db.execute(
+        select(Company).where(
+            Company.id.in_(valid_ids),
+            Company.publish_status == PublishStatus.PUBLISHED,
+        )
+    )
+    return result.scalars().all()
+
+
+async def rank_similar_companies(db, company: Company, *, limit: int = 3) -> list[Company]:
+    """优先使用 Qdrant 公司向量，相邻结果不足时用结构化相似度补齐。"""
+    ranked: list[Company] = []
+    try:
+        from app.services.vector_store import vector_store
+
+        vector_ids = await vector_store.get_similar_company_ids(
+            str(company.id),
+            top_k=limit + 1,
+        )
+        ordered_ids = [
+            company_id
+            for company_id in vector_ids
+            if company_id != str(company.id)
+        ][:limit]
+        candidates = await _get_published_companies_by_ids(db, ordered_ids)
+        candidate_map = {str(candidate.id): candidate for candidate in candidates}
+        ranked = [candidate_map[company_id] for company_id in ordered_ids if company_id in candidate_map]
+    except Exception:
+        ranked = []
+
+    if len(ranked) < limit:
+        fallback = await fallback_similar_companies(db, company, limit=limit + len(ranked))
+        seen = {company.id, *(candidate.id for candidate in ranked)}
+        ranked.extend(candidate for candidate in fallback if candidate.id not in seen)
+    return ranked[:limit]
