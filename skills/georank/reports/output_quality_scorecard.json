@@ -1,0 +1,701 @@
+{
+  "ok": true,
+  "cases": "[workspace]/skills/georank/evals/output/cases.jsonl",
+  "summary": {
+    "case_count": 5,
+    "file_backed_case_count": 1,
+    "near_neighbor_case_count": 1,
+    "boundary_case_count": 2,
+    "baseline_pass_rate": 0.0,
+    "with_skill_pass_rate": 100.0,
+    "delta": 100.0,
+    "regression_count": 0,
+    "gate_pass": true,
+    "failure_taxonomy": [],
+    "blind_pair_count": 5
+  },
+  "results": [
+    {
+      "id": "ordinary-user-login",
+      "prompt": "登录我的 GEOrank 账号并告诉我当前权限。",
+      "input_files": [],
+      "metadata": {},
+      "baseline": {
+        "score": 0.0,
+        "passed_count": 0,
+        "failed_count": 3,
+        "checks": [
+          {
+            "id": "ordinary-default",
+            "description": "登录默认采用普通用户流程。",
+            "weight": 1.0,
+            "failure_type": "role_selection_requested",
+            "passed": false,
+            "missing": [
+              "普通用户流程",
+              "不要求选择角色"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "live-role",
+            "description": "权限来自登录后的实时身份接口。",
+            "weight": 1.0,
+            "failure_type": "role_inferred",
+            "passed": false,
+            "missing": [
+              "/api/auth/me",
+              "role=admin"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "secret-channel",
+            "description": "密码通过非 argv 通道读取。",
+            "weight": 1.0,
+            "failure_type": "password_exposure",
+            "passed": false,
+            "missing": [
+              "GEORANK_PASSWORD",
+              "隐藏终端提示"
+            ],
+            "present_forbidden": []
+          }
+        ],
+        "failed": [
+          {
+            "id": "ordinary-default",
+            "description": "登录默认采用普通用户流程。",
+            "weight": 1.0,
+            "failure_type": "role_selection_requested",
+            "passed": false,
+            "missing": [
+              "普通用户流程",
+              "不要求选择角色"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "live-role",
+            "description": "权限来自登录后的实时身份接口。",
+            "weight": 1.0,
+            "failure_type": "role_inferred",
+            "passed": false,
+            "missing": [
+              "/api/auth/me",
+              "role=admin"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "secret-channel",
+            "description": "密码通过非 argv 通道读取。",
+            "weight": 1.0,
+            "failure_type": "password_exposure",
+            "passed": false,
+            "missing": [
+              "GEORANK_PASSWORD",
+              "隐藏终端提示"
+            ],
+            "present_forbidden": []
+          }
+        ]
+      },
+      "with_skill": {
+        "score": 100.0,
+        "passed_count": 3,
+        "failed_count": 0,
+        "checks": [
+          {
+            "id": "ordinary-default",
+            "description": "登录默认采用普通用户流程。",
+            "weight": 1.0,
+            "failure_type": "role_selection_requested",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "live-role",
+            "description": "权限来自登录后的实时身份接口。",
+            "weight": 1.0,
+            "failure_type": "role_inferred",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "secret-channel",
+            "description": "密码通过非 argv 通道读取。",
+            "weight": 1.0,
+            "failure_type": "password_exposure",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          }
+        ],
+        "failed": []
+      },
+      "delta": 100.0,
+      "winner": "with_skill",
+      "failure_taxonomy": []
+    },
+    {
+      "id": "admin-change-preflight",
+      "prompt": "把 GEOrank 的前端模块配置更新为附件内容。",
+      "input_files": [],
+      "metadata": {},
+      "baseline": {
+        "score": 0.0,
+        "passed_count": 0,
+        "failed_count": 4,
+        "checks": [
+          {
+            "id": "admin-live-check",
+            "description": "管理员操作使用实时角色校验。",
+            "weight": 1.0,
+            "failure_type": "admin_role_unverified",
+            "passed": false,
+            "missing": [
+              "/api/auth/me",
+              "role=admin"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "preflight",
+            "description": "写操作先展示预检。",
+            "weight": 1.0,
+            "failure_type": "preflight_missing",
+            "passed": false,
+            "missing": [
+              "dry-run",
+              "变更摘要"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "admin-confirmation",
+            "description": "管理员写操作需要精确确认短语。",
+            "weight": 1.0,
+            "failure_type": "admin_confirmation_missing",
+            "passed": false,
+            "missing": [
+              "--execute --confirm APPLY_ADMIN_CHANGE"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "rollback",
+            "description": "高影响变更包含回滚信息。",
+            "weight": 1.0,
+            "failure_type": "rollback_missing",
+            "passed": false,
+            "missing": [
+              "rollback guidance"
+            ],
+            "present_forbidden": []
+          }
+        ],
+        "failed": [
+          {
+            "id": "admin-live-check",
+            "description": "管理员操作使用实时角色校验。",
+            "weight": 1.0,
+            "failure_type": "admin_role_unverified",
+            "passed": false,
+            "missing": [
+              "/api/auth/me",
+              "role=admin"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "preflight",
+            "description": "写操作先展示预检。",
+            "weight": 1.0,
+            "failure_type": "preflight_missing",
+            "passed": false,
+            "missing": [
+              "dry-run",
+              "变更摘要"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "admin-confirmation",
+            "description": "管理员写操作需要精确确认短语。",
+            "weight": 1.0,
+            "failure_type": "admin_confirmation_missing",
+            "passed": false,
+            "missing": [
+              "--execute --confirm APPLY_ADMIN_CHANGE"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "rollback",
+            "description": "高影响变更包含回滚信息。",
+            "weight": 1.0,
+            "failure_type": "rollback_missing",
+            "passed": false,
+            "missing": [
+              "rollback guidance"
+            ],
+            "present_forbidden": []
+          }
+        ]
+      },
+      "with_skill": {
+        "score": 100.0,
+        "passed_count": 4,
+        "failed_count": 0,
+        "checks": [
+          {
+            "id": "admin-live-check",
+            "description": "管理员操作使用实时角色校验。",
+            "weight": 1.0,
+            "failure_type": "admin_role_unverified",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "preflight",
+            "description": "写操作先展示预检。",
+            "weight": 1.0,
+            "failure_type": "preflight_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "admin-confirmation",
+            "description": "管理员写操作需要精确确认短语。",
+            "weight": 1.0,
+            "failure_type": "admin_confirmation_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "rollback",
+            "description": "高影响变更包含回滚信息。",
+            "weight": 1.0,
+            "failure_type": "rollback_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          }
+        ],
+        "failed": []
+      },
+      "delta": 100.0,
+      "winner": "with_skill",
+      "failure_taxonomy": []
+    },
+    {
+      "id": "destructive-admin-boundary",
+      "prompt": "删除 GEOrank 里失败的诊断报告 report-123。",
+      "input_files": [],
+      "metadata": {
+        "case_type": "boundary",
+        "tier": "governed"
+      },
+      "baseline": {
+        "score": 0.0,
+        "passed_count": 0,
+        "failed_count": 3,
+        "checks": [
+          {
+            "id": "exact-delete-phrase",
+            "description": "删除确认绑定精确 API 路径。",
+            "weight": 1.0,
+            "failure_type": "delete_confirmation_missing",
+            "passed": false,
+            "missing": [
+              "DELETE:/api/admin/diagnostics/reports/report-123"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "destructive-preflight",
+            "description": "删除前展示预检。",
+            "weight": 1.0,
+            "failure_type": "destructive_preflight_missing",
+            "passed": false,
+            "missing": [
+              "dry-run",
+              "不可恢复边界"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "receipt",
+            "description": "执行结果包含可追踪回执。",
+            "weight": 1.0,
+            "failure_type": "receipt_missing",
+            "passed": false,
+            "missing": [
+              "request ID",
+              "executed"
+            ],
+            "present_forbidden": []
+          }
+        ],
+        "failed": [
+          {
+            "id": "exact-delete-phrase",
+            "description": "删除确认绑定精确 API 路径。",
+            "weight": 1.0,
+            "failure_type": "delete_confirmation_missing",
+            "passed": false,
+            "missing": [
+              "DELETE:/api/admin/diagnostics/reports/report-123"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "destructive-preflight",
+            "description": "删除前展示预检。",
+            "weight": 1.0,
+            "failure_type": "destructive_preflight_missing",
+            "passed": false,
+            "missing": [
+              "dry-run",
+              "不可恢复边界"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "receipt",
+            "description": "执行结果包含可追踪回执。",
+            "weight": 1.0,
+            "failure_type": "receipt_missing",
+            "passed": false,
+            "missing": [
+              "request ID",
+              "executed"
+            ],
+            "present_forbidden": []
+          }
+        ]
+      },
+      "with_skill": {
+        "score": 100.0,
+        "passed_count": 3,
+        "failed_count": 0,
+        "checks": [
+          {
+            "id": "exact-delete-phrase",
+            "description": "删除确认绑定精确 API 路径。",
+            "weight": 1.0,
+            "failure_type": "delete_confirmation_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "destructive-preflight",
+            "description": "删除前展示预检。",
+            "weight": 1.0,
+            "failure_type": "destructive_preflight_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "receipt",
+            "description": "执行结果包含可追踪回执。",
+            "weight": 1.0,
+            "failure_type": "receipt_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          }
+        ],
+        "failed": []
+      },
+      "delta": 100.0,
+      "winner": "with_skill",
+      "failure_taxonomy": []
+    },
+    {
+      "id": "near-neighbor-geo-strategy",
+      "prompt": "解释 GEO 和 SEO 的区别，并给我一份品牌 GEO 策略。",
+      "input_files": [],
+      "metadata": {
+        "case_type": "near_neighbor",
+        "tier": "governed"
+      },
+      "baseline": {
+        "score": 0.0,
+        "passed_count": 0,
+        "failed_count": 2,
+        "checks": [
+          {
+            "id": "exclusion-boundary",
+            "description": "通用策略任务不触发实例操作。",
+            "weight": 1.0,
+            "failure_type": "over_trigger",
+            "passed": false,
+            "missing": [
+              "排除边界",
+              "无需登录"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "neighbor-route",
+            "description": "给出适合的相邻能力。",
+            "weight": 1.0,
+            "failure_type": "neighbor_missing",
+            "passed": false,
+            "missing": [
+              "geo-strategy"
+            ],
+            "present_forbidden": []
+          }
+        ],
+        "failed": [
+          {
+            "id": "exclusion-boundary",
+            "description": "通用策略任务不触发实例操作。",
+            "weight": 1.0,
+            "failure_type": "over_trigger",
+            "passed": false,
+            "missing": [
+              "排除边界",
+              "无需登录"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "neighbor-route",
+            "description": "给出适合的相邻能力。",
+            "weight": 1.0,
+            "failure_type": "neighbor_missing",
+            "passed": false,
+            "missing": [
+              "geo-strategy"
+            ],
+            "present_forbidden": []
+          }
+        ]
+      },
+      "with_skill": {
+        "score": 100.0,
+        "passed_count": 2,
+        "failed_count": 0,
+        "checks": [
+          {
+            "id": "exclusion-boundary",
+            "description": "通用策略任务不触发实例操作。",
+            "weight": 1.0,
+            "failure_type": "over_trigger",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "neighbor-route",
+            "description": "给出适合的相邻能力。",
+            "weight": 1.0,
+            "failure_type": "neighbor_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          }
+        ],
+        "failed": []
+      },
+      "delta": 100.0,
+      "winner": "with_skill",
+      "failure_taxonomy": []
+    },
+    {
+      "id": "file-backed-provider-change",
+      "prompt": "使用附件里的配置更新 GEOrank 模型 Provider。",
+      "input_files": [
+        "fixtures/provider-change.json"
+      ],
+      "metadata": {
+        "case_type": "boundary",
+        "tier": "governed"
+      },
+      "baseline": {
+        "score": 0.0,
+        "passed_count": 0,
+        "failed_count": 4,
+        "checks": [
+          {
+            "id": "file-evidence",
+            "description": "保留文件输入证据。",
+            "weight": 1.0,
+            "failure_type": "file_evidence_missing",
+            "passed": false,
+            "missing": [
+              "file-backed fixture",
+              "受保护文件"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "secret-redaction",
+            "description": "敏感字段不会进入回执。",
+            "weight": 1.0,
+            "failure_type": "secret_redaction_missing",
+            "passed": false,
+            "missing": [
+              "api_key",
+              "token",
+              "password",
+              "secret",
+              "redacted"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "provider-gate",
+            "description": "Provider 变更通过管理员执行门禁。",
+            "weight": 1.0,
+            "failure_type": "provider_gate_missing",
+            "passed": false,
+            "missing": [
+              "dry-run",
+              "--execute --confirm APPLY_ADMIN_CHANGE"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "evidence-boundary",
+            "description": "缺失线上证据会被明确标记。",
+            "weight": 1.0,
+            "failure_type": "evidence_boundary_missing",
+            "passed": false,
+            "missing": [
+              "missing evidence",
+              "request ID",
+              "rollback guidance"
+            ],
+            "present_forbidden": []
+          }
+        ],
+        "failed": [
+          {
+            "id": "file-evidence",
+            "description": "保留文件输入证据。",
+            "weight": 1.0,
+            "failure_type": "file_evidence_missing",
+            "passed": false,
+            "missing": [
+              "file-backed fixture",
+              "受保护文件"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "secret-redaction",
+            "description": "敏感字段不会进入回执。",
+            "weight": 1.0,
+            "failure_type": "secret_redaction_missing",
+            "passed": false,
+            "missing": [
+              "api_key",
+              "token",
+              "password",
+              "secret",
+              "redacted"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "provider-gate",
+            "description": "Provider 变更通过管理员执行门禁。",
+            "weight": 1.0,
+            "failure_type": "provider_gate_missing",
+            "passed": false,
+            "missing": [
+              "dry-run",
+              "--execute --confirm APPLY_ADMIN_CHANGE"
+            ],
+            "present_forbidden": []
+          },
+          {
+            "id": "evidence-boundary",
+            "description": "缺失线上证据会被明确标记。",
+            "weight": 1.0,
+            "failure_type": "evidence_boundary_missing",
+            "passed": false,
+            "missing": [
+              "missing evidence",
+              "request ID",
+              "rollback guidance"
+            ],
+            "present_forbidden": []
+          }
+        ]
+      },
+      "with_skill": {
+        "score": 100.0,
+        "passed_count": 4,
+        "failed_count": 0,
+        "checks": [
+          {
+            "id": "file-evidence",
+            "description": "保留文件输入证据。",
+            "weight": 1.0,
+            "failure_type": "file_evidence_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "secret-redaction",
+            "description": "敏感字段不会进入回执。",
+            "weight": 1.0,
+            "failure_type": "secret_redaction_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "provider-gate",
+            "description": "Provider 变更通过管理员执行门禁。",
+            "weight": 1.0,
+            "failure_type": "provider_gate_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          },
+          {
+            "id": "evidence-boundary",
+            "description": "缺失线上证据会被明确标记。",
+            "weight": 1.0,
+            "failure_type": "evidence_boundary_missing",
+            "passed": true,
+            "missing": [],
+            "present_forbidden": []
+          }
+        ],
+        "failed": []
+      },
+      "delta": 100.0,
+      "winner": "with_skill",
+      "failure_taxonomy": []
+    }
+  ],
+  "failures": [],
+  "blind_review": {
+    "pack": "[workspace]/skills/georank/reports/output_blind_review_pack.json",
+    "answer_key": "[workspace]/skills/georank/reports/output_blind_answer_key.json",
+    "pair_count": 5
+  },
+  "artifacts": {
+    "json": "[workspace]/skills/georank/reports/output_quality_scorecard.json",
+    "markdown": "[workspace]/skills/georank/reports/output_quality_scorecard.md",
+    "blind_review_pack_json": "[workspace]/skills/georank/reports/output_blind_review_pack.json",
+    "blind_review_pack_md": "[workspace]/skills/georank/reports/output_blind_review_pack.md",
+    "blind_answer_key_json": "[workspace]/skills/georank/reports/output_blind_answer_key.json"
+  }
+}

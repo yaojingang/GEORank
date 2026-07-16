@@ -1,0 +1,5 @@
+{
+  "provider": "openai-compatible",
+  "model": "example-model",
+  "api_key": "[REDACTED]"
+}

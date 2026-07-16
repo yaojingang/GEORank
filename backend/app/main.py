@@ -11,6 +11,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from redis.asyncio import Redis
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -43,6 +44,7 @@ async def _seed_settings(db):
         get_default_frontend_module_config,
         get_default_homepage_runtime_config,
     )
+    from app.services.navigation_settings import get_default_navigation_menu
 
     defaults = [
         {"key": "site_name", "value": "GEOrank", "category": "basic", "is_public": True},
@@ -73,6 +75,7 @@ async def _seed_settings(db):
         {"key": "api_usage_policy", "value": get_default_ai_usage_policy_config(), "category": "ai_usage", "is_public": False},
         {"key": "frontend_modules", "value": get_default_frontend_module_config(), "category": "frontend", "is_public": False},
         {"key": "homepage_runtime", "value": get_default_homepage_runtime_config(), "category": "frontend", "is_public": False},
+        {"key": "navigation_menu", "value": get_default_navigation_menu(), "category": "frontend", "is_public": True},
     ]
 
     for item in defaults:
@@ -197,6 +200,7 @@ async def _seed_default_homepage_release(db):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期 — 数据库迁移完成后初始化默认配置。"""
+    settings.validate_production_security()
 
     from app.core.database import async_session
     async with async_session() as db:
@@ -223,6 +227,7 @@ app = FastAPI(
 
 # 速率限制
 app.state.limiter = limiter
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.TRUSTED_HOSTS)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 

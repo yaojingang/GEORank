@@ -4,17 +4,26 @@ import { useEffect, useState } from 'react';
 import {useTranslations} from 'next-intl';
 
 import type { UserOut } from '@georank/api-sdk';
-import { getSession, getStoredToken } from '@georank/auth';
+import {getStoredToken, getVerifiedSession} from '@georank/auth';
 import {localizeHref} from '@georank/i18n/routing';
 
 type SessionGuardProps = {
   locale: string;
   title: string;
   description: string;
+  redirectUnauthenticated?: boolean;
+  returnTo?: string;
   children: (props: { token: string; user: UserOut }) => React.ReactNode;
 };
 
-export function SessionGuard({ locale, title, description, children }: SessionGuardProps) {
+export function SessionGuard({
+  locale,
+  title,
+  description,
+  redirectUnauthenticated = false,
+  returnTo,
+  children
+}: SessionGuardProps) {
   const t = useTranslations('web.session');
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthenticated'>('loading');
   const [token, setToken] = useState('');
@@ -32,7 +41,7 @@ export function SessionGuard({ locale, title, description, children }: SessionGu
         return;
       }
 
-      const nextUser = await getSession();
+      const nextUser = await getVerifiedSession();
       if (cancelled) return;
 
       if (!nextUser) {
@@ -52,6 +61,13 @@ export function SessionGuard({ locale, title, description, children }: SessionGu
     };
   }, []);
 
+  useEffect(() => {
+    if (status !== 'unauthenticated' || !redirectUnauthenticated) return;
+    const loginHref = localizeHref(locale, '/login');
+    const destination = returnTo || localizeHref(locale, '/profile');
+    window.location.replace(`${loginHref}?return=${encodeURIComponent(destination)}`);
+  }, [locale, redirectUnauthenticated, returnTo, status]);
+
   if (status === 'loading') {
     return (
       <section className="panel tool-auth">
@@ -63,6 +79,15 @@ export function SessionGuard({ locale, title, description, children }: SessionGu
   }
 
   if (status === 'unauthenticated' || !user) {
+    if (redirectUnauthenticated) {
+      return (
+        <section className="panel tool-auth">
+          <span className="page-eyebrow">{t('authRequiredEyebrow')}</span>
+          <h2 className="card-title">{title}</h2>
+          <p className="card-subtitle">{t('redirecting')}</p>
+        </section>
+      );
+    }
     return (
       <section className="panel tool-auth">
         <span className="page-eyebrow">{t('authRequiredEyebrow')}</span>

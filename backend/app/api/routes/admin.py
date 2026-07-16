@@ -6,6 +6,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from functools import wraps
+import hashlib
 import time
 import re
 import secrets
@@ -13,6 +14,7 @@ import string
 import uuid
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import HTMLResponse
@@ -24,8 +26,14 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.deps import DbSession, AdminUser
 from app.models.company import Company, PublishStatus, PipelineStatus
-from app.services.company_profile import company_profile_needs_hydration, ensure_company_profile
+from app.services.company_profile import (
+    company_profile_missing_fields,
+    company_profile_needs_hydration,
+    ensure_company_profile,
+)
 from app.services.company_ingest import normalize_company_url
+from app.services.company_lookup import company_public_path
+from app.services.company_preview import create_company_preview_token
 from app.models.content import Content, ContentStatus, ContentType
 from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
 from app.models.conversation import Conversation, Message, MessageRole
@@ -65,31 +73,45 @@ from app.services.runtime_settings import (
     normalize_frontend_module_payload,
 )
 from app.services.homepage_assets import (
+    DEFAULT_LIMITS,
     HomepageAssetError,
+    HomepageAssetConflictError,
     apply_analytics_to_active_homepage,
     activate_homepage_release,
     build_single_html_release,
     build_zip_homepage_release,
     cleanup_inactive_homepage_overlay,
+    clone_homepage_release,
     homepage_root,
     public_release_path,
+    read_homepage_entry_source,
     reset_active_homepage,
     restore_active_homepage_target,
     snapshot_active_homepage_target,
     stage_homepage_release_deletion,
     source_release_path,
+    update_homepage_entry_source,
+)
+from app.services.navigation_settings import (
+    NAVIGATION_MENU_SETTING_KEY,
+    NavigationMenuValidationError,
+    normalize_navigation_menu_payload,
 )
 from app.services.ai_usage import (
     AI_USAGE_POLICY_SETTING_KEY,
+    admin_user_quota_payload,
     admin_usage_summary,
     normalize_policy_payload,
     public_policy_payload,
+    release_ai_access,
     resolve_async_ai_access,
+    settle_token_reservation,
     store_policy_setting,
+    update_admin_user_quota,
 )
 from app.services.ai_client import ai_client
 from app.services.content_render import render_markdown
-from app.models.ai_usage import AIUsageEvent, UserDailyUsage
+from app.models.ai_usage import AIPrincipalUser, AIUsageEvent, UserDailyUsage
 
 router = APIRouter()
 DIAGNOSTIC_RULES_SETTING_KEY = "diagnostic_rule_weights"
@@ -289,6 +311,7 @@ PROTECTED_SETTING_KEYS = {
     LLM_PROVIDER_KEYS_SETTING_KEY,
     FRONTEND_MODULES_SETTING_KEY,
     HOMEPAGE_RUNTIME_SETTING_KEY,
+    NAVIGATION_MENU_SETTING_KEY,
     AI_USAGE_POLICY_SETTING_KEY,
 }
 
@@ -760,6 +783,12 @@ async def list_companies_admin(
         "items": [
             {
                 "id": str(c.id),
+                "path_key": c.path_key,
+                "preview_url": (
+                    company_public_path(c)
+                    if c.publish_status == PublishStatus.PUBLISHED
+                    else f"{company_public_path(c)}?preview={quote(create_company_preview_token(c.id))}"
+                ),
                 "name": c.name,
                 "url": c.url,
                 "short_description": c.short_description,
@@ -801,8 +830,9 @@ async def create_company_admin(data: AdminCompanyRequest, db: DbSession, admin: 
     values = _company_admin_values(data)
     values["url"] = normalized_url
     values["name"] = data.name.strip()
-    values.setdefault("publish_status", PublishStatus.DRAFT)
-    values.setdefault("pipeline_status", PipelineStatus.COMPLETED)
+    # 手工创建只生成草稿；发布统一经过 approve_company 的完整性门槛。
+    values["publish_status"] = PublishStatus.DRAFT
+    values["pipeline_status"] = PipelineStatus.COMPLETED
     values["submitted_by"] = admin.id
     company = Company(**values)
     db.add(company)
@@ -867,6 +897,7 @@ async def get_company_admin_detail(company_id: str, db: DbSession, _: AdminUser)
 
     return {
         "id": str(company.id),
+        "path_key": company.path_key,
         "name": company.name,
         "url": company.url,
         "logo_url": company.logo_url,
@@ -887,6 +918,11 @@ async def get_company_admin_detail(company_id: str, db: DbSession, _: AdminUser)
         "pipeline_status": company.pipeline_status.value,
         "pipeline_error": company.pipeline_error,
         "publish_status": company.publish_status.value,
+        "preview_url": (
+            company_public_path(company)
+            if company.publish_status == PublishStatus.PUBLISHED
+            else f"{company_public_path(company)}?preview={quote(create_company_preview_token(company.id))}"
+        ),
         "raw_html_key": company.raw_html_key,
         "about_html_key": company.about_html_key,
         "screenshots": company.screenshots or [],
@@ -935,6 +971,18 @@ async def update_company_admin(company_id: str, data: AdminCompanyRequest, db: D
     values = _company_admin_values(data, partial=True)
     if "name" in values and not values["name"]:
         raise HTTPException(status_code=422, detail="公司名称不能为空")
+    requested_publish_status = values.pop("publish_status", None)
+    if requested_publish_status is not None and requested_publish_status != company.publish_status:
+        raise HTTPException(
+            status_code=409,
+            detail="发布状态请通过审核通过或驳回操作变更。",
+        )
+    requested_pipeline_status = values.pop("pipeline_status", None)
+    if requested_pipeline_status is not None and requested_pipeline_status != company.pipeline_status:
+        raise HTTPException(
+            status_code=409,
+            detail="分析状态由流水线维护，请使用重试流水线操作。",
+        )
     for key, value in values.items():
         if key == "url":
             continue
@@ -954,10 +1002,24 @@ async def approve_company(company_id: str, db: DbSession, _: AdminUser):
     if not company:
         raise HTTPException(status_code=404, detail="公司不存在")
 
-    if company.pipeline_status == PipelineStatus.COMPLETED and company_profile_needs_hydration(company):
-        await ensure_company_profile(db, company)
+    if company.pipeline_status != PipelineStatus.COMPLETED:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "公司分析流程尚未完成，暂不能发布",
+                "pipeline_status": company.pipeline_status.value,
+                "pipeline_error": company.pipeline_error,
+            },
+        )
+
     if company_profile_needs_hydration(company):
-        raise HTTPException(status_code=409, detail="公司资料未抽取完整，暂不能发布")
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "公司资料未抽取完整，暂不能发布",
+                "missing_fields": company_profile_missing_fields(company),
+            },
+        )
 
     await db.execute(
         update(Company).where(Company.id == cid).values(publish_status=PublishStatus.PUBLISHED)
@@ -984,35 +1046,80 @@ async def reject_company(company_id: str, db: DbSession, _: AdminUser, reason: s
 async def retry_pipeline(company_id: str, db: DbSession, admin_user: AdminUser):
     """重新触发入库流水线"""
     cid = uuid.UUID(company_id)
-    result = await db.execute(select(Company).where(Company.id == cid))
+    result = await db.execute(
+        select(Company).where(Company.id == cid).with_for_update()
+    )
     company = result.scalar_one_or_none()
     if not company:
         raise HTTPException(status_code=404, detail="公司不存在")
 
+    retryable_statuses = {PipelineStatus.FAILED, PipelineStatus.COMPLETED}
+    if company.pipeline_status not in retryable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="公司分析任务仍在运行，请等待当前任务结束后再重试。",
+        )
+    previous_pipeline_status = company.pipeline_status
+    if company.ai_reservation_id:
+        await settle_token_reservation(
+            db,
+            reservation_id=company.ai_reservation_id,
+            actual_tokens=0,
+            succeeded=False,
+        )
+
     usage_user = await _load_user_for_usage(db, company.submitted_by) or admin_user
-    await resolve_async_ai_access(
+    access = await resolve_async_ai_access(
         db=db,
         current_user=usage_user,
         module="companies",
         prompt_text=company.url,
     )
 
-    await db.execute(
-        update(Company).where(Company.id == cid).values(
+    retry_result = await db.execute(
+        update(Company).where(
+            Company.id == cid,
+            Company.pipeline_status == previous_pipeline_status,
+        ).values(
             pipeline_status=PipelineStatus.PENDING,
             pipeline_error=None,
+            crawl_candidates=[],
+            crawl_pages=[],
             submitted_by=usage_user.id,
-        )
+            ai_reservation_id=access.reservation_id,
+        ).returning(Company.id)
     )
+    if retry_result.scalar_one_or_none() is None:
+        await release_ai_access(
+            db,
+            access,
+            error_code="company_pipeline_state_changed",
+        )
+        await db.commit()
+        raise HTTPException(status_code=409, detail="公司分析状态已变化，请刷新后重试。")
     await db.commit()
 
+    queue_failed = False
     try:
         from app.core.celery_app import celery_app
-        celery_app.send_task("app.tasks.crawl.crawl_company_website", args=[company_id, company.url])
+        celery_app.send_task(
+            "app.tasks.crawl.crawl_company_website",
+            args=[company_id, company.url, str(access.reservation_id)],
+        )
     except Exception:
-        pass
+        queue_failed = True
+        await db.execute(
+            update(Company)
+            .where(Company.id == cid)
+            .values(
+                pipeline_status=PipelineStatus.FAILED,
+                pipeline_error="官网分析任务创建失败，请稍后重试。",
+            )
+        )
+        await release_ai_access(db, access, error_code="queue_dispatch_failed")
+        await db.commit()
 
-    return {"status": "retrying", "company_id": company_id}
+    return {"status": "failed" if queue_failed else "retrying", "company_id": company_id}
 
 
 @router.delete("/companies/{company_id}")
@@ -1749,24 +1856,57 @@ async def retry_diagnostic_report_admin(
 ):
     """重新触发诊断抓取与分析链路。"""
     rid = uuid.UUID(report_id)
-    result = await db.execute(select(DiagnosticReport).where(DiagnosticReport.id == rid))
+    result = await db.execute(
+        select(DiagnosticReport).where(DiagnosticReport.id == rid).with_for_update()
+    )
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(status_code=404, detail="诊断报告不存在")
+    retryable_statuses = {DiagnosticStatus.FAILED, DiagnosticStatus.COMPLETED}
+    if report.status not in retryable_statuses:
+        raise HTTPException(
+            status_code=409,
+            detail="诊断任务仍在运行，请等待当前任务结束后再重试。",
+        )
+    previous_status = report.status
+    if report.ai_reservation_id:
+        await settle_token_reservation(
+            db,
+            reservation_id=report.ai_reservation_id,
+            actual_tokens=0,
+            succeeded=False,
+        )
 
     usage_user = await _load_user_for_usage(db, report.user_id) or admin_user
-    await resolve_async_ai_access(
+    access = await resolve_async_ai_access(
         db=db,
         current_user=usage_user,
         module="diagnostics",
         prompt_text=report.url,
     )
 
-    await db.execute(
+    retry_result = await db.execute(
         update(DiagnosticReport)
-        .where(DiagnosticReport.id == rid)
-        .values(status=DiagnosticStatus.PENDING, error_message=None, user_id=usage_user.id)
+        .where(
+            DiagnosticReport.id == rid,
+            DiagnosticReport.status == previous_status,
+        )
+        .values(
+            status=DiagnosticStatus.PENDING,
+            error_message=None,
+            user_id=usage_user.id,
+            ai_reservation_id=access.reservation_id,
+        )
+        .returning(DiagnosticReport.id)
     )
+    if retry_result.scalar_one_or_none() is None:
+        await release_ai_access(
+            db,
+            access,
+            error_code="diagnostic_state_changed",
+        )
+        await db.commit()
+        raise HTTPException(status_code=409, detail="诊断状态已变化，请刷新后重试。")
     await db.commit()
 
     try:
@@ -1774,10 +1914,20 @@ async def retry_diagnostic_report_admin(
 
         celery_app.send_task(
             "app.tasks.crawl.crawl_diagnostic_page",
-            args=[report_id, report.url],
+            args=[report_id, report.url, str(access.reservation_id)],
         )
     except Exception:
-        pass
+        await db.execute(
+            update(DiagnosticReport)
+            .where(DiagnosticReport.id == rid)
+            .values(
+                status=DiagnosticStatus.FAILED,
+                error_message="诊断任务创建失败，请稍后重试。",
+            )
+        )
+        await release_ai_access(db, access, error_code="queue_dispatch_failed")
+        await db.commit()
+        return {"status": "failed", "report_id": report_id}
 
     return {"status": "retrying", "report_id": report_id}
 
@@ -2408,7 +2558,7 @@ async def _ensure_unique_user_fields(
     query = select(User.id).where(or_(*filters))
     if user_id:
         query = query.where(User.id != user_id)
-    result = await db.execute(query)
+    result = await db.execute(query.limit(1))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="用户名、邮箱或手机号已存在")
 
@@ -2469,6 +2619,7 @@ async def _delete_user_related_data(db: DbSession, user_id: uuid.UUID):
         await db.execute(delete(Conversation).where(Conversation.id.in_(conversation_ids)))
 
     await db.execute(delete(UserDailyUsage).where(UserDailyUsage.user_id == user_id))
+    await db.execute(delete(AIPrincipalUser).where(AIPrincipalUser.user_id == user_id))
     await db.execute(update(AIUsageEvent).where(AIUsageEvent.user_id == user_id).values(user_id=None))
     await db.execute(update(Company).where(Company.submitted_by == user_id).values(submitted_by=None))
     await db.execute(update(DiagnosticReport).where(DiagnosticReport.user_id == user_id).values(user_id=None))
@@ -2669,6 +2820,44 @@ async def get_user_admin(user_id: str, db: DbSession, _: AdminUser):
     """获取用户详情"""
     user = await _load_admin_user_or_404(db, user_id)
     return _serialize_admin_user(user)
+
+
+class AdminUserQuotaUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    granted_tokens: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    consumed_tokens: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    frozen: bool | None = None
+    reason: str = Field(min_length=2, max_length=500)
+
+
+@router.get("/users/{user_id}/ai-quota")
+async def get_user_ai_quota_admin(user_id: str, db: DbSession, _: AdminUser):
+    """读取用户所属风险主体的终身 AI 额度。"""
+    user = await _load_admin_user_or_404(db, user_id)
+    return await admin_user_quota_payload(db, user)
+
+
+@router.put("/users/{user_id}/ai-quota")
+async def update_user_ai_quota_admin(
+    user_id: str,
+    data: AdminUserQuotaUpdateRequest,
+    db: DbSession,
+    admin: AdminUser,
+):
+    """调整用户风险主体额度或冻结状态，并写入审计日志。"""
+    if data.granted_tokens is None and data.consumed_tokens is None and data.frozen is None:
+        raise HTTPException(status_code=422, detail="请至少提交一项额度或冻结状态变更")
+    user = await _load_admin_user_or_404(db, user_id)
+    return await update_admin_user_quota(
+        db,
+        user=user,
+        admin=admin,
+        granted_tokens=data.granted_tokens,
+        consumed_tokens=data.consumed_tokens,
+        frozen=data.frozen,
+        reason=data.reason,
+    )
 
 
 @router.put("/users/{user_id}")
@@ -3009,6 +3198,36 @@ async def delete_keyword_pack_admin(pack_id: str, db: DbSession, _: AdminUser):
 # ===== API 成本控制 =====
 
 
+class AdminByokGuidanceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str | None = Field(default=None, max_length=50)
+    title: str | None = Field(default=None, max_length=120)
+    message: str | None = Field(default=None, max_length=500)
+    cta_label: str | None = Field(default=None, max_length=80)
+    official_url: str | None = Field(default=None, max_length=500)
+    base_url: str | None = Field(default=None, max_length=240)
+    model: str | None = Field(default=None, max_length=100)
+
+
+class AdminApiPolicyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    access_mode: str | None = Field(default=None, max_length=50)
+    daily_token_limit: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    lifetime_token_grant: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    global_daily_token_limit: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    global_budget_enabled: bool | None = None
+    emergency_byok_only: bool | None = None
+    quota_reset_timezone: str | None = Field(default=None, max_length=100)
+    allow_anonymous_ai_usage: bool | None = None
+    allow_user_byok: bool | None = None
+    byok_transport_mode: str | None = Field(default=None, max_length=50)
+    byok_guidance: AdminByokGuidanceRequest | None = None
+    allowed_byok_providers: list[dict[str, Any]] | None = None
+    metered_modules: list[str] | None = None
+
+
 @router.get("/api-policy")
 async def get_api_policy(db: DbSession, _: AdminUser):
     """读取 AI API 成本控制策略与用量摘要。"""
@@ -3021,10 +3240,10 @@ async def get_api_policy(db: DbSession, _: AdminUser):
 
 
 @router.put("/api-policy")
-async def update_api_policy(request: dict, db: DbSession, admin: AdminUser):
+async def update_api_policy(request: AdminApiPolicyRequest, db: DbSession, admin: AdminUser):
     """更新 AI API 成本控制策略。"""
     current_policy = await get_ai_usage_policy_config()
-    next_policy = normalize_policy_payload(request, current_policy)
+    next_policy = normalize_policy_payload(request.model_dump(exclude_unset=True), current_policy)
     await store_policy_setting(db, admin, next_policy)
     await db.commit()
     await invalidate_runtime_settings_cache()
@@ -3552,6 +3771,12 @@ async def reset_frontend_modules_admin(db: DbSession, _: AdminUser):
 
 # ===== 自定义首页 =====
 
+
+class HomepageSourceUpdateRequest(BaseModel):
+    html: str = Field(min_length=1, max_length=DEFAULT_LIMITS.max_extracted_size)
+    expected_sha256: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+
+
 def _serialize_homepage_release(release: HomepageRelease) -> dict:
     is_builtin = str(release.id) == DEFAULT_HOMEPAGE_RELEASE_ID
     return {
@@ -3684,6 +3909,118 @@ async def create_homepage_release_admin(
 async def get_homepage_release_admin(release_id: uuid.UUID, db: DbSession, _: AdminUser):
     release = await _load_homepage_release_or_404(db, release_id)
     return _serialize_homepage_release(release)
+
+
+@router.post("/homepage/releases/{release_id}/clone", status_code=status.HTTP_201_CREATED)
+async def clone_homepage_release_admin(release_id: uuid.UUID, db: DbSession, admin: AdminUser):
+    source_release = await _load_homepage_release_or_404(db, release_id)
+    if source_release.status == HomepageReleaseStatus.FAILED:
+        raise HTTPException(status_code=400, detail="失败版本不能复制")
+
+    target_id = uuid.uuid4()
+    title_suffix = " 可编辑副本"
+    clone_title = f"{source_release.title[: 200 - len(title_suffix)]}{title_suffix}"
+    source_type = (
+        source_release.source_type.value
+        if hasattr(source_release.source_type, "value")
+        else str(source_release.source_type)
+    )
+    root = homepage_root()
+    try:
+        manifest = clone_homepage_release(
+            root,
+            str(source_release.id),
+            str(target_id),
+            title=clone_title,
+            source_type=source_type,
+        )
+    except HomepageAssetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    cloned_release = HomepageRelease(
+        id=target_id,
+        title=clone_title,
+        source_type=source_release.source_type,
+        status=HomepageReleaseStatus.DRAFT,
+        entry_path=manifest["entry_path"],
+        storage_path=manifest["storage_path"],
+        file_count=manifest["file_count"],
+        compressed_size=manifest["compressed_size"],
+        extracted_size=manifest["extracted_size"],
+        sha256=manifest["sha256"],
+        release_manifest=manifest,
+        created_by=admin.id,
+    )
+    db.add(cloned_release)
+    try:
+        await db.commit()
+        await db.refresh(cloned_release)
+    except Exception:
+        shutil.rmtree(source_release_path(root, str(target_id)).parent, ignore_errors=True)
+        shutil.rmtree(public_release_path(root, str(target_id)), ignore_errors=True)
+        raise
+    return _serialize_homepage_release(cloned_release)
+
+
+@router.get("/homepage/releases/{release_id}/source")
+async def get_homepage_release_source_admin(release_id: uuid.UUID, db: DbSession, _: AdminUser):
+    release = await _load_homepage_release_or_404(db, release_id)
+    if str(release.id) == DEFAULT_HOMEPAGE_RELEASE_ID:
+        raise HTTPException(status_code=400, detail="内置首页版本不能编辑")
+    try:
+        html = read_homepage_entry_source(homepage_root(), str(release.id))
+    except HomepageAssetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "release_id": str(release.id),
+        "html": html,
+        "sha256": hashlib.sha256(html.encode("utf-8")).hexdigest(),
+    }
+
+
+@router.put("/homepage/releases/{release_id}/source")
+async def update_homepage_release_source_admin(
+    release_id: uuid.UUID,
+    request: HomepageSourceUpdateRequest,
+    db: DbSession,
+    _: AdminUser,
+):
+    release = await _load_homepage_release_or_404(db, release_id)
+    if str(release.id) == DEFAULT_HOMEPAGE_RELEASE_ID:
+        raise HTTPException(status_code=400, detail="内置首页版本不能编辑")
+    is_active = release.status == HomepageReleaseStatus.ACTIVE
+    analytics_code = ""
+    if is_active:
+        analytics_code = await _load_setting_value(db, ANALYTICS_TRACKING_CODE_SETTING_KEY, "")
+    try:
+        manifest = update_homepage_entry_source(
+            homepage_root(),
+            str(release.id),
+            request.html,
+            title=release.title,
+            source_type=release.source_type.value if hasattr(release.source_type, "value") else str(release.source_type),
+            sync_active=is_active,
+            analytics_code=analytics_code,
+            expected_sha256=request.expected_sha256,
+        )
+    except HomepageAssetConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except HomepageAssetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    release.entry_path = manifest["entry_path"]
+    release.storage_path = manifest["storage_path"]
+    release.file_count = manifest["file_count"]
+    release.extracted_size = manifest["extracted_size"]
+    release.sha256 = manifest["sha256"]
+    release.release_manifest = manifest
+    await db.commit()
+    await db.refresh(release)
+    return {
+        "release": _serialize_homepage_release(release),
+        "updated_active": is_active,
+        "source_sha256": manifest["sha256"],
+    }
 
 
 @router.get("/homepage/releases/{release_id}/preview", response_class=HTMLResponse)
@@ -3961,9 +4298,28 @@ async def update_settings(request: dict, db: DbSession, admin: AdminUser):
 
     analytics_code_to_apply: str | None = None
     for key, val in request.items():
+        if key in {
+            AI_USAGE_POLICY_SETTING_KEY,
+            DIAGNOSTIC_RULES_SETTING_KEY,
+            SOLUTION_TEMPLATES_SETTING_KEY,
+            SOLUTION_CHANNELS_SETTING_KEY,
+            LLM_PROVIDERS_SETTING_KEY,
+            LLM_PROVIDER_KEYS_SETTING_KEY,
+            FRONTEND_MODULES_SETTING_KEY,
+            HOMEPAGE_RUNTIME_SETTING_KEY,
+        }:
+            raise HTTPException(
+                status_code=400,
+                detail=f"配置项 {key} 必须通过对应的专用管理接口更新",
+            )
         value = val.get("value", val) if isinstance(val, dict) else val
         if key == "admin_entry_path":
             value = _normalize_admin_entry_path(value)
+        if key == NAVIGATION_MENU_SETTING_KEY:
+            try:
+                value = normalize_navigation_menu_payload(value)
+            except NavigationMenuValidationError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
         if key == ANALYTICS_TRACKING_CODE_SETTING_KEY:
             value = str(value or "").strip()
             if len(value.encode("utf-8")) > 20000:
@@ -3998,12 +4354,12 @@ async def update_settings(request: dict, db: DbSession, admin: AdminUser):
                 "is_public": False if sensitive else requested_public,
                 "updated_by": admin.id,
             }
-            if key == ANALYTICS_TRACKING_CODE_SETTING_KEY:
+            if key in {ANALYTICS_TRACKING_CODE_SETTING_KEY, NAVIGATION_MENU_SETTING_KEY}:
                 update_values["is_public"] = True
             await db.execute(update(Setting).where(Setting.key == key).values(**update_values))
         else:
             requested_public = (
-                True if key == ANALYTICS_TRACKING_CODE_SETTING_KEY
+                True if key in {ANALYTICS_TRACKING_CODE_SETTING_KEY, NAVIGATION_MENU_SETTING_KEY}
                 else bool(val.get("is_public")) if isinstance(val, dict) else False
             )
             is_public = bool(requested_public and not sensitive)

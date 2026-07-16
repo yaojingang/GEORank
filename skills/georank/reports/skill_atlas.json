@@ -1,0 +1,228 @@
+{
+  "ok": true,
+  "workspace_root": "[workspace]/skills",
+  "summary": {
+    "skill_count": 1,
+    "actionable_skill_count": 1,
+    "route_collision_count": 0,
+    "actionable_route_collision_count": 0,
+    "owner_gap_count": 0,
+    "actionable_owner_gap_count": 0,
+    "stale_count": 0,
+    "actionable_stale_count": 0,
+    "shared_resource_count": 0,
+    "no_route_opportunity_count": 0,
+    "telemetry_report_count": 1,
+    "drift_signal_count": 1,
+    "actionable_drift_signal_count": 1,
+    "non_actionable_issue_count": 0
+  },
+  "scope_policy": {
+    "present": false,
+    "path": "skill_atlas/policy.json",
+    "rules": []
+  },
+  "catalog": {
+    "workspace_root": "[workspace]/skills",
+    "generated_at": "2026-07-16",
+    "skills": [
+      {
+        "name": "georank",
+        "path": "georank",
+        "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+        "owner": "GEOrank Maintainers",
+        "version": "0.1.0",
+        "status": "active",
+        "maturity": "governed",
+        "updated_at": "2026-07-16",
+        "review_cadence": "monthly",
+        "targets": [
+          "openai",
+          "claude",
+          "generic",
+          "agent-skills-compatible",
+          "vscode"
+        ],
+        "resources": [
+          "scripts/georank_client.py",
+          "references/admin-capabilities.md",
+          "references/safety-policy.md",
+          "references/user-capabilities.md"
+        ],
+        "token_set": [
+          "account",
+          "across",
+          "actions",
+          "admin",
+          "administrator",
+          "advice",
+          "after",
+          "api",
+          "article",
+          "asked",
+          "auth",
+          "authenticated",
+          "code",
+          "companies",
+          "content",
+          "conversations",
+          "defaults",
+          "development",
+          "diagnostics",
+          "do",
+          "does",
+          "expand",
+          "experts",
+          "general",
+          "geo",
+          "georank",
+          "guidance",
+          "homepage",
+          "http",
+          "in",
+          "inspect",
+          "instance",
+          "its",
+          "keywords",
+          "log",
+          "login",
+          "manage",
+          "me",
+          "modules",
+          "not",
+          "only",
+          "operate",
+          "or",
+          "ordinary",
+          "perform",
+          "providers",
+          "read",
+          "releases",
+          "returns",
+          "role",
+          "run",
+          "running",
+          "self-hosted",
+          "seo",
+          "settings",
+          "solution",
+          "strategy",
+          "submit",
+          "that",
+          "through",
+          "unlocks",
+          "usage",
+          "user",
+          "users",
+          "work",
+          "writing"
+        ],
+        "atlas_scope": "release",
+        "actionable": true,
+        "scope_reason": "default release-actionable skill",
+        "telemetry": {
+          "report_present": true,
+          "report": "georank/reports/adoption_drift_report.json",
+          "risk_band": "no-data",
+          "event_count": 0,
+          "adoption_sample_count": 0,
+          "adoption_rate": 0,
+          "candidate_count": 1
+        }
+      }
+    ],
+    "summary": {
+      "skill_count": 1,
+      "actionable_skill_count": 1,
+      "route_collision_count": 0,
+      "actionable_route_collision_count": 0,
+      "owner_gap_count": 0,
+      "actionable_owner_gap_count": 0,
+      "stale_count": 0,
+      "actionable_stale_count": 0,
+      "shared_resource_count": 0,
+      "no_route_opportunity_count": 0,
+      "telemetry_report_count": 1,
+      "drift_signal_count": 1,
+      "actionable_drift_signal_count": 1,
+      "non_actionable_issue_count": 0
+    }
+  },
+  "route_collisions": [],
+  "actionable_route_collisions": [],
+  "dependency_graph": {
+    "nodes": [
+      {
+        "name": "georank",
+        "path": "georank"
+      }
+    ],
+    "shared_resources": []
+  },
+  "stale_skills": [],
+  "actionable_stale_skills": [],
+  "owner_review_gaps": [],
+  "actionable_owner_review_gaps": [],
+  "drift_signals": [
+    {
+      "name": "georank",
+      "path": "georank",
+      "source": "georank/reports/adoption_drift_report.json",
+      "risk_band": "no-data",
+      "signal_types": [
+        "no telemetry"
+      ],
+      "recommendation": "Start with a small metadata-only sample before using telemetry for release decisions.",
+      "actionable": true,
+      "scope": "release",
+      "summary": {
+        "event_count": 0,
+        "adoption_sample_count": 0,
+        "adoption_rate": 0,
+        "missed_trigger_count": 0,
+        "wrong_trigger_count": 0,
+        "bad_output_count": 0,
+        "missing_resource_count": 0,
+        "script_error_count": 0,
+        "review_overdue_count": 0
+      }
+    }
+  ],
+  "actionable_drift_signals": [
+    {
+      "name": "georank",
+      "path": "georank",
+      "source": "georank/reports/adoption_drift_report.json",
+      "risk_band": "no-data",
+      "signal_types": [
+        "no telemetry"
+      ],
+      "recommendation": "Start with a small metadata-only sample before using telemetry for release decisions.",
+      "actionable": true,
+      "scope": "release",
+      "summary": {
+        "event_count": 0,
+        "adoption_sample_count": 0,
+        "adoption_rate": 0,
+        "missed_trigger_count": 0,
+        "wrong_trigger_count": 0,
+        "bad_output_count": 0,
+        "missing_resource_count": 0,
+        "script_error_count": 0,
+        "review_overdue_count": 0
+      }
+    }
+  ],
+  "no_route_opportunities": [],
+  "artifacts": {
+    "catalog": "[workspace]/tmp/georank-skill-review-20260716/atlas/catalog.json",
+    "route_overlap_matrix": "[workspace]/tmp/georank-skill-review-20260716/atlas/route_overlap_matrix.csv",
+    "dependency_graph": "[workspace]/tmp/georank-skill-review-20260716/atlas/dependency_graph.json",
+    "stale_skills": "[workspace]/tmp/georank-skill-review-20260716/atlas/stale_skills.json",
+    "owner_review_gaps": "[workspace]/tmp/georank-skill-review-20260716/atlas/owner_review_gaps.json",
+    "drift_signals": "[workspace]/tmp/georank-skill-review-20260716/atlas/drift_signals.json",
+    "no_route_opportunities": "[workspace]/tmp/georank-skill-review-20260716/atlas/no_route_opportunities.json",
+    "report_json": "[workspace]/skills/georank/reports/skill_atlas.json",
+    "report_html": "[workspace]/skills/georank/reports/skill_atlas.html"
+  }
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill Atlas</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #fff; }
+    main { max-width: 1120px; margin: 0 auto; padding: 40px 24px; }
+    h1 { font-size: 34px; margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 28px 0; }
+    .card { border: 1px solid #d9e0ea; border-radius: 8px; padding: 16px; background: #f8fafc; }
+    .card span { display: block; color: #697386; font-size: 13px; }
+    .card strong { display: block; font-size: 28px; color: #1B365D; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { text-align: left; border-bottom: 1px solid #e5e9f0; padding: 10px; vertical-align: top; }
+    th { color: #1B365D; font-size: 13px; }
+    li { margin: 8px 0; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Skill Atlas</h1>
+    <p>Portfolio-level review for route overlap, stale ownership, shared resources, telemetry drift, and no-route opportunities.</p>
+    <section class="grid">
+      <div class="card"><span>Skills</span><strong>1</strong></div>
+      <div class="card"><span>Actionable</span><strong>1</strong></div>
+      <div class="card"><span>Route Collisions</span><strong>0</strong></div>
+      <div class="card"><span>Owner Gaps</span><strong>0</strong></div>
+      <div class="card"><span>Stale Skills</span><strong>0</strong></div>
+      <div class="card"><span>Drift Signals</span><strong>1</strong></div>
+      <div class="card"><span>No-Route Opportunities</span><strong>0</strong></div>
+    </section>
+    <section>
+      <h2>Actionable Issues</h2>
+      <ul><li><strong>georank</strong> no telemetry</li></ul>
+    </section>
+    <section>
+      <h2>No-Route Opportunities</h2>
+      <p>Missed-trigger telemetry and explicit failure cases become candidate routing work without storing raw prompts or outputs.</p>
+      <ul><li>No no-route opportunities detected.</li></ul>
+    </section>
+    <section>
+      <h2>Full Portfolio Counts</h2>
+      <p>All scanned skills remain visible: 0 total route collisions, 0 total owner gaps, 0 total stale signals, and 1 telemetry drift signals.</p>
+    </section>
+    <section>
+      <h2>Catalog</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Path</th><th>Owner</th><th>Maturity</th><th>Review</th><th>Scope</th></tr></thead>
+        <tbody><tr><td>georank</td><td>georank</td><td>GEOrank Maintainers</td><td>governed</td><td>monthly</td><td>release</td></tr></tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

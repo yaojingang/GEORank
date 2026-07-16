@@ -4,6 +4,7 @@ import type {
   TokenResponse,
   UserOut
 } from './generated/types.gen';
+import {getDeviceHeaders} from './device';
 export type { LoginRequest, RegisterRequest, TokenResponse, UserOut } from './generated/types.gen';
 
 const API_BASE = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
@@ -17,6 +18,51 @@ export type UserProfileUpdatePayload = {
 export type PasswordChangePayload = {
   currentPassword: string;
   newPassword: string;
+};
+
+export type UserUsageSummary = {
+  access_mode: string;
+  daily_token_limit: number;
+  lifetime_token_grant: number;
+  grant_tokens: number;
+  usage_date: string;
+  used_tokens: number;
+  reserved_tokens: number;
+  request_count: number;
+  remaining_tokens: number | null;
+  quota_state: string;
+  principal_id?: string | null;
+  linked_user_count: number;
+  linked_device_count: number;
+  global_budget: {
+    enabled: boolean;
+    usage_date: string;
+    limit_tokens: number;
+    used_tokens: number;
+    reserved_tokens: number;
+    remaining_tokens: number;
+    state: string;
+  };
+  platform_available: boolean;
+  reason_code?: string | null;
+  byok_guidance: {
+    provider?: string;
+    title?: string;
+    message?: string;
+    cta_label?: string;
+    official_url?: string;
+    base_url?: string;
+    model?: string;
+  };
+  provider_presets: Array<{
+    key: string;
+    name: string;
+    base_url: string;
+    default_model: string;
+  }>;
+  allow_user_byok: boolean;
+  byok_transport_mode: string;
+  metered_modules: string[];
 };
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -48,7 +94,8 @@ export async function register(body: RegisterRequest): Promise<TokenResponse> {
 export async function getCurrentUser(token: string): Promise<UserOut> {
   const response = await fetch(`${API_BASE}/api/auth/me`, {
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      ...getDeviceHeaders()
     },
     cache: 'no-store'
   });
@@ -83,4 +130,15 @@ export async function changePassword(token: string, payload: PasswordChangePaylo
     })
   });
   return parseJson<{message: string}>(response);
+}
+
+export async function getMyUsage(token: string): Promise<UserUsageSummary> {
+  const response = await fetch(`${API_BASE}/api/usage/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...getDeviceHeaders()
+    },
+    cache: 'no-store'
+  });
+  return parseJson<UserUsageSummary>(response);
 }

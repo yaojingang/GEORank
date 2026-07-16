@@ -57,14 +57,27 @@ _COMPANY_NAME_NOISE_EXACT = {
 }
 
 
+_REQUIRED_GEO_DIMENSIONS = ("schema", "content", "meta", "citation")
+
+
+def company_profile_missing_fields(company: Company) -> list[str]:
+    missing: list[str] = []
+    if not bool((company.short_description or "").strip() or (company.description or "").strip()):
+        missing.append("description")
+    if not bool((company.category or "").strip()):
+        missing.append("category")
+    if not bool(company.tags):
+        missing.append("tags")
+    if company.geo_score is None:
+        missing.append("geo_score")
+    details = company.geo_details if isinstance(company.geo_details, dict) else {}
+    if any(details.get(key) is None for key in _REQUIRED_GEO_DIMENSIONS):
+        missing.append("geo_details")
+    return missing
+
+
 def company_profile_needs_hydration(company: Company) -> bool:
-    return (
-        not bool((company.short_description or "").strip() or (company.description or "").strip())
-        or not bool(company.tags)
-        or not bool(company.tech_stack)
-        or company.geo_details is None
-        or company.geo_score is None
-    )
+    return bool(company_profile_missing_fields(company))
 
 
 def load_company_source_html(company: Company) -> str:
@@ -82,6 +95,45 @@ def load_company_source_html(company: Company) -> str:
         if raw:
             html_parts.append(raw.decode("utf-8", errors="replace"))
     return "\n".join(html_parts)
+
+
+def load_company_source_text(company: Company, *, per_page_limit: int = 8000) -> str:
+    pages = [
+        page
+        for page in (company.crawl_pages or [])
+        if page.get("key") and page.get("status") != "failed"
+    ]
+    if not pages:
+        pages = [
+            {"role": role, "title": "", "url": "", "key": key}
+            for role, key in (
+                ("homepage", company.raw_html_key),
+                ("about", company.about_html_key),
+            )
+            if key
+        ]
+
+    text_parts: list[str] = []
+    seen_keys: set[str] = set()
+    for page in pages:
+        key = page["key"]
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        raw = storage.get(key)
+        if not raw:
+            continue
+        soup = BeautifulSoup(raw.decode("utf-8", errors="replace"), "lxml")
+        for tag in soup(["script", "style", "nav", "footer", "noscript", "svg"]):
+            tag.decompose()
+        text = _clean_text(soup.get_text(separator=" ", strip=True), limit=per_page_limit)
+        if not text:
+            continue
+        role = _clean_text(page.get("role")) or "supporting"
+        title = _clean_text(page.get("title")) or "未命名页面"
+        url = _clean_text(page.get("url")) or "未知地址"
+        text_parts.append(f"[页面 {role} | {title} | {url}]\n{text}")
+    return "\n\n".join(text_parts)
 
 
 def load_company_homepage_html(company: Company) -> str:
@@ -207,8 +259,10 @@ def fallback_company_profile_from_html(html: str, fallback_name: str | None = No
 
 async def extract_company_profile(html: str, fallback_name: str | None = None) -> dict:
     profile = fallback_company_profile_from_html(html, fallback_name=fallback_name)
+    provider_succeeded = False
     try:
         extracted = await ai_client.extract_company_info(html)
+        provider_succeeded = True
     except Exception:
         extracted = {}
 
@@ -229,6 +283,7 @@ async def extract_company_profile(html: str, fallback_name: str | None = None) -
             profile[key] = extracted[key]
 
     profile["name"] = normalize_company_name(profile.get("name"), fallback_name=fallback_name)
+    profile["_provider_succeeded"] = provider_succeeded
 
     return profile
 
@@ -259,7 +314,18 @@ def calculate_company_geo_profile(company: Company, homepage_html: str) -> dict:
     }
 
 
-def build_company_profile_values(company: Company, profile: dict) -> dict:
+def build_company_profile_values(
+    company: Company,
+    profile: dict,
+    *,
+    replace: bool = False,
+) -> dict:
+    """Build persisted profile values.
+
+    Pipeline refreshes use ``replace=True`` so fields absent from the current
+    crawl cannot be silently satisfied by stale values from an older run.
+    Opportunistic hydration keeps the existing merge behavior.
+    """
     values: dict = {}
     normalized_name = normalize_company_name(profile.get("name"), fallback_name=company.name)
 
@@ -267,16 +333,28 @@ def build_company_profile_values(company: Company, profile: dict) -> dict:
         values["name"] = normalized_name[:200]
     if profile.get("description"):
         values["description"] = profile["description"]
+    elif replace:
+        values["description"] = None
     if profile.get("short_description"):
         values["short_description"] = profile["short_description"][:300]
+    elif replace:
+        values["short_description"] = None
     if profile.get("category"):
         values["category"] = profile["category"][:50]
+    elif replace:
+        values["category"] = None
     if profile.get("headquarters"):
         values["headquarters"] = profile["headquarters"][:200]
+    elif replace:
+        values["headquarters"] = None
     if profile.get("funding_stage"):
         values["funding_stage"] = profile["funding_stage"][:50]
+    elif replace:
+        values["funding_stage"] = None
     if profile.get("employee_count"):
         values["employee_count"] = profile["employee_count"][:50]
+    elif replace:
+        values["employee_count"] = None
     if profile.get("founded_date"):
         try:
             founded_date = str(profile["founded_date"]).strip()
@@ -284,13 +362,19 @@ def build_company_profile_values(company: Company, profile: dict) -> dict:
                 founded_date += "-01"
             values["founded_date"] = date.fromisoformat(founded_date)
         except Exception:
-            pass
-    if profile.get("tags") is not None:
-        values["tags"] = list(profile["tags"])[:6]
-    if profile.get("tech_stack") is not None:
-        values["tech_stack"] = list(profile["tech_stack"])[:8]
-    if profile.get("team_members") is not None:
-        values["team_members"] = list(profile["team_members"])[:6]
+            if replace:
+                values["founded_date"] = None
+    elif replace:
+        values["founded_date"] = None
+    if profile.get("tags") is not None or replace:
+        tags = profile.get("tags")
+        values["tags"] = list(tags)[:6] if isinstance(tags, list) else []
+    if profile.get("tech_stack") is not None or replace:
+        tech_stack = profile.get("tech_stack")
+        values["tech_stack"] = list(tech_stack)[:8] if isinstance(tech_stack, list) else []
+    if profile.get("team_members") is not None or replace:
+        team_members = profile.get("team_members")
+        values["team_members"] = list(team_members)[:6] if isinstance(team_members, list) else []
     if profile.get("geo_details"):
         values["geo_details"] = profile["geo_details"]
     if profile.get("geo_score") is not None:
@@ -303,11 +387,11 @@ async def ensure_company_profile(db, company: Company, *, force: bool = False) -
     if not force and not company_profile_needs_hydration(company):
         return {}
 
-    html = load_company_source_html(company)
-    if not html:
+    source_text = load_company_source_text(company)
+    if not source_text:
         return {}
 
-    profile = await extract_company_profile(html, fallback_name=company.name)
+    profile = await extract_company_profile(source_text, fallback_name=company.name)
     profile.update(calculate_company_geo_profile(company, load_company_homepage_html(company)))
     values = build_company_profile_values(company, profile)
     if not values:

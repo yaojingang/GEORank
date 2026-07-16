@@ -75,7 +75,7 @@ fresh_state=$(
     psql -U georank -d georank_contract -Atc \
     "SELECT (SELECT string_agg(version_num, ',') FROM alembic_version), (SELECT count(*) FROM expert_profiles);"
 )
-test "$fresh_state" = "014_builtin_homepage_release|5"
+test "$fresh_state" = "016_merge_platform_iterations|5"
 "${compose[@]}" exec -T api curl --fail --silent http://localhost:8000/api/health >/dev/null
 expert_count=$(
   "${compose[@]}" exec -T api \

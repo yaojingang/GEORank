@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect, useMemo, useState} from 'react';
+import Link from 'next/link';
 import {useLocale, useTranslations} from 'next-intl';
 
 import {getAdminDashboard, getAdminRecentFailures} from '@georank/api-sdk';
@@ -147,31 +148,31 @@ export function AdminDashboard({token, userLabel}: AdminDashboardProps) {
             <span className="admin-pill admin-pill--brand">{t('liveData')}</span>
           </div>
           <div className="admin-queue-grid">
-            <a className="admin-queue-card" href={localizeHref(locale, '/companies')}>
+            <Link className="admin-queue-card" href={localizeHref(locale, '/companies')}>
               <span className="admin-queue-card__title">{t('companiesTitle')}</span>
               <strong>{dashboard.pipeline_stats.pending_review || 0}</strong>
               <p>{t('companiesCopy')}</p>
-            </a>
-            <a className="admin-queue-card" href={localizeHref(locale, '/diagnostics')}>
+            </Link>
+            <Link className="admin-queue-card" href={localizeHref(locale, '/diagnostics')}>
               <span className="admin-queue-card__title">{t('diagnosticsTitle')}</span>
               <strong>{dashboard.failure_stats.failed_diagnostics || 0}</strong>
               <p>{t('diagnosticsCopy')}</p>
-            </a>
-            <a className="admin-queue-card" href={localizeHref(locale, '/solutions')}>
+            </Link>
+            <Link className="admin-queue-card" href={localizeHref(locale, '/solutions')}>
               <span className="admin-queue-card__title">{t('solutionsTitle')}</span>
               <strong>{dashboard.total_solutions || 0}</strong>
               <p>{t('solutionsCopy')}</p>
-            </a>
-            <a className="admin-queue-card" href={localizeHref(locale, '/keywords')}>
+            </Link>
+            <Link className="admin-queue-card" href={localizeHref(locale, '/keywords')}>
               <span className="admin-queue-card__title">{t('keywordsTitle')}</span>
               <strong>8</strong>
               <p>{t('keywordsCopy')}</p>
-            </a>
-            <a className="admin-queue-card" href={localizeHref(locale, '/tutorials')}>
+            </Link>
+            <Link className="admin-queue-card" href={localizeHref(locale, '/tutorials')}>
               <span className="admin-queue-card__title">{t('tutorialsTitle')}</span>
               <strong>{dashboard.total_contents || 0}</strong>
               <p>{t('tutorialsCopy')}</p>
-            </a>
+            </Link>
           </div>
         </article>
 

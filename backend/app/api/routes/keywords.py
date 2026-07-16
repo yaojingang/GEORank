@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.core.deps import DbSession, OptionalUser
 from app.schemas.keyword import KeywordExpandRequest, KeywordExpandResponse
-from app.services.keyword_expansion import expand_keywords
-from app.services.ai_usage import record_ai_usage, resolve_ai_access
+from app.services.keyword_expansion import expand_keywords_with_status
+from app.services.ai_usage import record_ai_usage, release_ai_access, resolve_ai_access
 
 router = APIRouter()
 
@@ -24,20 +24,44 @@ async def expand_keyword_pack(payload: KeywordExpandRequest, request: Request, d
             module="keywords",
             prompt_text="\n".join(payload.seeds or []),
         )
-        result = await expand_keywords(payload.seeds, provider_override=access.provider_override)
+        result, provider_succeeded = await expand_keywords_with_status(
+            payload.seeds,
+            provider_override=access.provider_override,
+        )
         await record_ai_usage(
             db,
             access,
-            output_text=json.dumps(result.get("summary", {}), ensure_ascii=False),
-            metadata={"seeds": result.get("seeds", [])},
+            output_text=(
+                json.dumps(result.get("summary", {}), ensure_ascii=False)
+                if provider_succeeded
+                else ""
+            ),
+            status_value="success" if provider_succeeded else "error",
+            error_code=None if provider_succeeded else "keyword_platform_fallback",
+            metadata={
+                "seeds": result.get("seeds", []),
+                "fallback_generated": not provider_succeeded,
+            },
         )
         await db.commit()
         return result
     except HTTPException:
+        if access and access.reservation_id:
+            await db.rollback()
+            await release_ai_access(db, access, error_code="keyword_request_failed")
+            await db.commit()
         raise
     except ValueError as exc:
+        if access and access.reservation_id:
+            await db.rollback()
+            await release_ai_access(db, access, error_code="keyword_validation_failed")
+            await db.commit()
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        if access and access.reservation_id:
+            await db.rollback()
+            await release_ai_access(db, access, error_code="keyword_generation_failed")
+            await db.commit()
         if access and access.provider_override is not None:
             raise HTTPException(
                 status_code=502,

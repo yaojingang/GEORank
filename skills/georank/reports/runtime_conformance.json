@@ -1,0 +1,55 @@
+{
+  "ok": true,
+  "skill": "georank",
+  "targets": [
+    {
+      "target": "generic",
+      "status": "pass",
+      "checks": [
+        "SKILL.md exists",
+        "frontmatter name exists",
+        "frontmatter description exists",
+        "description length <= 1024",
+        "name is runtime-safe",
+        "manifest.name exists",
+        "manifest.version exists",
+        "manifest.owner exists",
+        "manifest.status exists",
+        "manifest.maturity_tier exists",
+        "manifest.review_cadence exists",
+        "manifest declares generic",
+        "interface.display_name exists",
+        "interface.short_description exists",
+        "interface.default_prompt exists",
+        "adapter target declares generic",
+        "activation mode exists",
+        "execution context exists",
+        "execution shell exists",
+        "trust source tier exists",
+        "generic degradation note exists",
+        "Skill IR schema_version is 2.0.0",
+        "Skill IR name matches frontmatter",
+        "Skill IR description matches frontmatter",
+        "references resource resolves: references/admin-capabilities.md",
+        "references resource resolves: references/safety-policy.md",
+        "references resource resolves: references/user-capabilities.md",
+        "scripts resource resolves: scripts/georank_client.py",
+        "reports resource resolves: reports/output-risk-profile.md",
+        "reports resource resolves: reports/output_quality_scorecard.md",
+        "reports resource resolves: reports/security_trust_report.json",
+        "reports resource resolves: reports/security_trust_report.md"
+      ],
+      "failures": [],
+      "warnings": []
+    }
+  ],
+  "summary": {
+    "target_count": 1,
+    "pass_count": 1,
+    "fail_count": 0
+  },
+  "artifacts": {
+    "json": "[workspace]/skills/georank/reports/runtime_conformance.json",
+    "markdown": "[workspace]/skills/georank/reports/runtime_conformance.md"
+  }
+}

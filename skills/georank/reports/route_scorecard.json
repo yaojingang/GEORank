@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-16",
+  "summary": {
+    "total_cases": 26,
+    "correct_cases": 26,
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "misroute_count": 0,
+    "ambiguous_case_count": 0,
+    "false_positive_count": 0,
+    "false_negative_count": 0,
+    "threshold": 0.48
+  },
+  "route_stats": {
+    "georank": {
+      "expected_count": 12,
+      "predicted_count": 12,
+      "correct_count": 12,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "no_route": {
+      "expected_count": 14,
+      "predicted_count": 14,
+      "correct_count": 14,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "bucket_stats": {
+    "should_trigger": {"total": 12, "passed": 12, "pass_rate": 1.0},
+    "should_not_trigger": {"total": 8, "passed": 8, "pass_rate": 1.0},
+    "near_neighbor": {"total": 6, "passed": 6, "pass_rate": 1.0}
+  },
+  "ambiguous_cases": [],
+  "misroutes": [],
+  "source": {
+    "cases": "evals/trigger_cases.json",
+    "semantic_config": "evals/semantic_config.json",
+    "evaluator": "yao-meta-skill/scripts/trigger_eval.py"
+  }
+}

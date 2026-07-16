@@ -51,7 +51,7 @@ def _build_dry_run():
         fixture,
         target_slug=TARGET_SLUG,
         revision="015_unpublish_yao_jingang",
-        down_revision="014_builtin_homepage_release",
+        down_revision="016_merge_platform_iterations",
         effective_date="2026-07-16",
         snapshot_path=STATE_SNAPSHOT_PATH,
         reason="verified rights or privacy request",

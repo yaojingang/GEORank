@@ -6,12 +6,10 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <title>提交公司分析 - GEOrank</title>
     <meta name="description" content="输入官网后，由 AI 解析一级目录并优选关键页面，再提交后台审核。">
-    <style>body{opacity:0;transition:opacity 0.15s ease}</style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script src="/js/tailwind.config.js"></script>
-    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="/css/public-tailwind.css?v=20260716-first-paint-lifecycle">
+    <link rel="stylesheet" href="/css/common.css?v=20260716-first-paint-lifecycle">
 </head>
 <body class="bg-slate-50 text-on-surface antialiased">
     <div id="header-container"></div>
@@ -33,7 +31,7 @@
                                 </p>
                             </div>
                         </div>
-                        <a href="/" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary transition-colors">
+                        <a href="/" class="inline-flex shrink-0 self-start items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-primary hover:text-primary transition-colors">
                             <span class="material-symbols-outlined text-base">arrow_back</span>
                             返回首页
                         </a>
@@ -155,7 +153,7 @@
                         <button id="refresh-analysis-btn" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors">
                             刷新进度
                         </button>
-                        <a href="/" class="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors">
+                        <a href="/companies" class="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary transition-colors">
                             返回公司首页
                         </a>
                     </div>
@@ -184,7 +182,7 @@
 
     <div id="footer-container"></div>
 
-    <script src="/js/common.js?v=20260616-analytics-inject"></script>
-    <script src="/js/company-submit-page.js"></script>
+    <script src="/js/common.js?v=20260716-first-paint-lifecycle"></script>
+    <script src="/js/company-submit-page.js?v=20260716-first-paint-lifecycle"></script>
 </body>
 </html>

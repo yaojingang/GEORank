@@ -22,6 +22,10 @@ celery_app.conf.update(
     timezone="Asia/Shanghai",
     enable_utc=True,
     broker_connection_retry_on_startup=True,
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    worker_prefetch_multiplier=1,
+    broker_transport_options={"visibility_timeout": 900},
     # 任务路由
     task_routes={
         "app.tasks.crawl.*": {"queue": "crawl"},

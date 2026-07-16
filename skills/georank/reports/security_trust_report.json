@@ -1,0 +1,198 @@
+{
+  "ok": true,
+  "skill_dir": "[workspace]/skills/georank",
+  "summary": {
+    "scanned_files": 13,
+    "script_count": 1,
+    "internal_module_count": 0,
+    "secret_findings": 0,
+    "dependency_files": [],
+    "network_script_count": 1,
+    "network_policy_covered_count": 1,
+    "network_policy_missing_count": 0,
+    "file_write_script_count": 1,
+    "permission_required_count": 3,
+    "permission_approved_count": 3,
+    "permission_missing_count": 0,
+    "permission_invalid_count": 0,
+    "permission_expired_count": 0,
+    "help_smoke_checked_count": 1,
+    "help_smoke_failed_count": 0,
+    "interactive_script_count": 1,
+    "package_hash_scope": "source-contract-without-generated-reports",
+    "package_hash_file_count": 13,
+    "package_sha256": "c8aa3180fca3ca4100058bb08d75d70a1328b042c7e891e4b2cae76bd5af9a81"
+  },
+  "failures": [],
+  "warnings": [
+    "No dependency or lock file detected",
+    "Interactive scripts require reviewer awareness: scripts/georank_client.py"
+  ],
+  "secrets": [],
+  "scripts": [
+    {
+      "path": "scripts/georank_client.py",
+      "interface": "cli",
+      "interface_declared": true,
+      "interface_reason": "",
+      "has_argparse": true,
+      "has_main_guard": true,
+      "uses_input": true,
+      "uses_network": true,
+      "uses_file_write": true,
+      "uses_subprocess": false,
+      "network_urls": [
+        "http://localhost:8000"
+      ],
+      "network_hosts": [
+        "localhost"
+      ]
+    }
+  ],
+  "dependencies": {
+    "present": [],
+    "pinned": [],
+    "unpinned": []
+  },
+  "network_policy": {
+    "present": true,
+    "path": "security/network_policy.json",
+    "schema_version": "1.0",
+    "network_script_count": 1,
+    "covered_scripts": [
+      "scripts/georank_client.py"
+    ],
+    "missing_scripts": [],
+    "mismatches": [],
+    "default_policy": {
+      "require_https": true,
+      "custom_hosts": "explicit-user-config-only",
+      "review_rule": "Remote GEOrank hosts must use HTTPS. Plain HTTP is accepted only for loopback development instances."
+    }
+  },
+  "help_smoke": {
+    "enabled": true,
+    "timeout_seconds": 5.0,
+    "candidate_count": 1,
+    "checked_count": 1,
+    "passed_count": 1,
+    "failed_count": 0,
+    "skipped_count": 0,
+    "failed_scripts": [],
+    "results": [
+      {
+        "path": "scripts/georank_client.py",
+        "command": "python3 scripts/georank_client.py --help",
+        "returncode": 0,
+        "timed_out": false,
+        "passed": true,
+        "has_help_text": true,
+        "stdout_excerpt": "usage: georank_client.py [-h] [--version] [--base-url BASE_URL]\n                         [--session-file SESSION_FILE] [--timeout TIMEOUT]\n                         {login,logout,whoami,capabilities,call} ...\n\nSecure GEOrank API operator wit",
+        "stderr_excerpt": ""
+      }
+    ],
+    "skipped": []
+  },
+  "permission_governance": {
+    "present": true,
+    "path": "security/permission_policy.json",
+    "schema_version": "1.0",
+    "reviewed_at": "2026-07-16",
+    "required_capabilities": [
+      "file_write",
+      "interactive",
+      "network"
+    ],
+    "approved_capabilities": [
+      "file_write",
+      "interactive",
+      "network"
+    ],
+    "missing_capabilities": [],
+    "invalid_capabilities": [],
+    "expired_capabilities": [],
+    "approval_count": 3,
+    "required_count": 3,
+    "missing_count": 0,
+    "invalid_count": 0,
+    "expired_count": 0,
+    "approvals": [
+      {
+        "capability": "network",
+        "status": "approved",
+        "scripts": [
+          "scripts/georank_client.py"
+        ],
+        "reviewer": "GEOrank Maintainers",
+        "scope": "scripts/georank_client.py may call only the explicitly selected GEOrank base URL and /api paths.",
+        "reason": "Network access is required for the approved GEOrank management workflow and is constrained by base URL validation, API path validation, role checks, dry-runs, and confirmation phrases.",
+        "expires_at": "2027-01-16",
+        "evidence": [
+          "security/network_policy.json",
+          "tests/test_georank_client.py",
+          "reports/security_trust_report.md"
+        ],
+        "target_enforcement": {
+          "openai": "Run the local client only after base URL and action scope are explicit.",
+          "claude": "Run the local client only after base URL and action scope are explicit.",
+          "generic": "Run the local client only after base URL and action scope are explicit.",
+          "vscode": "Require workspace trust and an explicit GEOrank base URL."
+        },
+        "validation": []
+      },
+      {
+        "capability": "file_write",
+        "status": "approved",
+        "scripts": [
+          "scripts/georank_client.py"
+        ],
+        "reviewer": "GEOrank Maintainers",
+        "scope": "The client may create a missing parent directory, create a marked local session file, and replace or remove only a recognized marked session. It never changes permissions on an existing parent directory.",
+        "reason": "An owner-only session file enables secure repeat authentication while avoiding tokens in command arguments, chat output, shell history, fixtures, and repository files.",
+        "expires_at": "2027-01-16",
+        "evidence": [
+          "references/safety-policy.md",
+          "tests/test_georank_client.py"
+        ],
+        "target_enforcement": {
+          "openai": "Session writes remain local and use owner-only permissions.",
+          "claude": "Session writes remain local and use owner-only permissions.",
+          "generic": "Session writes remain local and use owner-only permissions.",
+          "vscode": "Session writes require workspace trust and owner-only permissions."
+        },
+        "validation": []
+      },
+      {
+        "capability": "interactive",
+        "status": "approved",
+        "scripts": [
+          "scripts/georank_client.py"
+        ],
+        "reviewer": "GEOrank Maintainers",
+        "scope": "The login command may request a password through getpass when the configured password environment variable is absent.",
+        "reason": "A hidden terminal prompt supports ordinary-user login without exposing passwords through process arguments, terminal echo, generated reports, or saved fixtures.",
+        "expires_at": "2027-01-16",
+        "evidence": [
+          "references/safety-policy.md",
+          "tests/test_georank_client.py"
+        ],
+        "target_enforcement": {
+          "openai": "Use a hidden prompt or reviewed password environment variable.",
+          "claude": "Use a hidden prompt or reviewed password environment variable.",
+          "generic": "Use a hidden prompt or reviewed password environment variable.",
+          "vscode": "Use a hidden prompt in a trusted terminal."
+        },
+        "validation": []
+      }
+    ]
+  },
+  "trust_metadata": {
+    "source_tier": "local",
+    "remote_inline_execution": "forbid",
+    "remote_metadata_policy": "allow-metadata-only"
+  },
+  "artifacts": {
+    "json": "[workspace]/skills/georank/reports/security_trust_report.json",
+    "markdown": "[workspace]/skills/georank/reports/security_trust_report.md"
+  }
+}

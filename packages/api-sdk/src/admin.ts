@@ -40,6 +40,8 @@ export type AdminRecentFailuresResponse = {
 
 export type AdminCompanySummary = {
   id: string;
+  path_key?: string | null;
+  preview_url?: string;
   name: string;
   url: string;
   short_description?: string | null;
@@ -64,6 +66,8 @@ export type AdminCompanyListResponse = {
 
 export type AdminCompanyDetail = {
   id: string;
+  path_key?: string | null;
+  preview_url: string;
   name: string;
   url: string;
   logo_url?: string | null;
@@ -464,9 +468,51 @@ export type AdminSolutionChannels = {
   updated_by_username?: string | null;
 };
 
+export type AdminByokGuidance = {
+  provider: string;
+  title: string;
+  message: string;
+  cta_label: string;
+  official_url: string;
+  base_url: string;
+  model: string;
+};
+
+export type AdminApiPolicy = {
+  access_mode: string;
+  daily_token_limit: number;
+  lifetime_token_grant: number;
+  global_daily_token_limit: number;
+  global_budget_enabled: boolean;
+  emergency_byok_only: boolean;
+  quota_reset_timezone: string;
+  allow_anonymous_ai_usage: boolean;
+  allow_user_byok: boolean;
+  byok_transport_mode: string;
+  byok_guidance: AdminByokGuidance;
+  allowed_byok_providers: Array<{
+    key: string;
+    name: string;
+    base_url: string;
+    default_model: string;
+  }>;
+  metered_modules: string[];
+};
+
+export type AdminGlobalBudgetSummary = {
+  enabled: boolean;
+  emergency_byok_only: boolean;
+  usage_date: string;
+  limit_tokens: number;
+  used_tokens: number;
+  reserved_tokens: number;
+  remaining_tokens: number;
+  state: string;
+};
+
 export type AdminApiPolicyResponse = {
-  policy: Record<string, unknown>;
-  summary: Record<string, unknown>;
+  policy: AdminApiPolicy;
+  summary: Record<string, unknown> & {global_budget?: AdminGlobalBudgetSummary};
 };
 
 export type AdminLLMProvider = {
@@ -541,6 +587,18 @@ export type AdminHomepageRelease = {
 export type AdminHomepageResponse = {
   runtime: Record<string, unknown>;
   releases: AdminHomepageRelease[];
+};
+
+export type AdminHomepageSource = {
+  release_id: string;
+  html: string;
+  sha256: string;
+};
+
+export type AdminHomepageUpdateResponse = {
+  release: AdminHomepageRelease;
+  updated_active: boolean;
+  source_sha256: string;
 };
 
 export type AdminTutorialSummary = {
@@ -618,6 +676,29 @@ export type AdminUserSummary = {
   created_at: string;
 };
 
+export type AdminUserQuota = {
+  user_id: string;
+  username: string;
+  role: string;
+  principal_id: string;
+  granted_tokens: number;
+  consumed_tokens: number;
+  reserved_tokens: number;
+  remaining_tokens: number;
+  request_count: number;
+  frozen: boolean;
+  linked_user_count: number;
+  linked_device_count: number;
+  updated_at?: string | null;
+};
+
+export type AdminUserQuotaUpdatePayload = {
+  granted_tokens?: number;
+  consumed_tokens?: number;
+  frozen?: boolean;
+  reason: string;
+};
+
 export type AdminUserListResponse = {
   items: AdminUserSummary[];
   total: number;
@@ -683,7 +764,37 @@ function authHeaders(token: string, headers?: HeadersInit): HeadersInit {
 async function parseJson<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error((payload as {detail?: string}).detail || `API ${response.status}`);
+    const detail = (payload as {
+      detail?: string | {
+        message?: string;
+        missing_fields?: string[];
+        pipeline_status?: string;
+        pipeline_error?: string | null;
+      };
+    }).detail;
+    if (typeof detail === 'string') {
+      throw new Error(detail);
+    }
+    if (detail && typeof detail === 'object') {
+      const labels: Record<string, string> = {
+        description: '公司介绍',
+        category: '业务分类',
+        tags: '业务标签',
+        geo_score: 'GEO 评分',
+        geo_details: 'GEO 四维明细'
+      };
+      const missing = (detail.missing_fields || []).map((field) => labels[field] || field);
+      const pipelineProblem = String(detail.pipeline_error || '').trim();
+      const suffix = missing.length
+        ? `（缺失：${missing.join('、')}）`
+        : pipelineProblem
+          ? `（${pipelineProblem}）`
+          : detail.pipeline_status
+            ? `（当前状态：${detail.pipeline_status}）`
+            : '';
+      throw new Error(`${detail.message || `API ${response.status}`}${suffix}`);
+    }
+    throw new Error(`API ${response.status}`);
   }
   return payload as T;
 }
@@ -1178,6 +1289,27 @@ export async function getAdminUser(token: string, userId: string): Promise<Admin
   return parseJson<AdminUserSummary>(response);
 }
 
+export async function getAdminUserQuota(token: string, userId: string): Promise<AdminUserQuota> {
+  const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/ai-quota`, {
+    headers: authHeaders(token),
+    cache: 'no-store'
+  });
+  return parseJson<AdminUserQuota>(response);
+}
+
+export async function updateAdminUserQuota(
+  token: string,
+  userId: string,
+  payload: AdminUserQuotaUpdatePayload
+): Promise<AdminUserQuota> {
+  const response = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(userId)}/ai-quota`, {
+    method: 'PUT',
+    headers: authHeaders(token, {'Content-Type': 'application/json'}),
+    body: JSON.stringify(payload)
+  });
+  return parseJson<AdminUserQuota>(response);
+}
+
 export async function createAdminUser(
   token: string,
   payload: AdminUserCreatePayload
@@ -1328,24 +1460,24 @@ export async function getAdminApiPolicy(token: string): Promise<AdminApiPolicyRe
 
 export async function updateAdminApiPolicy(
   token: string,
-  payload: Record<string, unknown>
-): Promise<{status: string; policy: Record<string, unknown>}> {
+  payload: Partial<AdminApiPolicy>
+): Promise<{status: string; policy: AdminApiPolicy}> {
   const response = await fetch(`${API_BASE}/api/admin/api-policy`, {
     method: 'PUT',
     headers: authHeaders(token, {'Content-Type': 'application/json'}),
     body: JSON.stringify(payload)
   });
-  return parseJson<{status: string; policy: Record<string, unknown>}>(response);
+  return parseJson<{status: string; policy: AdminApiPolicy}>(response);
 }
 
 export async function resetAdminApiPolicy(
   token: string
-): Promise<{status: string; policy: Record<string, unknown>}> {
+): Promise<{status: string; policy: AdminApiPolicy}> {
   const response = await fetch(`${API_BASE}/api/admin/api-policy/reset`, {
     method: 'POST',
     headers: authHeaders(token)
   });
-  return parseJson<{status: string; policy: Record<string, unknown>}>(response);
+  return parseJson<{status: string; policy: AdminApiPolicy}>(response);
 }
 
 export async function getAdminLLMProviders(token: string): Promise<AdminLLMProviders> {
@@ -1444,6 +1576,20 @@ export async function activateAdminHomepageRelease(token: string, releaseId: str
   return parseJson<{runtime: Record<string, unknown>; release: AdminHomepageRelease}>(response);
 }
 
+export async function cloneAdminHomepageRelease(
+  token: string,
+  releaseId: string
+): Promise<AdminHomepageRelease> {
+  const response = await fetch(
+    `${API_BASE}/api/admin/homepage/releases/${encodeURIComponent(releaseId)}/clone`,
+    {
+      method: 'POST',
+      headers: authHeaders(token)
+    }
+  );
+  return parseJson<AdminHomepageRelease>(response);
+}
+
 export async function previewAdminHomepageRelease(token: string, releaseId: string): Promise<Blob> {
   const response = await fetch(
     `${API_BASE}/api/admin/homepage/releases/${encodeURIComponent(releaseId)}/preview`,
@@ -1457,6 +1603,37 @@ export async function previewAdminHomepageRelease(token: string, releaseId: stri
     throw new Error((payload as {detail?: string}).detail || `API ${response.status}`);
   }
   return response.blob();
+}
+
+export async function getAdminHomepageReleaseSource(
+  token: string,
+  releaseId: string
+): Promise<AdminHomepageSource> {
+  const response = await fetch(
+    `${API_BASE}/api/admin/homepage/releases/${encodeURIComponent(releaseId)}/source`,
+    {
+      headers: authHeaders(token),
+      cache: 'no-store'
+    }
+  );
+  return parseJson<AdminHomepageSource>(response);
+}
+
+export async function updateAdminHomepageReleaseSource(
+  token: string,
+  releaseId: string,
+  html: string,
+  expectedSha256: string
+): Promise<AdminHomepageUpdateResponse> {
+  const response = await fetch(
+    `${API_BASE}/api/admin/homepage/releases/${encodeURIComponent(releaseId)}/source`,
+    {
+      method: 'PUT',
+      headers: authHeaders(token, {'Content-Type': 'application/json'}),
+      body: JSON.stringify({html, expected_sha256: expectedSha256})
+    }
+  );
+  return parseJson<AdminHomepageUpdateResponse>(response);
 }
 
 export async function restoreDefaultAdminHomepage(token: string) {

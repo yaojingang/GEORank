@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 from sqlalchemy import delete, func, or_, select, text, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -154,7 +154,10 @@ class ApiIntegrationTests(unittest.TestCase):
             await db.commit()
 
     def _auth_headers(self, token: str) -> dict[str, str]:
-        return {"Authorization": f"Bearer {token}"}
+        return {
+            "Authorization": f"Bearer {token}",
+            "X-GEOrank-Device-ID": f"integration-device-{token[-32:]}",
+        }
 
     def _zip_bytes(self, files: dict[str, bytes | str]) -> bytes:
         buffer = io.BytesIO()
@@ -768,6 +771,119 @@ class ApiIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(protected_response.status_code, 400, protected_response.text)
 
+    def test_admin_navigation_menu_is_normalized_and_public(self):
+        admin = self.run_async(self._register_user(admin=True))
+
+        async def _capture_setting():
+            async with async_session() as db:
+                result = await db.execute(select(Setting).where(Setting.key == "navigation_menu"))
+                setting = result.scalar_one_or_none()
+                if not setting:
+                    return None
+                return {
+                    "value": copy.deepcopy(setting.value),
+                    "category": setting.category,
+                    "is_public": setting.is_public,
+                    "updated_by": setting.updated_by,
+                }
+
+        async def _restore_setting(snapshot):
+            async with async_session() as db:
+                result = await db.execute(select(Setting).where(Setting.key == "navigation_menu"))
+                setting = result.scalar_one_or_none()
+                if snapshot is None:
+                    if setting:
+                        await db.delete(setting)
+                elif setting:
+                    setting.value = snapshot["value"]
+                    setting.category = snapshot["category"]
+                    setting.is_public = snapshot["is_public"]
+                    setting.updated_by = snapshot["updated_by"]
+                else:
+                    db.add(Setting(key="navigation_menu", **snapshot))
+                await db.commit()
+            await invalidate_runtime_settings_cache()
+
+        snapshot = self.run_async(_capture_setting())
+        try:
+            update_response = self.run_async(
+                self.client.put(
+                    "/api/admin/settings",
+                    headers=self._auth_headers(admin["token"]),
+                    json={
+                        "navigation_menu": {
+                            "value": {
+                                "items": [
+                                    {"id": "docs", "label": "文档中心", "url": "https://docs.example.com"},
+                                    {"id": "home", "label": "首页", "url": "/", "target": "_self"},
+                                ]
+                            },
+                            "category": "basic",
+                            "is_public": False,
+                        }
+                    },
+                )
+            )
+            self.assertEqual(update_response.status_code, 200, update_response.text)
+
+            admin_settings = self.run_async(
+                self.client.get("/api/admin/settings", headers=self._auth_headers(admin["token"]))
+            ).json()["navigation_menu"]
+            self.assertEqual(admin_settings["category"], "frontend")
+            self.assertTrue(admin_settings["is_public"])
+            self.assertEqual(admin_settings["value"]["items"][0]["target"], "_blank")
+            self.assertEqual(admin_settings["value"]["items"][1]["target"], "_self")
+
+            public_menu = self.run_async(self.client.get("/api/settings/public")).json()["navigation_menu"]
+            self.assertEqual(public_menu, admin_settings["value"])
+
+            invalid_response = self.run_async(
+                self.client.put(
+                    "/api/admin/settings",
+                    headers=self._auth_headers(admin["token"]),
+                    json={
+                        "navigation_menu": {
+                            "value": {"items": [{"label": "危险", "url": "javascript:alert(1)"}]}
+                        }
+                    },
+                )
+            )
+            self.assertEqual(invalid_response.status_code, 422, invalid_response.text)
+        finally:
+            self.run_async(_restore_setting(snapshot))
+
+    def test_admin_can_delete_custom_setting_but_not_protected_setting(self):
+        admin = self.run_async(self._register_user(admin=True))
+        custom_key = f"{TEST_SETTING_PREFIX}{uuid.uuid4().hex[:8]}_delete_custom"
+
+        create_response = self.run_async(
+            self.client.put(
+                "/api/admin/settings",
+                headers=self._auth_headers(admin["token"]),
+                json={custom_key: {"value": {"enabled": True}, "category": "test"}},
+            )
+        )
+        self.assertEqual(create_response.status_code, 200, create_response.text)
+
+        delete_response = self.run_async(
+            self.client.delete(
+                f"/api/admin/settings/{custom_key}",
+                headers=self._auth_headers(admin["token"]),
+            )
+        )
+        self.assertEqual(delete_response.status_code, 200, delete_response.text)
+
+        deleted_setting = self.run_async(self._get_setting(custom_key))
+        self.assertIsNone(deleted_setting)
+
+        protected_response = self.run_async(
+            self.client.delete(
+                "/api/admin/settings/site_name",
+                headers=self._auth_headers(admin["token"]),
+            )
+        )
+        self.assertEqual(protected_response.status_code, 400, protected_response.text)
+
     def test_admin_settings_normalizes_and_validates_admin_entry_path(self):
         admin = self.run_async(self._register_user(admin=True))
 
@@ -913,7 +1029,8 @@ class ApiIntegrationTests(unittest.TestCase):
             public_modules = {item["key"]: item for item in public_payload["modules"]}
             self.assertEqual(public_payload["default_module"], "tools")
             self.assertFalse(public_modules["companies"]["enabled"])
-            self.assertIn("/", public_modules["companies"]["protected_paths"])
+            self.assertNotIn("/", public_modules["companies"]["protected_paths"])
+            self.assertEqual(public_modules["companies"]["path"], "/companies")
         finally:
             self.run_async(_restore_frontend_modules_setting(snapshot))
 
@@ -1029,6 +1146,26 @@ class ApiIntegrationTests(unittest.TestCase):
                 self.assertEqual(release["entry_path"], "index.html")
                 self.assertTrue(release["preview_url"].endswith("/preview"))
 
+                clone_response = self.run_async(
+                    self.client.post(
+                        f"/api/admin/homepage/releases/{release['id']}/clone",
+                        headers=self._auth_headers(admin["token"]),
+                    )
+                )
+                self.assertEqual(clone_response.status_code, 201, clone_response.text)
+                cloned_release = clone_response.json()
+                self.assertEqual(cloned_release["status"], "draft")
+                self.assertFalse(cloned_release["is_builtin"])
+                self.assertIn("可编辑副本", cloned_release["title"])
+                cloned_source_response = self.run_async(
+                    self.client.get(
+                        f"/api/admin/homepage/releases/{cloned_release['id']}/source",
+                        headers=self._auth_headers(admin["token"]),
+                    )
+                )
+                self.assertEqual(cloned_source_response.status_code, 200, cloned_source_response.text)
+                self.assertIn("自定义首页", cloned_source_response.json()["html"])
+
                 preview_response = self.run_async(
                     self.client.get(
                         release["preview_url"],
@@ -1037,10 +1174,21 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
                 self.assertEqual(preview_response.status_code, 200, preview_response.text)
                 self.assertIn("自定义首页", preview_response.text)
-                self.assertIn("script-src 'none'", preview_response.text)
-                self.assertNotIn("<script", preview_response.text.lower())
+                self.assertIn("script-src 'self'", preview_response.text)
+                self.assertNotIn("window.__bad", preview_response.text)
+                self.assertEqual(preview_response.text.count('data-georank-navigation-runtime'), 1)
                 self.assertNotIn("onerror", preview_response.text.lower())
                 self.assertIn(f"/_custom_homepage/releases/{release['id']}/assets/logo.png", preview_response.text)
+
+                source_response = self.run_async(
+                    self.client.get(
+                        f"/api/admin/homepage/releases/{release['id']}/source",
+                        headers=self._auth_headers(admin["token"]),
+                    )
+                )
+                self.assertEqual(source_response.status_code, 200, source_response.text)
+                self.assertIn("window.__bad", source_response.json()["html"])
+                self.assertEqual(len(source_response.json()["sha256"]), 64)
 
                 activate_response = self.run_async(
                     self.client.post(
@@ -1050,6 +1198,36 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
                 self.assertEqual(activate_response.status_code, 200, activate_response.text)
                 self.assertEqual(activate_response.json()["runtime"]["mode"], "custom")
+
+                update_response = self.run_async(
+                    self.client.put(
+                        f"/api/admin/homepage/releases/{release['id']}/source",
+                        headers=self._auth_headers(admin["token"]),
+                        json={
+                            "html": '<html><body onload="bad()"><h1>后台实时更新</h1><script>bad()</script></body></html>',
+                            "expected_sha256": source_response.json()["sha256"],
+                        },
+                    )
+                )
+                self.assertEqual(update_response.status_code, 200, update_response.text)
+                self.assertTrue(update_response.json()["updated_active"])
+                active_html = (Path(tmpdir) / "public" / "active" / "index.html").read_text()
+                self.assertIn("后台实时更新", active_html)
+                self.assertNotIn("onload", active_html.lower())
+                self.assertNotIn("bad()", active_html)
+                self.assertEqual(active_html.count('data-georank-navigation-runtime'), 1)
+
+                stale_update_response = self.run_async(
+                    self.client.put(
+                        f"/api/admin/homepage/releases/{release['id']}/source",
+                        headers=self._auth_headers(admin["token"]),
+                        json={
+                            "html": "<html><body><h1>过期编辑</h1></body></html>",
+                            "expected_sha256": source_response.json()["sha256"],
+                        },
+                    )
+                )
+                self.assertEqual(stale_update_response.status_code, 409, stale_update_response.text)
 
                 public_response = self.run_async(self.client.get("/api/settings/homepage"))
                 self.assertEqual(public_response.status_code, 200, public_response.text)
@@ -1531,9 +1709,13 @@ class ApiIntegrationTests(unittest.TestCase):
         send_task.assert_called_once()
         self.assertEqual(send_task.call_args.args[0], "app.tasks.crawl.crawl_company_website")
         self.assertEqual(send_task.call_args.kwargs["args"][1], company_url)
+        self.assertTrue(send_task.call_args.kwargs["args"][2])
 
         status_response = self.run_async(
-            self.client.get(f"/api/companies/{company_id}/pipeline-status")
+            self.client.get(
+                f"/api/companies/{company_id}/pipeline-status",
+                headers=self._auth_headers(user["token"]),
+            )
         )
         self.assertEqual(status_response.status_code, 200, status_response.text)
         status_payload = status_response.json()
@@ -1553,7 +1735,89 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertTrue(duplicate_payload["resumed"])
         self.assertEqual(duplicate_payload["company_id"], company_id)
 
-    def test_submit_company_allows_anonymous_requests(self):
+    def test_submit_company_restarts_orphaned_pending_record(self):
+        user = self.run_async(self._register_user())
+        company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.orphaned.test"
+
+        async def _create_orphaned_company():
+            async with async_session() as db:
+                member = await db.scalar(select(User).where(User.email == user["email"]))
+                company = Company(
+                    name="orphaned-pending-company",
+                    url=company_url,
+                    pipeline_status=PipelineStatus.PENDING,
+                    publish_status=PublishStatus.DRAFT,
+                    submitted_by=member.id,
+                    ai_reservation_id=None,
+                )
+                db.add(company)
+                await db.commit()
+                await db.refresh(company)
+                return str(company.id)
+
+        company_id = self.run_async(_create_orphaned_company())
+
+        with patch("app.core.celery_app.celery_app.send_task") as send_task:
+            retry_response = self.run_async(
+                self.client.post(
+                    "/api/companies/submit",
+                    headers=self._auth_headers(user["token"]),
+                    json={"url": company_url},
+                )
+            )
+
+        self.assertEqual(retry_response.status_code, 202, retry_response.text)
+        payload = retry_response.json()
+        self.assertTrue(payload["resumed"])
+        self.assertEqual(payload["status"], "pending")
+        self.assertEqual(payload["company_id"], company_id)
+        send_task.assert_called_once()
+        self.assertEqual(send_task.call_args.args[0], "app.tasks.crawl.crawl_company_website")
+        self.assertEqual(send_task.call_args.kwargs["args"][0], company_id)
+        self.assertTrue(send_task.call_args.kwargs["args"][2])
+
+        async def _fetch_reservation_id():
+            async with async_session() as db:
+                return await db.scalar(
+                    select(Company.ai_reservation_id).where(
+                        Company.id == uuid.UUID(company_id)
+                    )
+                )
+
+        self.assertIsNotNone(self.run_async(_fetch_reservation_id()))
+
+    def test_submit_company_marks_pipeline_failed_when_queue_dispatch_fails(self):
+        user = self.run_async(self._register_user())
+        bare_domain = f"codex-it-{uuid.uuid4().hex[:10]}.queue-failure.test"
+
+        with patch(
+            "app.core.celery_app.celery_app.send_task",
+            side_effect=RuntimeError("broker unavailable"),
+        ):
+            submit_response = self.run_async(
+                self.client.post(
+                    "/api/companies/submit",
+                    headers=self._auth_headers(user["token"]),
+                    json={"url": bare_domain},
+                )
+            )
+
+        self.assertEqual(submit_response.status_code, 202, submit_response.text)
+        payload = submit_response.json()
+        self.assertEqual(payload["status"], "failed")
+
+        async def _fetch_company():
+            async with async_session() as db:
+                result = await db.execute(
+                    select(Company).where(Company.id == uuid.UUID(payload["company_id"]))
+                )
+                return result.scalar_one()
+
+        company = self.run_async(_fetch_company())
+        self.assertEqual(company.pipeline_status, PipelineStatus.FAILED)
+        self.assertEqual(company.pipeline_error, "官网分析任务创建失败，请稍后重试。")
+
+    def test_submit_company_requires_login_for_platform_quota(self):
         bare_domain = f"codex-it-{uuid.uuid4().hex[:10]}.public.test"
         company_url = f"https://{bare_domain}"
 
@@ -1565,21 +1829,19 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
             )
 
-        self.assertEqual(submit_response.status_code, 202, submit_response.text)
-        company_id = submit_response.json()["company_id"]
-        send_task.assert_called_once()
+        self.assertEqual(submit_response.status_code, 401, submit_response.text)
+        send_task.assert_not_called()
 
-        async def _fetch_company():
+        async def _company_exists():
             async with async_session() as db:
-                result = await db.execute(select(Company).where(Company.id == uuid.UUID(company_id)))
-                return result.scalar_one()
+                result = await db.execute(select(Company.id).where(Company.url == company_url))
+                return result.scalar_one_or_none() is not None
 
-        company = self.run_async(_fetch_company())
-        self.assertIsNone(company.submitted_by)
-        self.assertEqual(company.pipeline_status, PipelineStatus.PENDING)
+        self.assertFalse(self.run_async(_company_exists()))
 
     def test_submit_company_review_requires_completed_pipeline_and_updates_publish_status(self):
         user = self.run_async(self._register_user())
+        other_user = self.run_async(self._register_user())
         company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.review.test"
 
         with patch("app.core.celery_app.celery_app.send_task"):
@@ -1602,6 +1864,23 @@ class ApiIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(early_submit.status_code, 409, early_submit.text)
 
+        other_submit = self.run_async(
+            self.client.post(
+                "/api/companies/submit",
+                headers=self._auth_headers(other_user["token"]),
+                json={"url": company_url},
+            )
+        )
+        self.assertEqual(other_submit.status_code, 403, other_submit.text)
+
+        hidden_status = self.run_async(
+            self.client.get(
+                f"/api/companies/{company_id}/pipeline-status",
+                headers=self._auth_headers(other_user["token"]),
+            )
+        )
+        self.assertEqual(hidden_status.status_code, 404, hidden_status.text)
+
         async def _mark_completed():
             async with async_session() as db:
                 await db.execute(
@@ -1612,6 +1891,7 @@ class ApiIntegrationTests(unittest.TestCase):
                         publish_status=PublishStatus.DRAFT,
                         short_description="测试公司简介",
                         description="测试公司完整介绍",
+                        category="GEO 服务",
                         tags=["GEO优化"],
                         tech_stack=["OpenAI API"],
                         geo_score=66,
@@ -1621,6 +1901,14 @@ class ApiIntegrationTests(unittest.TestCase):
                 await db.commit()
 
         self.run_async(_mark_completed())
+
+        other_review = self.run_async(
+            self.client.post(
+                f"/api/companies/{company_id}/submit-review",
+                headers=self._auth_headers(other_user["token"]),
+            )
+        )
+        self.assertEqual(other_review.status_code, 403, other_review.text)
 
         final_submit = self.run_async(
             self.client.post(
@@ -1640,7 +1928,205 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertEqual(company.publish_status, PublishStatus.PENDING_REVIEW)
         self.assertIsNotNone(company.submitted_by)
 
-    def test_submit_company_review_auto_hydrates_missing_profile(self):
+    def test_successful_company_vectorization_keeps_draft_until_user_submits_review(self):
+        company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.vector.test"
+
+        async def _create_company():
+            async with async_session() as db:
+                company = Company(
+                    name="Vector Draft Company",
+                    url=company_url,
+                    description="用于验证公司知识库向量化后的审核状态。",
+                    short_description="向量化状态测试公司。",
+                    category="企业服务",
+                    tags=["知识库"],
+                    geo_score=80,
+                    geo_details={"schema": 80, "content": 80, "meta": 80, "citation": 80},
+                    pipeline_status=PipelineStatus.VECTORIZING,
+                    publish_status=PublishStatus.DRAFT,
+                    raw_html_key="companies/vector-draft/raw.html",
+                    crawl_pages=[
+                        {
+                            "url": company_url,
+                            "title": "Vector Draft Company",
+                            "role": "homepage",
+                            "reason": "官网主页",
+                            "key": "companies/vector-draft/raw.html",
+                            "status": "captured",
+                        }
+                    ],
+                )
+                db.add(company)
+                await db.commit()
+                await db.refresh(company)
+                return str(company.id)
+
+        company_id = self.run_async(_create_company())
+
+        async def _embed(chunks):
+            return [[0.1] * 1536 for _ in chunks]
+
+        from app.tasks.process import _run_vectorize
+
+        with patch("app.services.storage.storage.get", return_value=b"<html><body>Company knowledge</body></html>"), patch(
+            "app.services.ai_client.ai_client.embed_batch",
+            new=AsyncMock(side_effect=_embed),
+        ), patch("app.services.vector_store.vector_store.ensure_collection"), patch(
+            "app.services.vector_store.vector_store.delete_company_vectors"
+        ), patch(
+            "app.services.vector_store.vector_store.upsert_company_vectors"
+        ), patch(
+            "app.services.ai_usage.record_async_task_usage",
+            new=AsyncMock(),
+        ):
+            self.run_async(_run_vectorize(company_id))
+
+        async def _fetch_company():
+            async with async_session() as db:
+                result = await db.execute(select(Company).where(Company.id == uuid.UUID(company_id)))
+                return result.scalar_one()
+
+        company = self.run_async(_fetch_company())
+        self.assertEqual(company.pipeline_status, PipelineStatus.COMPLETED)
+        self.assertEqual(company.publish_status, PublishStatus.DRAFT)
+
+    def test_company_vectorization_completes_when_embedding_is_not_configured(self):
+        company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.no-embedding.test"
+
+        async def _create_company():
+            async with async_session() as db:
+                company = Company(
+                    name="No Embedding Company",
+                    url=company_url,
+                    description="用于验证未配置向量服务时仍能完成公司分析。",
+                    category="企业服务",
+                    pipeline_status=PipelineStatus.VECTORIZING,
+                    publish_status=PublishStatus.DRAFT,
+                    raw_html_key="companies/no-embedding/raw.html",
+                )
+                db.add(company)
+                await db.commit()
+                await db.refresh(company)
+                return str(company.id)
+
+        company_id = self.run_async(_create_company())
+
+        from app.services.ai_client import EmbeddingNotConfiguredError
+        from app.tasks.process import _run_vectorize
+
+        with patch(
+            "app.services.storage.storage.get",
+            return_value=b"<html><body>Company knowledge</body></html>",
+        ), patch(
+            "app.services.ai_client.ai_client.embed_batch",
+            new=AsyncMock(side_effect=EmbeddingNotConfiguredError("embedding unavailable")),
+        ), patch(
+            "app.services.vector_store.vector_store.ensure_collection"
+        ) as ensure_collection, patch(
+            "app.services.vector_store.vector_store.delete_company_vectors"
+        ) as delete_vectors, patch(
+            "app.services.vector_store.vector_store.upsert_company_vectors"
+        ) as upsert_vectors, patch(
+            "app.services.ai_usage.record_async_task_usage",
+            new=AsyncMock(),
+        ) as record_usage:
+            self.run_async(_run_vectorize(company_id))
+
+        async def _fetch_company():
+            async with async_session() as db:
+                result = await db.execute(select(Company).where(Company.id == uuid.UUID(company_id)))
+                return result.scalar_one()
+
+        company = self.run_async(_fetch_company())
+        self.assertEqual(company.pipeline_status, PipelineStatus.COMPLETED)
+        self.assertIsNone(company.pipeline_error)
+        ensure_collection.assert_not_called()
+        delete_vectors.assert_not_called()
+        upsert_vectors.assert_not_called()
+        self.assertEqual(record_usage.await_args.kwargs["metadata"]["vector_count"], 0)
+        self.assertEqual(record_usage.await_args.kwargs["estimated_input_tokens"], 0)
+        self.assertEqual(record_usage.await_args.kwargs["output_text"], "")
+
+    def test_company_cleaning_generates_geo_profile_from_stored_homepage(self):
+        company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.clean.test"
+        homepage_key = "companies/clean-profile/raw.html"
+        product_key = "companies/clean-profile/product.html"
+        homepage_html = """
+        <html><head><title>Clean Profile</title><meta name="description" content="企业介绍"></head>
+        <body><h1>Clean Profile</h1><p>企业服务与公开案例。</p></body></html>
+        """.encode("utf-8")
+        product_html = b"<html><body><h1>SECONDARY_PRODUCT_TEXT</h1></body></html>"
+        captured_source = {}
+
+        async def _create_company():
+            async with async_session() as db:
+                company = Company(
+                    name="clean-profile.test",
+                    url=company_url,
+                    pipeline_status=PipelineStatus.CLEANING,
+                    publish_status=PublishStatus.DRAFT,
+                    raw_html_key=homepage_key,
+                    crawl_pages=[
+                        {
+                            "url": company_url,
+                            "title": "Clean Profile",
+                            "role": "homepage",
+                            "reason": "官网主页",
+                            "key": homepage_key,
+                            "status": "captured",
+                        },
+                        {
+                            "url": f"{company_url}/product",
+                            "title": "产品",
+                            "role": "product",
+                            "reason": "产品页面",
+                            "key": product_key,
+                            "status": "captured",
+                        },
+                    ],
+                )
+                db.add(company)
+                await db.commit()
+                await db.refresh(company)
+                return str(company.id)
+
+        async def _extract_profile(source: str, fallback_name: str | None = None):
+            captured_source["value"] = source
+            return {
+                "name": "Clean Profile",
+                "description": "提供企业服务与公开案例。",
+                "short_description": "企业服务平台。",
+                "category": "企业服务",
+                "tags": ["企业服务"],
+                "tech_stack": [],
+                "team_members": [],
+            }
+
+        company_id = self.run_async(_create_company())
+
+        def _stored_html(key: str):
+            return {homepage_key: homepage_html, product_key: product_html}.get(key)
+
+        from app.tasks.process import _run_clean
+
+        with patch("app.services.company_profile.storage.get", side_effect=_stored_html), patch(
+            "app.services.company_profile.extract_company_profile",
+            new=AsyncMock(side_effect=_extract_profile),
+        ), patch("app.core.celery_app.celery_app.send_task"):
+            self.run_async(_run_clean(company_id))
+
+        async def _fetch_company():
+            async with async_session() as db:
+                result = await db.execute(select(Company).where(Company.id == uuid.UUID(company_id)))
+                return result.scalar_one()
+
+        company = self.run_async(_fetch_company())
+        self.assertIn("SECONDARY_PRODUCT_TEXT", captured_source["value"])
+        self.assertEqual(company.pipeline_status, PipelineStatus.GRAPH_BUILDING)
+        self.assertIsNotNone(company.geo_score)
+        self.assertEqual(set((company.geo_details or {}).keys()), {"schema", "content", "meta", "citation"})
+
+    def test_submit_company_review_requires_pipeline_profile_instead_of_unmetered_hydration(self):
         user = self.run_async(self._register_user())
         company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.review.test"
         html = """
@@ -1693,7 +2179,8 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
             )
 
-        self.assertEqual(final_submit.status_code, 200, final_submit.text)
+        self.assertEqual(final_submit.status_code, 409, final_submit.text)
+        self.assertIn("missing_fields", final_submit.json()["detail"])
 
         async def _fetch_company():
             async with async_session() as db:
@@ -1701,18 +2188,12 @@ class ApiIntegrationTests(unittest.TestCase):
                 return result.scalar_one()
 
         company = self.run_async(_fetch_company())
-        self.assertEqual(company.publish_status, PublishStatus.PENDING_REVIEW)
-        self.assertEqual(company.name, "移山科技")
-        self.assertEqual(company.category, "GEO咨询")
-        self.assertTrue(company.short_description)
-        self.assertTrue(company.description)
-        self.assertIn("GEO优化", company.tags or [])
-        self.assertIn("OpenAI API", company.tech_stack or [])
-        self.assertEqual((company.team_members or [{}])[0].get("name"), "张三")
-        self.assertIsNotNone(company.geo_score)
-        self.assertIsNotNone(company.geo_details)
+        self.assertEqual(company.publish_status, PublishStatus.DRAFT)
+        self.assertEqual(company.name, "www.geokeji.com")
+        self.assertIsNone(company.category)
+        self.assertIsNone(company.geo_score)
 
-    def test_admin_approve_company_auto_hydrates_missing_profile(self):
+    def test_admin_approve_requires_pipeline_profile_instead_of_unmetered_hydration(self):
         admin = self.run_async(self._register_user(admin=True))
         company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.review.test"
         html = """
@@ -1765,7 +2246,8 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
             )
 
-        self.assertEqual(approve_response.status_code, 200, approve_response.text)
+        self.assertEqual(approve_response.status_code, 409, approve_response.text)
+        self.assertIn("missing_fields", approve_response.json()["detail"])
 
         async def _fetch_company():
             async with async_session() as db:
@@ -1773,16 +2255,79 @@ class ApiIntegrationTests(unittest.TestCase):
                 return result.scalar_one()
 
         company = self.run_async(_fetch_company())
-        self.assertEqual(company.publish_status, PublishStatus.PUBLISHED)
-        self.assertEqual(company.name, "移山科技")
-        self.assertEqual(company.category, "GEO咨询")
-        self.assertTrue(company.short_description)
-        self.assertTrue(company.description)
-        self.assertIn("GEO优化", company.tags or [])
-        self.assertIn("OpenAI API", company.tech_stack or [])
-        self.assertEqual((company.team_members or [{}])[0].get("name"), "张三")
-        self.assertIsNotNone(company.geo_score)
-        self.assertIsNotNone(company.geo_details)
+        self.assertEqual(company.publish_status, PublishStatus.PENDING_REVIEW)
+        self.assertEqual(company.name, "www.geokeji.com")
+        self.assertIsNone(company.category)
+        self.assertIsNone(company.geo_score)
+
+    def test_admin_approve_incomplete_company_reports_missing_fields(self):
+        admin = self.run_async(self._register_user(admin=True))
+
+        async def _create_company():
+            async with async_session() as db:
+                company = Company(
+                    name="Incomplete Company",
+                    url=f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.incomplete.test",
+                    pipeline_status=PipelineStatus.COMPLETED,
+                    publish_status=PublishStatus.PENDING_REVIEW,
+                )
+                db.add(company)
+                await db.commit()
+                await db.refresh(company)
+                return str(company.id)
+
+        company_id = self.run_async(_create_company())
+        approve_response = self.run_async(
+            self.client.post(
+                f"/api/admin/companies/{company_id}/approve",
+                headers=self._auth_headers(admin["token"]),
+            )
+        )
+
+        self.assertEqual(approve_response.status_code, 409, approve_response.text)
+        detail = approve_response.json()["detail"]
+        self.assertEqual(detail["message"], "公司资料未抽取完整，暂不能发布")
+        self.assertEqual(
+            set(detail["missing_fields"]),
+            {"description", "category", "tags", "geo_score", "geo_details"},
+        )
+
+    def test_admin_cannot_publish_complete_profile_from_failed_pipeline(self):
+        admin = self.run_async(self._register_user(admin=True))
+
+        async def _create_company():
+            async with async_session() as db:
+                company = Company(
+                    name="Failed Vector Company",
+                    url=f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.failed-vector.test",
+                    description="本轮官网资料已成功抽取。",
+                    short_description="官网资料完整。",
+                    category="教育培训",
+                    tags=["教育培训"],
+                    geo_score=37,
+                    geo_details={"schema": 0, "content": 30, "meta": 38, "citation": 100},
+                    pipeline_status=PipelineStatus.FAILED,
+                    pipeline_error="Embedding API Key 未配置",
+                    publish_status=PublishStatus.PENDING_REVIEW,
+                )
+                db.add(company)
+                await db.commit()
+                await db.refresh(company)
+                return str(company.id)
+
+        company_id = self.run_async(_create_company())
+        approve_response = self.run_async(
+            self.client.post(
+                f"/api/admin/companies/{company_id}/approve",
+                headers=self._auth_headers(admin["token"]),
+            )
+        )
+
+        self.assertEqual(approve_response.status_code, 409, approve_response.text)
+        detail = approve_response.json()["detail"]
+        self.assertEqual(detail["message"], "公司分析流程尚未完成，暂不能发布")
+        self.assertEqual(detail["pipeline_status"], "failed")
+        self.assertEqual(detail["pipeline_error"], "Embedding API Key 未配置")
 
     def test_admin_company_detail_returns_pipeline_and_diagnostic_context(self):
         admin = self.run_async(self._register_user(admin=True))
@@ -2089,8 +2634,6 @@ class ApiIntegrationTests(unittest.TestCase):
                     "category": "GEO tools",
                     "tags": ["admin", "crud"],
                     "tech_stack": ["Next.js"],
-                    "publish_status": "draft",
-                    "pipeline_status": "completed",
                     "geo_score": 66,
                 },
             )
@@ -2100,6 +2643,15 @@ class ApiIntegrationTests(unittest.TestCase):
         company_id = created["id"]
         self.assertEqual(created["name"], f"Codex Admin Company {suffix}")
         self.assertEqual(created["tags"], ["admin", "crud"])
+        self.assertIn("preview=", created["preview_url"])
+
+        hidden_preview = self.run_async(
+            self.client.get(created["preview_url"].split("?", 1)[0])
+        )
+        self.assertEqual(hidden_preview.status_code, 404, hidden_preview.text)
+        signed_preview = self.run_async(self.client.get(created["preview_url"]))
+        self.assertEqual(signed_preview.status_code, 200, signed_preview.text)
+        self.assertIn('name="robots" content="noindex,nofollow"', signed_preview.text)
 
         update_response = self.run_async(
             self.client.put(
@@ -2112,8 +2664,6 @@ class ApiIntegrationTests(unittest.TestCase):
                     "category": "GEO platform",
                     "tags": ["updated"],
                     "tech_stack": ["FastAPI"],
-                    "publish_status": "pending_review",
-                    "pipeline_status": "completed",
                     "geo_score": 72.5,
                 },
             )
@@ -2121,9 +2671,18 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertEqual(update_response.status_code, 200, update_response.text)
         updated = update_response.json()
         self.assertEqual(updated["name"], f"Codex Admin Company Updated {suffix}")
-        self.assertEqual(updated["publish_status"], "pending_review")
+        self.assertEqual(updated["publish_status"], "draft")
         self.assertEqual(updated["category"], "GEO platform")
         self.assertEqual(updated["tech_stack"], ["FastAPI"])
+
+        status_bypass = self.run_async(
+            self.client.put(
+                f"/api/admin/companies/{company_id}",
+                headers=self._auth_headers(admin["token"]),
+                json={"publish_status": "published"},
+            )
+        )
+        self.assertEqual(status_bypass.status_code, 409, status_bypass.text)
 
     def test_company_detail_page_is_server_rendered_with_schema(self):
         company_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.example.test"
@@ -2151,6 +2710,8 @@ class ApiIntegrationTests(unittest.TestCase):
                             "title": "SSR Company 官网",
                             "url": company_url,
                             "reason": "作为企业知识库的主入口页面。",
+                            "status": "captured",
+                            "key": "companies/test/homepage.html",
                         }
                     ],
                 )
@@ -2166,21 +2727,96 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertEqual(api_response.status_code, 200, api_response.text)
         self.assertEqual(api_response.json()["id"], holder["company_id"])
         self.assertEqual(api_response.json()["path_key"], holder["path_key"])
+        self.assertEqual(api_response.json()["view_count"], 0)
+
+        async def _view_count():
+            async with async_session() as db:
+                company = await db.get(Company, uuid.UUID(holder["company_id"]))
+                return getattr(company, "view_count", None)
 
         legacy_response = self.run_async(self.client.get(f"/companies/{holder['company_id']}", follow_redirects=False))
         self.assertEqual(legacy_response.status_code, 301, legacy_response.text)
-        self.assertEqual(legacy_response.headers["location"], f"http://testserver/c/{holder['path_key']}")
+        expected_origin = "http://testserver" if settings.DEBUG else settings.PUBLIC_BASE_URL.rstrip("/")
+        self.assertEqual(legacy_response.headers["location"], f"{expected_origin}/c/{holder['path_key']}")
+        self.assertEqual(self.run_async(_view_count()), 0)
 
         detail_response = self.run_async(self.client.get(f"/c/{holder['path_key']}"))
         self.assertEqual(detail_response.status_code, 200, detail_response.text)
+        self.assertEqual(self.run_async(_view_count()), 1)
         self.assertIn("SSR Company", detail_response.text)
         self.assertIn("服务端直出的 GEO 公司档案。", detail_response.text)
-        self.assertIn("企业快照", detail_response.text)
-        self.assertIn("GEO 行动路线图", detail_response.text)
+        self.assertIn('id="company-profile"', detail_response.text)
+        self.assertIn("公司介绍", detail_response.text)
+        self.assertIn("业务与能力", detail_response.text)
+        self.assertIn("公开资料与可信信号", detail_response.text)
+        self.assertIn("GEO 分析", detail_response.text)
+        self.assertNotIn("GEO 行动计划", detail_response.text)
+        self.assertNotIn("页面可读性摘要", detail_response.text)
         self.assertIn("Ada", detail_response.text)
         self.assertIn("application/ld+json", detail_response.text)
         self.assertIn('"@type": "Organization"', detail_response.text)
-        self.assertIn(f'rel="canonical" href="http://testserver/c/{holder["path_key"]}"', detail_response.text)
+        self.assertIn(f'rel="canonical" href="{expected_origin}/c/{holder["path_key"]}"', detail_response.text)
+
+        second_detail_response = self.run_async(self.client.get(f"/c/{holder['path_key']}"))
+        self.assertEqual(second_detail_response.status_code, 200, second_detail_response.text)
+        self.assertEqual(self.run_async(_view_count()), 2)
+
+        with patch(
+            "app.web.company_pages.rank_similar_companies",
+            side_effect=RuntimeError("forced render failure"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.run_async(self.client.get(f"/c/{holder['path_key']}"))
+        self.assertEqual(self.run_async(_view_count()), 2)
+
+        with patch(
+            "app.web.company_pages.update",
+            side_effect=SQLAlchemyError("forced PV storage failure"),
+        ):
+            resilient_response = self.run_async(self.client.get(f"/c/{holder['path_key']}"))
+        self.assertEqual(resilient_response.status_code, 200, resilient_response.text)
+        self.assertEqual(self.run_async(_view_count()), 2)
+
+    def test_company_list_can_sort_by_real_page_views(self):
+        suffix = uuid.uuid4().hex[:10]
+        name_prefix = f"PV Sort {suffix}"
+
+        async def _create_companies():
+            async with async_session() as db:
+                db.add_all(
+                    [
+                        Company(
+                            name=f"{name_prefix} Lower",
+                            url=f"{TEST_COMPANY_URL_PREFIX}{suffix}-lower.example.test",
+                            pipeline_status=PipelineStatus.COMPLETED,
+                            publish_status=PublishStatus.PUBLISHED,
+                            view_count=3,
+                        ),
+                        Company(
+                            name=f"{name_prefix} Higher",
+                            url=f"{TEST_COMPANY_URL_PREFIX}{suffix}-higher.example.test",
+                            pipeline_status=PipelineStatus.COMPLETED,
+                            publish_status=PublishStatus.PUBLISHED,
+                            view_count=9,
+                        ),
+                    ]
+                )
+                await db.commit()
+
+        self.run_async(_create_companies())
+        response = self.run_async(
+            self.client.get(
+                "/api/companies/",
+                params={"sort": "views", "q": name_prefix},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            [item["name"] for item in response.json()["items"]],
+            [f"{name_prefix} Higher", f"{name_prefix} Lower"],
+        )
+        self.assertEqual([item["view_count"] for item in response.json()["items"]], [9, 3])
 
     def test_diagnostics_create_history_and_report_are_user_scoped(self):
         user = self.run_async(self._register_user())
@@ -2262,7 +2898,7 @@ class ApiIntegrationTests(unittest.TestCase):
         self.assertEqual(report_response.status_code, 200, report_response.text)
         self.assertEqual(report_response.json()["url"], expected_url)
 
-    def test_anonymous_diagnostics_can_create_and_fetch_ownerless_report(self):
+    def test_anonymous_diagnostics_require_login_for_platform_quota(self):
         diagnostic_url = f"{TEST_COMPANY_URL_PREFIX}{uuid.uuid4().hex[:10]}.public.test/diagnostic"
 
         with patch("app.core.celery_app.celery_app.send_task") as send_task:
@@ -2273,43 +2909,23 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
             )
 
-        self.assertEqual(create_response.status_code, 200, create_response.text)
-        payload = create_response.json()
-        report_id = payload["report_id"]
-        self.assertEqual(payload["status"], "pending")
-        send_task.assert_called_once()
+        self.assertEqual(create_response.status_code, 401, create_response.text)
+        send_task.assert_not_called()
 
-        async def _mark_report_completed():
+        async def _report_exists():
             async with async_session() as db:
-                report = await db.get(DiagnosticReport, uuid.UUID(report_id))
-                self.assertIsNotNone(report)
-                report.status = DiagnosticStatus.COMPLETED
-                report.overall_score = 88
-                report.schema_analysis = {"score": 90, "found_types": ["WebSite"], "missing_recommended": ["Organization"]}
-                report.content_analysis = {"score": 84, "word_count": 640, "has_single_h1": True, "has_h2_structure": True}
-                report.meta_analysis = {"score": 86, "missing": ["og_type"], "checks": {"title": True}}
-                report.citation_analysis = {"score": 72, "authority_link_count": 1, "external_link_count": 4, "authority_links": ["https://example.org/source"]}
-                report.recommendations = {"urgent": [{"item": "补充 Organization Schema", "action": "添加 JSON-LD"}], "recommended": [], "optional": []}
-                await db.commit()
+                report_id = await db.scalar(
+                    select(DiagnosticReport.id).where(DiagnosticReport.url == diagnostic_url)
+                )
+                return report_id is not None
 
-        self.run_async(_mark_report_completed())
+        self.assertFalse(self.run_async(_report_exists()))
 
-        report_response = self.run_async(
-            self.client.get(f"/api/diagnostics/{report_id}")
-        )
-        self.assertEqual(report_response.status_code, 200, report_response.text)
-        report = report_response.json()
-        self.assertEqual(report["report_id"], report_id)
-        self.assertEqual(report["status"], "completed")
-        self.assertEqual(report["overall_score"], 88)
-
-    def test_anonymous_solutions_chat_creates_ownerless_conversation(self):
-        recommended = [{"company_id": "demo-company", "name": "Demo Company", "match_score": 0.93}]
-
+    def test_anonymous_solutions_chat_requires_login_for_platform_quota(self):
         with patch(
             "app.api.routes.solutions._run_rag",
-            new=AsyncMock(return_value=("这里是一份基于诊断结果生成的 GEO 方案。", recommended)),
-        ):
+            new=AsyncMock(return_value=("不应执行", [])),
+        ) as run_rag:
             chat_response = self.run_async(
                 self.client.post(
                     "/api/solutions/chat",
@@ -2317,48 +2933,34 @@ class ApiIntegrationTests(unittest.TestCase):
                 )
             )
 
-        self.assertEqual(chat_response.status_code, 200, chat_response.text)
-        payload = chat_response.json()
-        conversation_id = payload["conversation_id"]
-        self.assertEqual(payload["recommended_companies"], recommended)
-
-        async def _fetch_conversation_and_messages():
-            async with async_session() as db:
-                conversation = await db.get(Conversation, uuid.UUID(conversation_id))
-                result = await db.execute(
-                    select(Message).where(Message.conversation_id == uuid.UUID(conversation_id)).order_by(Message.created_at)
-                )
-                return conversation, result.scalars().all()
-
-        conversation, messages = self.run_async(_fetch_conversation_and_messages())
-        self.assertIsNone(conversation.user_id)
-        self.assertEqual(len(messages), 2)
-        self.assertEqual(messages[0].role, MessageRole.USER)
-        self.assertEqual(messages[1].role, MessageRole.ASSISTANT)
-
-        public_conversation = self.run_async(
-            self.client.get(f"/api/solutions/conversations/{conversation_id}")
-        )
-        self.assertEqual(public_conversation.status_code, 200, public_conversation.text)
-        detail = public_conversation.json()
-        self.assertEqual(detail["id"], conversation_id)
-        self.assertEqual(detail["messages"][1]["recommended_companies"], recommended)
-        self.assertIsNone(detail["user_id"])
+        self.assertEqual(chat_response.status_code, 401, chat_response.text)
+        run_rag.assert_not_awaited()
 
     def test_authenticated_user_can_claim_public_solution_conversation(self):
-        with patch(
-            "app.api.routes.solutions._run_rag",
-            new=AsyncMock(return_value=("公开方案内容", [])),
-        ):
-            chat_response = self.run_async(
-                self.client.post(
-                    "/api/solutions/chat",
-                    json={"message": "先匿名生成一条方案"},
+        async def _create_legacy_public_conversation():
+            async with async_session() as db:
+                conversation = Conversation(user_id=None, title="历史公开方案")
+                db.add(conversation)
+                await db.flush()
+                db.add_all(
+                    [
+                        Message(
+                            conversation_id=conversation.id,
+                            role=MessageRole.USER,
+                            content="历史匿名问题",
+                        ),
+                        Message(
+                            conversation_id=conversation.id,
+                            role=MessageRole.ASSISTANT,
+                            content="历史公开方案内容",
+                            recommended_companies=[],
+                        ),
+                    ]
                 )
-            )
+                await db.commit()
+                return str(conversation.id)
 
-        self.assertEqual(chat_response.status_code, 200, chat_response.text)
-        conversation_id = chat_response.json()["conversation_id"]
+        conversation_id = self.run_async(_create_legacy_public_conversation())
         user = self.run_async(self._register_user())
 
         claim_response = self.run_async(
@@ -3508,6 +4110,30 @@ class ApiIntegrationTests(unittest.TestCase):
                     )
                 )
                 self.assertEqual(response.status_code, 422, response.text)
+
+    def test_admin_user_update_rejects_fields_owned_by_different_users(self):
+        admin = self.run_async(self._register_user(admin=True))
+        email_owner = self.run_async(self._register_user())
+        username_owner = self.run_async(self._register_user())
+        target = self.run_async(self._register_user())
+        target_me = self.run_async(
+            self.client.get("/api/auth/me", headers=self._auth_headers(target["token"]))
+        )
+        self.assertEqual(target_me.status_code, 200, target_me.text)
+
+        response = self.run_async(
+            self.client.put(
+                f"/api/admin/users/{target_me.json()['id']}",
+                headers=self._auth_headers(admin["token"]),
+                json={
+                    "email": email_owner["email"],
+                    "username": username_owner["username"],
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertIn("用户名、邮箱或手机号已存在", response.text)
 
     def test_admin_cannot_disable_or_demote_current_admin_account(self):
         admin = self.run_async(self._register_user(admin=True))

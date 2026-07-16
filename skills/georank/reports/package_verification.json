@@ -1,0 +1,666 @@
+{
+  "ok": true,
+  "schema_version": "2.0",
+  "generated_at": "2026-07-16",
+  "skill_dir": "[workspace]/skills/georank",
+  "package_dir": "[workspace]/tmp/georank-skill-review-20260716/package",
+  "summary": {
+    "target_count": 4,
+    "adapter_count": 4,
+    "archive_present": true,
+    "archive_sha256": "45f2038c923615ee4cdddb02604df674f4540a4a0fd39ddb55d6f0ac2a700645",
+    "archive_entry_count": 68,
+    "failure_count": 0,
+    "warning_count": 0
+  },
+  "checks": [
+    {
+      "id": "package-manifest",
+      "status": "pass",
+      "detail": "Package manifest exists: [workspace]/tmp/georank-skill-review-20260716/package/manifest.json"
+    },
+    {
+      "id": "openai-adapter",
+      "status": "pass",
+      "detail": "Adapter exists for target: openai"
+    },
+    {
+      "id": "openai-field-name",
+      "status": "pass",
+      "detail": "openai adapter includes field: name"
+    },
+    {
+      "id": "openai-field-description",
+      "status": "pass",
+      "detail": "openai adapter includes field: description"
+    },
+    {
+      "id": "openai-field-version",
+      "status": "pass",
+      "detail": "openai adapter includes field: version"
+    },
+    {
+      "id": "openai-field-display_name",
+      "status": "pass",
+      "detail": "openai adapter includes field: display_name"
+    },
+    {
+      "id": "openai-field-short_description",
+      "status": "pass",
+      "detail": "openai adapter includes field: short_description"
+    },
+    {
+      "id": "openai-field-default_prompt",
+      "status": "pass",
+      "detail": "openai adapter includes field: default_prompt"
+    },
+    {
+      "id": "openai-field-job_to_be_done",
+      "status": "pass",
+      "detail": "openai adapter includes field: job_to_be_done"
+    },
+    {
+      "id": "openai-field-ir_source",
+      "status": "pass",
+      "detail": "openai adapter includes field: ir_source"
+    },
+    {
+      "id": "openai-field-ir_schema_version",
+      "status": "pass",
+      "detail": "openai adapter includes field: ir_schema_version"
+    },
+    {
+      "id": "openai-field-semantic_contract",
+      "status": "pass",
+      "detail": "openai adapter includes field: semantic_contract"
+    },
+    {
+      "id": "openai-field-semantic_parity",
+      "status": "pass",
+      "detail": "openai adapter includes field: semantic_parity"
+    },
+    {
+      "id": "openai-field-compiler",
+      "status": "pass",
+      "detail": "openai adapter includes field: compiler"
+    },
+    {
+      "id": "openai-field-compiled_contract",
+      "status": "pass",
+      "detail": "openai adapter includes field: compiled_contract"
+    },
+    {
+      "id": "openai-field-permission_contract",
+      "status": "pass",
+      "detail": "openai adapter includes field: permission_contract"
+    },
+    {
+      "id": "openai-field-target_permission_contract",
+      "status": "pass",
+      "detail": "openai adapter includes field: target_permission_contract"
+    },
+    {
+      "id": "openai-field-target_native_contract",
+      "status": "pass",
+      "detail": "openai adapter includes field: target_native_contract"
+    },
+    {
+      "id": "openai-field-target_transform",
+      "status": "pass",
+      "detail": "openai adapter includes field: target_transform"
+    },
+    {
+      "id": "openai-field-canonical_metadata",
+      "status": "pass",
+      "detail": "openai adapter includes field: canonical_metadata"
+    },
+    {
+      "id": "openai-field-canonical_format",
+      "status": "pass",
+      "detail": "openai adapter includes field: canonical_format"
+    },
+    {
+      "id": "openai-field-activation_mode",
+      "status": "pass",
+      "detail": "openai adapter includes field: activation_mode"
+    },
+    {
+      "id": "openai-field-execution_context",
+      "status": "pass",
+      "detail": "openai adapter includes field: execution_context"
+    },
+    {
+      "id": "openai-field-shell",
+      "status": "pass",
+      "detail": "openai adapter includes field: shell"
+    },
+    {
+      "id": "openai-field-trust_level",
+      "status": "pass",
+      "detail": "openai adapter includes field: trust_level"
+    },
+    {
+      "id": "openai-field-remote_inline_execution",
+      "status": "pass",
+      "detail": "openai adapter includes field: remote_inline_execution"
+    },
+    {
+      "id": "openai-field-degradation_strategy",
+      "status": "pass",
+      "detail": "openai adapter includes field: degradation_strategy"
+    },
+    {
+      "id": "openai-field-portability_profile",
+      "status": "pass",
+      "detail": "openai adapter includes field: portability_profile"
+    },
+    {
+      "id": "claude-adapter",
+      "status": "pass",
+      "detail": "Adapter exists for target: claude"
+    },
+    {
+      "id": "claude-field-name",
+      "status": "pass",
+      "detail": "claude adapter includes field: name"
+    },
+    {
+      "id": "claude-field-description",
+      "status": "pass",
+      "detail": "claude adapter includes field: description"
+    },
+    {
+      "id": "claude-field-version",
+      "status": "pass",
+      "detail": "claude adapter includes field: version"
+    },
+    {
+      "id": "claude-field-display_name",
+      "status": "pass",
+      "detail": "claude adapter includes field: display_name"
+    },
+    {
+      "id": "claude-field-short_description",
+      "status": "pass",
+      "detail": "claude adapter includes field: short_description"
+    },
+    {
+      "id": "claude-field-default_prompt",
+      "status": "pass",
+      "detail": "claude adapter includes field: default_prompt"
+    },
+    {
+      "id": "claude-field-job_to_be_done",
+      "status": "pass",
+      "detail": "claude adapter includes field: job_to_be_done"
+    },
+    {
+      "id": "claude-field-ir_source",
+      "status": "pass",
+      "detail": "claude adapter includes field: ir_source"
+    },
+    {
+      "id": "claude-field-ir_schema_version",
+      "status": "pass",
+      "detail": "claude adapter includes field: ir_schema_version"
+    },
+    {
+      "id": "claude-field-semantic_contract",
+      "status": "pass",
+      "detail": "claude adapter includes field: semantic_contract"
+    },
+    {
+      "id": "claude-field-semantic_parity",
+      "status": "pass",
+      "detail": "claude adapter includes field: semantic_parity"
+    },
+    {
+      "id": "claude-field-compiler",
+      "status": "pass",
+      "detail": "claude adapter includes field: compiler"
+    },
+    {
+      "id": "claude-field-compiled_contract",
+      "status": "pass",
+      "detail": "claude adapter includes field: compiled_contract"
+    },
+    {
+      "id": "claude-field-permission_contract",
+      "status": "pass",
+      "detail": "claude adapter includes field: permission_contract"
+    },
+    {
+      "id": "claude-field-target_permission_contract",
+      "status": "pass",
+      "detail": "claude adapter includes field: target_permission_contract"
+    },
+    {
+      "id": "claude-field-target_native_contract",
+      "status": "pass",
+      "detail": "claude adapter includes field: target_native_contract"
+    },
+    {
+      "id": "claude-field-target_transform",
+      "status": "pass",
+      "detail": "claude adapter includes field: target_transform"
+    },
+    {
+      "id": "claude-field-canonical_metadata",
+      "status": "pass",
+      "detail": "claude adapter includes field: canonical_metadata"
+    },
+    {
+      "id": "claude-field-canonical_format",
+      "status": "pass",
+      "detail": "claude adapter includes field: canonical_format"
+    },
+    {
+      "id": "claude-field-activation_mode",
+      "status": "pass",
+      "detail": "claude adapter includes field: activation_mode"
+    },
+    {
+      "id": "claude-field-execution_context",
+      "status": "pass",
+      "detail": "claude adapter includes field: execution_context"
+    },
+    {
+      "id": "claude-field-shell",
+      "status": "pass",
+      "detail": "claude adapter includes field: shell"
+    },
+    {
+      "id": "claude-field-trust_level",
+      "status": "pass",
+      "detail": "claude adapter includes field: trust_level"
+    },
+    {
+      "id": "claude-field-remote_inline_execution",
+      "status": "pass",
+      "detail": "claude adapter includes field: remote_inline_execution"
+    },
+    {
+      "id": "claude-field-degradation_strategy",
+      "status": "pass",
+      "detail": "claude adapter includes field: degradation_strategy"
+    },
+    {
+      "id": "claude-field-portability_profile",
+      "status": "pass",
+      "detail": "claude adapter includes field: portability_profile"
+    },
+    {
+      "id": "generic-adapter",
+      "status": "pass",
+      "detail": "Adapter exists for target: generic"
+    },
+    {
+      "id": "generic-field-name",
+      "status": "pass",
+      "detail": "generic adapter includes field: name"
+    },
+    {
+      "id": "generic-field-description",
+      "status": "pass",
+      "detail": "generic adapter includes field: description"
+    },
+    {
+      "id": "generic-field-version",
+      "status": "pass",
+      "detail": "generic adapter includes field: version"
+    },
+    {
+      "id": "generic-field-display_name",
+      "status": "pass",
+      "detail": "generic adapter includes field: display_name"
+    },
+    {
+      "id": "generic-field-short_description",
+      "status": "pass",
+      "detail": "generic adapter includes field: short_description"
+    },
+    {
+      "id": "generic-field-default_prompt",
+      "status": "pass",
+      "detail": "generic adapter includes field: default_prompt"
+    },
+    {
+      "id": "generic-field-job_to_be_done",
+      "status": "pass",
+      "detail": "generic adapter includes field: job_to_be_done"
+    },
+    {
+      "id": "generic-field-ir_source",
+      "status": "pass",
+      "detail": "generic adapter includes field: ir_source"
+    },
+    {
+      "id": "generic-field-ir_schema_version",
+      "status": "pass",
+      "detail": "generic adapter includes field: ir_schema_version"
+    },
+    {
+      "id": "generic-field-semantic_contract",
+      "status": "pass",
+      "detail": "generic adapter includes field: semantic_contract"
+    },
+    {
+      "id": "generic-field-semantic_parity",
+      "status": "pass",
+      "detail": "generic adapter includes field: semantic_parity"
+    },
+    {
+      "id": "generic-field-compiler",
+      "status": "pass",
+      "detail": "generic adapter includes field: compiler"
+    },
+    {
+      "id": "generic-field-compiled_contract",
+      "status": "pass",
+      "detail": "generic adapter includes field: compiled_contract"
+    },
+    {
+      "id": "generic-field-permission_contract",
+      "status": "pass",
+      "detail": "generic adapter includes field: permission_contract"
+    },
+    {
+      "id": "generic-field-target_permission_contract",
+      "status": "pass",
+      "detail": "generic adapter includes field: target_permission_contract"
+    },
+    {
+      "id": "generic-field-target_native_contract",
+      "status": "pass",
+      "detail": "generic adapter includes field: target_native_contract"
+    },
+    {
+      "id": "generic-field-target_transform",
+      "status": "pass",
+      "detail": "generic adapter includes field: target_transform"
+    },
+    {
+      "id": "generic-field-canonical_metadata",
+      "status": "pass",
+      "detail": "generic adapter includes field: canonical_metadata"
+    },
+    {
+      "id": "generic-field-canonical_format",
+      "status": "pass",
+      "detail": "generic adapter includes field: canonical_format"
+    },
+    {
+      "id": "generic-field-activation_mode",
+      "status": "pass",
+      "detail": "generic adapter includes field: activation_mode"
+    },
+    {
+      "id": "generic-field-execution_context",
+      "status": "pass",
+      "detail": "generic adapter includes field: execution_context"
+    },
+    {
+      "id": "generic-field-shell",
+      "status": "pass",
+      "detail": "generic adapter includes field: shell"
+    },
+    {
+      "id": "generic-field-trust_level",
+      "status": "pass",
+      "detail": "generic adapter includes field: trust_level"
+    },
+    {
+      "id": "generic-field-remote_inline_execution",
+      "status": "pass",
+      "detail": "generic adapter includes field: remote_inline_execution"
+    },
+    {
+      "id": "generic-field-degradation_strategy",
+      "status": "pass",
+      "detail": "generic adapter includes field: degradation_strategy"
+    },
+    {
+      "id": "generic-field-portability_profile",
+      "status": "pass",
+      "detail": "generic adapter includes field: portability_profile"
+    },
+    {
+      "id": "vscode-adapter",
+      "status": "pass",
+      "detail": "Adapter exists for target: vscode"
+    },
+    {
+      "id": "vscode-field-name",
+      "status": "pass",
+      "detail": "vscode adapter includes field: name"
+    },
+    {
+      "id": "vscode-field-description",
+      "status": "pass",
+      "detail": "vscode adapter includes field: description"
+    },
+    {
+      "id": "vscode-field-version",
+      "status": "pass",
+      "detail": "vscode adapter includes field: version"
+    },
+    {
+      "id": "vscode-field-display_name",
+      "status": "pass",
+      "detail": "vscode adapter includes field: display_name"
+    },
+    {
+      "id": "vscode-field-short_description",
+      "status": "pass",
+      "detail": "vscode adapter includes field: short_description"
+    },
+    {
+      "id": "vscode-field-default_prompt",
+      "status": "pass",
+      "detail": "vscode adapter includes field: default_prompt"
+    },
+    {
+      "id": "vscode-field-job_to_be_done",
+      "status": "pass",
+      "detail": "vscode adapter includes field: job_to_be_done"
+    },
+    {
+      "id": "vscode-field-ir_source",
+      "status": "pass",
+      "detail": "vscode adapter includes field: ir_source"
+    },
+    {
+      "id": "vscode-field-ir_schema_version",
+      "status": "pass",
+      "detail": "vscode adapter includes field: ir_schema_version"
+    },
+    {
+      "id": "vscode-field-semantic_contract",
+      "status": "pass",
+      "detail": "vscode adapter includes field: semantic_contract"
+    },
+    {
+      "id": "vscode-field-semantic_parity",
+      "status": "pass",
+      "detail": "vscode adapter includes field: semantic_parity"
+    },
+    {
+      "id": "vscode-field-compiler",
+      "status": "pass",
+      "detail": "vscode adapter includes field: compiler"
+    },
+    {
+      "id": "vscode-field-compiled_contract",
+      "status": "pass",
+      "detail": "vscode adapter includes field: compiled_contract"
+    },
+    {
+      "id": "vscode-field-permission_contract",
+      "status": "pass",
+      "detail": "vscode adapter includes field: permission_contract"
+    },
+    {
+      "id": "vscode-field-target_permission_contract",
+      "status": "pass",
+      "detail": "vscode adapter includes field: target_permission_contract"
+    },
+    {
+      "id": "vscode-field-target_native_contract",
+      "status": "pass",
+      "detail": "vscode adapter includes field: target_native_contract"
+    },
+    {
+      "id": "vscode-field-target_transform",
+      "status": "pass",
+      "detail": "vscode adapter includes field: target_transform"
+    },
+    {
+      "id": "vscode-field-canonical_metadata",
+      "status": "pass",
+      "detail": "vscode adapter includes field: canonical_metadata"
+    },
+    {
+      "id": "vscode-field-canonical_format",
+      "status": "pass",
+      "detail": "vscode adapter includes field: canonical_format"
+    },
+    {
+      "id": "vscode-field-activation_mode",
+      "status": "pass",
+      "detail": "vscode adapter includes field: activation_mode"
+    },
+    {
+      "id": "vscode-field-execution_context",
+      "status": "pass",
+      "detail": "vscode adapter includes field: execution_context"
+    },
+    {
+      "id": "vscode-field-shell",
+      "status": "pass",
+      "detail": "vscode adapter includes field: shell"
+    },
+    {
+      "id": "vscode-field-trust_level",
+      "status": "pass",
+      "detail": "vscode adapter includes field: trust_level"
+    },
+    {
+      "id": "vscode-field-remote_inline_execution",
+      "status": "pass",
+      "detail": "vscode adapter includes field: remote_inline_execution"
+    },
+    {
+      "id": "vscode-field-degradation_strategy",
+      "status": "pass",
+      "detail": "vscode adapter includes field: degradation_strategy"
+    },
+    {
+      "id": "vscode-field-portability_profile",
+      "status": "pass",
+      "detail": "vscode adapter includes field: portability_profile"
+    },
+    {
+      "id": "openai-file-targets/openai/adapter.json",
+      "status": "pass",
+      "detail": "Package contains targets/openai/adapter.json"
+    },
+    {
+      "id": "openai-file-targets/openai/agents/openai.yaml",
+      "status": "pass",
+      "detail": "Package contains targets/openai/agents/openai.yaml"
+    },
+    {
+      "id": "claude-file-targets/claude/adapter.json",
+      "status": "pass",
+      "detail": "Package contains targets/claude/adapter.json"
+    },
+    {
+      "id": "claude-file-targets/claude/README.md",
+      "status": "pass",
+      "detail": "Package contains targets/claude/README.md"
+    },
+    {
+      "id": "generic-file-targets/generic/adapter.json",
+      "status": "pass",
+      "detail": "Package contains targets/generic/adapter.json"
+    },
+    {
+      "id": "vscode-file-targets/vscode/adapter.json",
+      "status": "pass",
+      "detail": "Package contains targets/vscode/adapter.json"
+    },
+    {
+      "id": "vscode-file-targets/vscode/README.md",
+      "status": "pass",
+      "detail": "Package contains targets/vscode/README.md"
+    },
+    {
+      "id": "archive-safe-paths",
+      "status": "pass",
+      "detail": "Archive has no absolute or parent-traversal entries"
+    },
+    {
+      "id": "archive-entry-georank/SKILL.md",
+      "status": "pass",
+      "detail": "Archive contains georank/SKILL.md"
+    },
+    {
+      "id": "archive-entry-georank/manifest.json",
+      "status": "pass",
+      "detail": "Archive contains georank/manifest.json"
+    },
+    {
+      "id": "archive-entry-georank/agents/interface.yaml",
+      "status": "pass",
+      "detail": "Archive contains georank/agents/interface.yaml"
+    },
+    {
+      "id": "archive-excludes-generated",
+      "status": "pass",
+      "detail": "Archive excludes generated dist/, .previews/, and tests/tmp* contents"
+    },
+    {
+      "id": "registry-ok",
+      "status": "pass",
+      "detail": "Registry audit is OK"
+    },
+    {
+      "id": "registry-name-match",
+      "status": "pass",
+      "detail": "Registry package name matches package manifest"
+    },
+    {
+      "id": "registry-version-match",
+      "status": "pass",
+      "detail": "Registry package version matches package manifest"
+    },
+    {
+      "id": "registry-compat-openai",
+      "status": "pass",
+      "detail": "Registry compatibility is reviewable for target: openai"
+    },
+    {
+      "id": "registry-compat-claude",
+      "status": "pass",
+      "detail": "Registry compatibility is reviewable for target: claude"
+    },
+    {
+      "id": "registry-compat-generic",
+      "status": "pass",
+      "detail": "Registry compatibility is reviewable for target: generic"
+    },
+    {
+      "id": "registry-compat-vscode",
+      "status": "pass",
+      "detail": "Registry compatibility is reviewable for target: vscode"
+    }
+  ],
+  "failures": [],
+  "warnings": [],
+  "artifacts": {
+    "manifest": "[workspace]/tmp/georank-skill-review-20260716/package/manifest.json",
+    "archive": "[workspace]/tmp/georank-skill-review-20260716/package/georank.zip",
+    "json": "[workspace]/skills/georank/reports/package_verification.json",
+    "markdown": "[workspace]/skills/georank/reports/package_verification.md"
+  }
+}

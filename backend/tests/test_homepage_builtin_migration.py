@@ -14,6 +14,7 @@ from tests.database_safety import resolve_test_database, verify_test_database_en
 from app.core.config import settings
 from app.main import _seed_default_homepage_release
 from app.services.homepage_assets import HomepageAssetError
+from app.services.runtime_settings import DEFAULT_HOMEPAGE_RELEASE_ID
 
 
 MIGRATION_PATH = (
@@ -22,8 +23,15 @@ MIGRATION_PATH = (
     / "versions"
     / "014_migrate_builtin_homepage_release.py"
 )
+MERGE_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "alembic"
+    / "versions"
+    / "016_merge_platform_iterations.py"
+)
 OLD_RELEASE_ID = "f7e16e7c-e1aa-4e39-951b-4c274dd05175"
 NEW_RELEASE_ID = "43a461f6-6be2-4931-9dbb-f1d56576292a"
+CURRENT_RELEASE_ID = DEFAULT_HOMEPAGE_RELEASE_ID
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 NEW_MANIFEST_PATH = (
     PROJECT_ROOT
@@ -84,6 +92,18 @@ def _invoke_migration(sync_connection, direction: str) -> None:
         getattr(migration, direction)()
 
 
+def _invoke_merge_migration(sync_connection, direction: str) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "merge_platform_iterations_016",
+        MERGE_MIGRATION_PATH,
+    )
+    migration = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(migration)
+    with patch.object(migration.op, "get_bind", return_value=sync_connection):
+        getattr(migration, direction)()
+
+
 class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         database_url, database_name = resolve_test_database(
@@ -99,10 +119,116 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def _reset_rows(self, connection) -> None:
         await connection.execute(
-            text("DELETE FROM homepage_releases WHERE id IN (CAST(:old_id AS uuid), CAST(:new_id AS uuid))"),
-            {"old_id": OLD_RELEASE_ID, "new_id": NEW_RELEASE_ID},
+            text(
+                "DELETE FROM homepage_releases WHERE id IN "
+                "(CAST(:old_id AS uuid), CAST(:new_id AS uuid), CAST(:current_id AS uuid))"
+            ),
+            {
+                "old_id": OLD_RELEASE_ID,
+                "new_id": NEW_RELEASE_ID,
+                "current_id": CURRENT_RELEASE_ID,
+            },
         )
         await connection.execute(text("DELETE FROM settings WHERE key = 'homepage_runtime'"))
+
+    async def test_merge_migration_updates_selected_builtin_and_downgrades_cleanly(self):
+        draft_id = str(uuid.uuid4())
+        failed_id = str(uuid.uuid4())
+        async with self.engine.connect() as connection:
+            transaction = await connection.begin()
+            try:
+                await self._reset_rows(connection)
+                await self._insert_release(connection, NEW_RELEASE_ID, "active", "previous builtin")
+                await self._insert_release(connection, draft_id, "draft", "draft homepage")
+                await self._insert_release(connection, failed_id, "failed", "failed homepage")
+                await self._insert_setting(connection, NEW_RELEASE_ID)
+
+                await connection.run_sync(lambda sync: _invoke_merge_migration(sync, "upgrade"))
+
+                selected = await connection.scalar(
+                    text("SELECT value ->> 'active_release_id' FROM settings WHERE key = 'homepage_runtime'")
+                )
+                statuses = dict(
+                    (
+                        await connection.execute(
+                            text(
+                                "SELECT id::text, status::text FROM homepage_releases "
+                                "WHERE id IN (CAST(:previous_id AS uuid), CAST(:current_id AS uuid))"
+                            ),
+                            {
+                                "previous_id": NEW_RELEASE_ID,
+                                "current_id": CURRENT_RELEASE_ID,
+                            },
+                        )
+                    ).all()
+                )
+                self.assertEqual(selected, CURRENT_RELEASE_ID)
+                self.assertEqual(statuses[NEW_RELEASE_ID], "archived")
+                self.assertEqual(statuses[CURRENT_RELEASE_ID], "active")
+
+                await connection.run_sync(lambda sync: _invoke_merge_migration(sync, "downgrade"))
+
+                selected = await connection.scalar(
+                    text("SELECT value ->> 'active_release_id' FROM settings WHERE key = 'homepage_runtime'")
+                )
+                previous_status = await connection.scalar(
+                    text("SELECT status::text FROM homepage_releases WHERE id = CAST(:id AS uuid)"),
+                    {"id": NEW_RELEASE_ID},
+                )
+                current_count = await connection.scalar(
+                    text("SELECT count(*) FROM homepage_releases WHERE id = CAST(:id AS uuid)"),
+                    {"id": CURRENT_RELEASE_ID},
+                )
+                unrelated_statuses = dict(
+                    (
+                        await connection.execute(
+                            text(
+                                "SELECT id::text, status::text FROM homepage_releases "
+                                "WHERE id IN (CAST(:draft_id AS uuid), CAST(:failed_id AS uuid))"
+                            ),
+                            {"draft_id": draft_id, "failed_id": failed_id},
+                        )
+                    ).all()
+                )
+                self.assertEqual(selected, NEW_RELEASE_ID)
+                self.assertEqual(previous_status, "active")
+                self.assertEqual(current_count, 0)
+                self.assertEqual(unrelated_statuses[draft_id], "draft")
+                self.assertEqual(unrelated_statuses[failed_id], "failed")
+            finally:
+                await transaction.rollback()
+
+    async def test_merge_migration_preserves_custom_selection(self):
+        custom_id = str(uuid.uuid4())
+        async with self.engine.connect() as connection:
+            transaction = await connection.begin()
+            try:
+                await self._reset_rows(connection)
+                await self._insert_release(connection, NEW_RELEASE_ID, "archived", "previous builtin")
+                await self._insert_release(connection, custom_id, "active", "custom homepage")
+                await self._insert_setting(connection, custom_id)
+
+                await connection.run_sync(lambda sync: _invoke_merge_migration(sync, "upgrade"))
+
+                selected = await connection.scalar(
+                    text("SELECT value ->> 'active_release_id' FROM settings WHERE key = 'homepage_runtime'")
+                )
+                statuses = dict(
+                    (
+                        await connection.execute(
+                            text(
+                                "SELECT id::text, status::text FROM homepage_releases "
+                                "WHERE id IN (CAST(:custom_id AS uuid), CAST(:current_id AS uuid))"
+                            ),
+                            {"custom_id": custom_id, "current_id": CURRENT_RELEASE_ID},
+                        )
+                    ).all()
+                )
+                self.assertEqual(selected, custom_id)
+                self.assertEqual(statuses[custom_id], "active")
+                self.assertEqual(statuses[CURRENT_RELEASE_ID], "archived")
+            finally:
+                await transaction.rollback()
 
     async def _insert_setting(self, connection, active_release_id: str) -> None:
         value = json.dumps(
@@ -416,30 +542,29 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
                                 """
                                 SELECT id::text, status::text
                                 FROM homepage_releases
-                                WHERE id IN (CAST(:custom_id AS uuid), CAST(:new_id AS uuid))
+                            WHERE id IN (CAST(:custom_id AS uuid), CAST(:current_id AS uuid))
                                 """
                             ),
-                            {"custom_id": custom_id, "new_id": NEW_RELEASE_ID},
+                            {"custom_id": custom_id, "current_id": CURRENT_RELEASE_ID},
                         )
                     ).all()
                 )
                 builtin_activated_at = await connection.scalar(
                     text("SELECT activated_at FROM homepage_releases WHERE id = CAST(:id AS uuid)"),
-                    {"id": NEW_RELEASE_ID},
+                    {"id": CURRENT_RELEASE_ID},
                 )
                 self.assertEqual(statuses[custom_id], "active")
-                self.assertEqual(statuses[NEW_RELEASE_ID], "archived")
+                self.assertEqual(statuses[CURRENT_RELEASE_ID], "archived")
                 self.assertIsNone(builtin_activated_at)
             finally:
                 await transaction.rollback()
 
-    async def test_fresh_migration_startup_activates_builtin_with_timestamp(self):
+    async def test_fresh_startup_activates_current_builtin_with_timestamp(self):
         async with self.engine.connect() as connection:
             transaction = await connection.begin()
             try:
                 await self._reset_rows(connection)
-                await connection.run_sync(lambda sync: _invoke_migration(sync, "upgrade"))
-                await self._insert_setting(connection, NEW_RELEASE_ID)
+                await self._insert_setting(connection, CURRENT_RELEASE_ID)
 
                 async with AsyncSession(
                     bind=connection,
@@ -456,7 +581,7 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
                         await _seed_default_homepage_release(session)
                 activate.assert_called_once_with(
                     PROJECT_ROOT / "runtime" / "homepages",
-                    NEW_RELEASE_ID,
+                    CURRENT_RELEASE_ID,
                     analytics_code="",
                 )
 
@@ -469,7 +594,7 @@ class BuiltinHomepageMigrationTests(unittest.IsolatedAsyncioTestCase):
                             WHERE id = CAST(:id AS uuid)
                             """
                         ),
-                        {"id": NEW_RELEASE_ID},
+                        {"id": CURRENT_RELEASE_ID},
                     )
                 ).one()
                 self.assertEqual(release[0], "active")

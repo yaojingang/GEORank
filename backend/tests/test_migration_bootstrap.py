@@ -23,8 +23,8 @@ class FakeMigrationRuntime:
         self,
         *,
         state: SchemaState,
-        expected_heads=("014_builtin_homepage_release",),
-        current_versions=("014_builtin_homepage_release",),
+        expected_heads=("016_merge_platform_iterations",),
+        current_versions=("016_merge_platform_iterations",),
         upgrade_error: Exception | None = None,
     ):
         self.state = state
@@ -129,7 +129,7 @@ class MigrationBootstrapTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(
             MigrationBootstrapError,
-            r"expected.*014_builtin_homepage_release.*found.*013_security_invariants",
+            r"expected.*016_merge_platform_iterations.*found.*013_security_invariants",
         ):
             await run_migration_bootstrap(runtime)
 

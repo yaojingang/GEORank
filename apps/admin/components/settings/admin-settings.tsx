@@ -1,10 +1,11 @@
 'use client';
 
 import type {FormEvent} from 'react';
-import {useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {useTranslations} from 'next-intl';
 
 import type {
+  AdminApiPolicy,
   AdminApiPolicyResponse,
   AdminFrontendModules,
   AdminLLMProvider,
@@ -152,7 +153,28 @@ export function AdminSettings({token}: AdminSettingsProps) {
   const [actionMessage, setActionMessage] = useState('');
   const [loadErrors, setLoadErrors] = useState<Partial<Record<SettingsLoadSection, string>>>({});
 
-  async function loadSettings(sections: SettingsLoadSection[] = settingsLoadSections) {
+  const parsedApiPolicy = useMemo<AdminApiPolicy | null>(() => {
+    try {
+      return JSON.parse(apiPolicyDraft) as AdminApiPolicy;
+    } catch {
+      return null;
+    }
+  }, [apiPolicyDraft]);
+
+  function updateApiPolicyField<K extends keyof AdminApiPolicy>(key: K, value: AdminApiPolicy[K]) {
+    if (!parsedApiPolicy) return;
+    setApiPolicyDraft(JSON.stringify({...parsedApiPolicy, [key]: value}, null, 2));
+  }
+
+  function updateGuidanceField(key: keyof AdminApiPolicy['byok_guidance'], value: string) {
+    if (!parsedApiPolicy) return;
+    setApiPolicyDraft(JSON.stringify({
+      ...parsedApiPolicy,
+      byok_guidance: {...parsedApiPolicy.byok_guidance, [key]: value}
+    }, null, 2));
+  }
+
+  const loadSettings = useCallback(async (sections: SettingsLoadSection[] = settingsLoadSections) => {
     if (sections.length === settingsLoadSections.length) setLoading(true);
     const loaders: Record<SettingsLoadSection, () => Promise<unknown>> = {
       settings: () => getAdminSettings(token),
@@ -197,11 +219,11 @@ export function AdminSettings({token}: AdminSettingsProps) {
       return {...next, ...nextErrors};
     });
     setLoading(false);
-  }
+  }, [t, token]);
 
   useEffect(() => {
     void loadSettings();
-  }, [token]);
+  }, [loadSettings]);
 
   const topStats = useMemo(() => {
     const values = settings ? Object.values(settings) : [];
@@ -869,14 +891,109 @@ export function AdminSettings({token}: AdminSettingsProps) {
                   </button>
                 </div>
               </div>
-              <textarea
-                className="admin-textarea"
-                value={apiPolicyDraft}
-                onChange={(event) => setApiPolicyDraft(event.target.value)}
-              />
+              {parsedApiPolicy ? (
+                <div className="admin-stack">
+                  <div className="admin-form-grid admin-form-grid--two">
+                    <label className="admin-field">
+                      <span>{t('defaultLifetimeGrant')}</span>
+                      <input
+                        className="admin-input"
+                        min={0}
+                        type="number"
+                        value={parsedApiPolicy.lifetime_token_grant}
+                        onChange={(event) => updateApiPolicyField('lifetime_token_grant', Math.max(0, Number(event.target.value || 0)))}
+                      />
+                    </label>
+                    <label className="admin-field">
+                      <span>{t('globalDailyLimit')}</span>
+                      <input
+                        className="admin-input"
+                        min={0}
+                        type="number"
+                        value={parsedApiPolicy.global_daily_token_limit}
+                        onChange={(event) => updateApiPolicyField('global_daily_token_limit', Math.max(0, Number(event.target.value || 0)))}
+                      />
+                    </label>
+                    <label className="admin-field">
+                      <span>{t('quotaTimezone')}</span>
+                      <input
+                        className="admin-input"
+                        value={parsedApiPolicy.quota_reset_timezone}
+                        onChange={(event) => updateApiPolicyField('quota_reset_timezone', event.target.value)}
+                      />
+                    </label>
+                    <label className="admin-field">
+                      <span>{t('accessMode')}</span>
+                      <select
+                        className="admin-select"
+                        value={parsedApiPolicy.access_mode}
+                        onChange={(event) => updateApiPolicyField('access_mode', event.target.value)}
+                      >
+                        <option value="lifetime_quota_with_byok">{t('lifetimeMode')}</option>
+                        <option value="byok_required">{t('byokOnlyMode')}</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="admin-section-grid">
+                    <label className="admin-checkbox-row">
+                      <span>{t('globalBudgetEnabled')}</span>
+                      <input
+                        checked={parsedApiPolicy.global_budget_enabled}
+                        type="checkbox"
+                        onChange={(event) => updateApiPolicyField('global_budget_enabled', event.target.checked)}
+                      />
+                    </label>
+                    <label className="admin-checkbox-row">
+                      <span>{t('emergencyByokOnly')}</span>
+                      <input
+                        checked={parsedApiPolicy.emergency_byok_only}
+                        type="checkbox"
+                        onChange={(event) => updateApiPolicyField('emergency_byok_only', event.target.checked)}
+                      />
+                    </label>
+                    <label className="admin-checkbox-row">
+                      <span>{t('allowUserByok')}</span>
+                      <input
+                        checked={parsedApiPolicy.allow_user_byok}
+                        type="checkbox"
+                        onChange={(event) => updateApiPolicyField('allow_user_byok', event.target.checked)}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="admin-panel__header">
+                    <div>
+                      <p className="admin-panel__eyebrow">BYOK</p>
+                      <h3>{t('byokGuidanceTitle')}</h3>
+                    </div>
+                  </div>
+                  <div className="admin-form-grid admin-form-grid--two">
+                    <label className="admin-field"><span>{t('guidanceHeading')}</span><input className="admin-input" value={parsedApiPolicy.byok_guidance.title} onChange={(event) => updateGuidanceField('title', event.target.value)} /></label>
+                    <label className="admin-field"><span>{t('guidanceCta')}</span><input className="admin-input" value={parsedApiPolicy.byok_guidance.cta_label} onChange={(event) => updateGuidanceField('cta_label', event.target.value)} /></label>
+                    <label className="admin-field"><span>{t('deepseekOfficialUrl')}</span><input className="admin-input" type="url" value={parsedApiPolicy.byok_guidance.official_url} onChange={(event) => updateGuidanceField('official_url', event.target.value)} /></label>
+                    <label className="admin-field"><span>{t('recommendedBaseUrl')}</span><input className="admin-input" type="url" value={parsedApiPolicy.byok_guidance.base_url} onChange={(event) => updateGuidanceField('base_url', event.target.value)} /></label>
+                    <label className="admin-field"><span>{t('recommendedModel')}</span><input className="admin-input" value={parsedApiPolicy.byok_guidance.model} onChange={(event) => updateGuidanceField('model', event.target.value)} /></label>
+                    <label className="admin-field admin-field--wide"><span>{t('guidanceMessage')}</span><textarea className="admin-textarea" value={parsedApiPolicy.byok_guidance.message} onChange={(event) => updateGuidanceField('message', event.target.value)} /></label>
+                  </div>
+
+                  <details className="admin-detail-list__item">
+                    <summary>{t('advancedPolicyJson')}</summary>
+                    <textarea
+                      className="admin-textarea"
+                      value={apiPolicyDraft}
+                      onChange={(event) => setApiPolicyDraft(event.target.value)}
+                    />
+                  </details>
+                </div>
+              ) : (
+                <div className="admin-inline-error">{t('invalidPolicyJson')}</div>
+              )}
               <div className="admin-inline-notes">
                 <span>{t('policyRequests', {count: Number(apiPolicy?.summary?.total_requests || 0)})}</span>
                 <span>{t('policyTokens', {count: Number(apiPolicy?.summary?.total_tokens || 0)})}</span>
+                <span>{t('globalUsedToday', {count: Number(apiPolicy?.summary?.global_budget?.used_tokens || 0)})}</span>
+                <span>{t('globalRemainingToday', {count: Number(apiPolicy?.summary?.global_budget?.remaining_tokens || 0)})}</span>
               </div>
             </article>
           </section>

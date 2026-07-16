@@ -24,7 +24,7 @@ export async function listCompaniesWithParams({
 }: {
   page?: number;
   size?: number;
-  sort?: 'newest' | 'geo_score' | 'upvotes';
+  sort?: 'newest' | 'geo_score' | 'views' | 'upvotes';
   category?: string;
   q?: string;
 } = {}): Promise<PaginatedCompanies> {

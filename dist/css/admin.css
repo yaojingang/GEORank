@@ -3,6 +3,30 @@
  * 与前端共享 common.css 变量和基础组件
  */
 
+/* ===== 页面导航首帧 ===== */
+html,
+body {
+    background: #f8fafc;
+}
+
+/* 支持时保留上一页画面，直到下一页完成首次绘制。 */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 120ms;
+    animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: 1ms;
+    }
+}
+
 /* ===== 加载动画 ===== */
 @keyframes spin {
     from { transform: rotate(0deg); }
@@ -17,6 +41,16 @@
 .admin-layout {
     display: flex;
     min-height: 100vh;
+}
+
+/* JS 注入导航内容前先占住后台外壳，避免顶栏出现时推动正文。 */
+#admin-sidebar {
+    background: #fff;
+}
+
+#admin-topbar {
+    min-height: 4rem;
+    background: #fff;
 }
 
 body.admin-preview-open {
@@ -1642,6 +1676,51 @@ textarea.form-input {
     padding-top: 0.75rem;
 }
 
+.homepage-file-input {
+    padding: 0.35rem 0.5rem;
+    color: #64748b;
+    cursor: pointer;
+}
+
+.homepage-file-input::file-selector-button {
+    margin-right: 0.75rem;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid #dbeafe;
+    border-radius: 0.65rem;
+    background: #eff6ff;
+    color: #2563eb;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.homepage-file-input:hover::file-selector-button {
+    border-color: #bfdbfe;
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.homepage-file-input:focus::file-selector-button {
+    border-color: #93c5fd;
+    background: #dbeafe;
+}
+
+#navigation-menu-list {
+    --navigation-menu-control-height: 2.75rem;
+    --navigation-menu-select-font-size: 0.8125rem;
+}
+
+#navigation-menu-list .form-input {
+    box-sizing: border-box;
+    height: var(--navigation-menu-control-height);
+    min-height: var(--navigation-menu-control-height);
+}
+
+#navigation-menu-list [data-navigation-menu-target] {
+    font-size: var(--navigation-menu-select-font-size);
+}
+
 .settings-panel .admin-secret-input[data-secret-masked="true"] {
     -webkit-text-security: disc;
     text-security: disc;
@@ -2092,6 +2171,151 @@ textarea.form-input {
     background-repeat: no-repeat;
     background-position: right 0.9rem center;
     background-size: 0.9rem;
+}
+
+/* ===== 首页 HTML 编辑器 ===== */
+.homepage-editor-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.homepage-editor-dialog {
+    display: flex;
+    flex-direction: column;
+    width: min(92rem, 100%);
+    height: min(52rem, calc(100vh - 2.5rem));
+    overflow: hidden;
+    border-radius: 1rem;
+    background: #ffffff;
+}
+
+.homepage-editor-header,
+.homepage-editor-footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-color: #e5edf7;
+}
+
+.homepage-editor-header {
+    border-bottom-width: 1px;
+}
+
+.homepage-editor-footer {
+    border-top-width: 1px;
+}
+
+.homepage-code-editor {
+    display: grid;
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    overflow: hidden;
+    background: #101827;
+}
+
+.homepage-code-editor__gutter,
+.homepage-code-editor__input {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    tab-size: 2;
+}
+
+.homepage-code-editor__gutter {
+    min-width: 3.75rem;
+    overflow: hidden;
+    padding: 1rem 0.8rem;
+    border-right: 1px solid #263244;
+    background: #0b1220;
+    color: #64748b;
+    text-align: right;
+    user-select: none;
+}
+
+.homepage-code-editor__input {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    resize: none;
+    padding: 1rem 1.25rem;
+    background: #101827;
+    color: #dbeafe;
+    caret-color: #60a5fa;
+    outline: none;
+    white-space: pre;
+    overflow: auto;
+}
+
+.homepage-code-editor__input::selection {
+    background: rgba(59, 130, 246, 0.35);
+}
+
+.homepage-code-editor:focus-within {
+    box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.55);
+}
+
+body:has(.homepage-editor-overlay) #toast-container {
+    bottom: 5.5rem;
+}
+
+@media (max-width: 767px) {
+    .homepage-editor-overlay {
+        padding: 0;
+    }
+
+    .homepage-editor-dialog {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
+    }
+
+    .homepage-editor-header,
+    .homepage-editor-footer {
+        align-items: flex-start;
+        padding: 0.85rem 1rem;
+    }
+
+    .homepage-editor-footer {
+        flex-direction: column;
+    }
+
+    .homepage-editor-footer > div,
+    .homepage-editor-footer button {
+        width: 100%;
+    }
+
+    .homepage-editor-footer button {
+        justify-content: center;
+    }
+
+    .homepage-code-editor__gutter {
+        min-width: 3.2rem;
+        padding-inline: 0.6rem;
+    }
+
+    .homepage-code-editor__input {
+        padding-inline: 0.85rem;
+    }
+
+    body:has(.homepage-editor-overlay) #toast-container {
+        right: 1rem;
+        bottom: 8.75rem;
+        left: 1rem;
+    }
 }
 
 /* ===== 后台行内操作控件 ===== */

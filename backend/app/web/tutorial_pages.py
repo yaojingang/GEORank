@@ -471,12 +471,10 @@ def _render_page(
         og_type=og_type,
         article_section=article_section,
     )}
-    <style>body{{opacity:0;transition:opacity 0.15s ease}}</style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script src="/js/tailwind.config.js"></script>
-    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="/css/public-tailwind.css?v=20260716-first-paint-lifecycle">
+    <link rel="stylesheet" href="/css/common.css?v=20260716-first-paint-lifecycle">
     <link rel="stylesheet" href="/css/tutorial.css">
     {structured_data}
 </head>
@@ -565,8 +563,8 @@ def _render_page(
 
     <div id="footer-container"></div>
 
-    <script src="/js/common.js?v=20260613-site-settings2"></script>
-    <script src="/js/tutorial.js?v=20260613-site-settings2"></script>
+    <script src="/js/common.js?v=20260716-first-paint-lifecycle"></script>
+    <script src="/js/tutorial.js?v=20260716-first-paint-lifecycle"></script>
 </body>
 </html>"""
     return HTMLResponse(content=html)

@@ -3,7 +3,8 @@
  * - 新标签页展示完整 AI 分析过程
  * - 分析完成后由用户确认提交审核
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = '';
@@ -40,31 +41,98 @@
     let seenFeedKeys = new Set();
     let currentCompanyId = '';
     let currentNormalizedUrl = '';
+    let startPromise = null;
 
     function getAuthToken() {
-        return localStorage.getItem('georank_user_token')
-            || localStorage.getItem('georank_token')
-            || '';
+        try {
+            return localStorage.getItem('georank_user_token')
+                || localStorage.getItem('georank_token')
+                || '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function getDeviceHeaders() {
+        try {
+            const sharedHeaders = window.GEOrank?.DeviceIdentity?.getHeaders?.() || {};
+            if (sharedHeaders['X-GEOrank-Device-ID']) return sharedHeaders;
+        } catch (_) {
+            // Fall through to the local stable identifier.
+        }
+        const storageKey = 'georank_device_id_v1';
+        try {
+            const stored = localStorage.getItem(storageKey)?.trim();
+            const deviceId = stored && stored.length >= 16
+                ? stored
+                : window.crypto?.randomUUID?.()
+                || `device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+            if (deviceId !== stored) localStorage.setItem(storageKey, deviceId);
+            return { 'X-GEOrank-Device-ID': deviceId };
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function showLoginRequired() {
+        updateBadge('等待登录', 'warning');
+        analysisNote.textContent = '登录后将自动继续公司官网分析。';
+        analysisActivity.textContent = '正在等待你完成登录，不会重复创建分析任务。';
+        reviewStatusTitle.textContent = '登录后开始分析';
+        reviewStatusCopy.textContent = '平台 AI 额度与登录账号绑定，登录完成后本页会自动继续。';
+        window.GEOrank?.Auth?.requireAuth?.({
+            reason: '登录后将自动继续公司官网分析。',
+        });
+    }
+
+    function escapeHtml(value) {
+        const replacements = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        };
+        return String(value ?? '').replace(/[&<>"']/g, (character) => replacements[character]);
+    }
+
+    function apiErrorMessage(detail, status) {
+        if (typeof detail === 'string') return detail;
+        if (detail && typeof detail === 'object') {
+            const labels = {
+                description: '公司介绍',
+                category: '业务分类',
+                tags: '业务标签',
+                geo_score: 'GEO 评分',
+                geo_details: 'GEO 四维明细',
+            };
+            const missing = Array.isArray(detail.missing_fields)
+                ? detail.missing_fields.map((field) => labels[field] || field)
+                : [];
+            return `${detail.message || `请求失败 (${status})`}${missing.length ? `（缺失：${missing.join('、')}）` : ''}`;
+        }
+        return `请求失败 (${status})`;
     }
 
     async function request(path, options = {}) {
         const headers = {
             'Content-Type': 'application/json',
+            ...getDeviceHeaders(),
             ...(options.headers || {}),
         };
         const token = getAuthToken();
         if (token) {
             headers.Authorization = `Bearer ${token}`;
         }
-
         const response = await fetch(`${API_BASE}${path}`, {
             ...options,
             headers,
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-            const message = data.detail || `请求失败 (${response.status})`;
-            throw new Error(typeof message === 'string' ? message : JSON.stringify(message));
+            const error = new Error(apiErrorMessage(data.detail, response.status));
+            error.status = response.status;
+            throw error;
         }
         return data;
     }
@@ -155,10 +223,13 @@
         seenFeedKeys.add(key);
         const item = document.createElement('div');
         item.className = 'flex items-start gap-3 text-sm text-slate-500';
-        item.innerHTML = `
-            <span class="material-symbols-outlined text-base text-primary mt-0.5">${icon}</span>
-            <span class="leading-6">${text}</span>
-        `;
+        const iconElement = document.createElement('span');
+        iconElement.className = 'material-symbols-outlined text-base text-primary mt-0.5';
+        iconElement.textContent = icon;
+        const textElement = document.createElement('span');
+        textElement.className = 'leading-6';
+        textElement.textContent = text;
+        item.append(iconElement, textElement);
         analysisFeed.appendChild(item);
     }
 
@@ -244,11 +315,11 @@
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 mb-2">
                                 <span class="inline-flex w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold items-center justify-center">${index + 1}</span>
-                                <span class="text-xs font-semibold text-slate-400">${roleMap[page.role] || '关键页'}</span>
+                                <span class="text-xs font-semibold text-slate-400">${escapeHtml(roleMap[page.role] || '关键页')}</span>
                             </div>
-                            <h3 class="text-lg font-bold text-slate-900 break-all">${page.title || page.url}</h3>
-                            <p class="mt-2 text-sm leading-6 text-slate-500">${page.reason || '该页面将参与企业知识库构建。'}</p>
-                            <p class="mt-3 text-xs text-slate-400 break-all">${page.url}</p>
+                            <h3 class="text-lg font-bold text-slate-900 break-all">${escapeHtml(page.title || page.url || '未命名页面')}</h3>
+                            <p class="mt-2 text-sm leading-6 text-slate-500">${escapeHtml(page.reason || '该页面将参与企业知识库构建。')}</p>
+                            <p class="mt-3 text-xs text-slate-400 break-all">${escapeHtml(page.url || '')}</p>
                         </div>
                         <span class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusClass}">${statusText}</span>
                     </div>
@@ -290,7 +361,7 @@
 
         stepOrder.forEach((stepName, index) => {
             if (status === 'failed') {
-                setStepState(stepName, index === stepOrder.length - 1 ? 'failed' : 'done');
+                setStepState(stepName, 'failed');
                 return;
             }
             if (index <= config.completed) {
@@ -322,9 +393,12 @@
         }
     }
 
-    async function pollPipeline(companyId, attempt = 0) {
+    async function pollPipeline(companyId, consecutiveFailures = 0) {
+        let nextFailureCount = consecutiveFailures;
         try {
             const status = await request(`/api/companies/${companyId}/pipeline-status`);
+            consecutiveFailures = 0;
+            nextFailureCount = 0;
             applyPipelineStatus(status);
             if (status.status === 'completed') {
                 clearPolling();
@@ -336,7 +410,9 @@
                 return;
             }
         } catch (error) {
-            if (attempt >= 10) {
+            consecutiveFailures += 1;
+            nextFailureCount = consecutiveFailures;
+            if (consecutiveFailures >= 10) {
                 applyPipelineStatus({
                     status: 'failed',
                     current_activity: error.message,
@@ -348,7 +424,7 @@
         }
 
         pollTimer = window.setTimeout(() => {
-            pollPipeline(companyId, attempt + 1);
+            pollPipeline(companyId, nextFailureCount);
         }, 2000);
     }
 
@@ -361,14 +437,29 @@
         currentNormalizedUrl = incomingUrl;
 
         if (incomingCompanyId) {
+            if (!getAuthToken()) {
+                analysisUrl.textContent = incomingUrl || '正在恢复分析记录...';
+                showLoginRequired();
+                return;
+            }
             if (analysisUrl) {
                 analysisUrl.textContent = incomingUrl || '正在恢复分析记录...';
             }
             updateBadge('恢复中', 'active');
+            if (incomingUrl) {
+                const result = await request('/api/companies/submit', {
+                    method: 'POST',
+                    body: JSON.stringify({ url: incomingUrl }),
+                });
+                currentCompanyId = result.company_id || incomingCompanyId;
+                currentNormalizedUrl = result.normalized_url || incomingUrl;
+                analysisUrl.textContent = currentNormalizedUrl;
+                appendFeedItem('resume', 'history', '检测到已有分析草稿，正在校验并恢复处理任务。');
+            }
             if (!incomingUrl) {
                 loadCompanyPreview(incomingCompanyId);
             }
-            await pollPipeline(incomingCompanyId);
+            await pollPipeline(currentCompanyId);
             return;
         }
 
@@ -379,6 +470,13 @@
             analysisActivity.textContent = '当前页面缺少可分析的官网地址。';
             reviewStatusTitle.textContent = '等待开始';
             reviewStatusCopy.textContent = '请返回首页，通过“提交公司”入口输入官网地址后开始分析。';
+            return;
+        }
+
+        if (!getAuthToken()) {
+            analysisUrl.textContent = incomingUrl;
+            currentNormalizedUrl = incomingUrl;
+            showLoginRequired();
             return;
         }
 
@@ -410,6 +508,14 @@
         await pollPipeline(currentCompanyId);
     }
 
+    function runStartOrResumeAnalysis() {
+        if (startPromise) return startPromise;
+        startPromise = startOrResumeAnalysis().finally(() => {
+            startPromise = null;
+        });
+        return startPromise;
+    }
+
     async function submitForReview() {
         if (!currentCompanyId) return;
         submitReviewBtn.disabled = true;
@@ -429,6 +535,19 @@
         }
     }
 
+    function handleStartFailure(error) {
+        if (error.status === 401) {
+            window.GEOrank?.Auth?.clearSession?.();
+            showLoginRequired();
+            return;
+        }
+        analysisNote.textContent = error.message || '初始化分析页失败。';
+        analysisActivity.textContent = '无法启动公司分析，请返回首页重试。';
+        updateBadge('启动失败', 'error');
+        reviewStatusTitle.textContent = '无法启动分析';
+        reviewStatusCopy.textContent = error.message || '请返回首页重新发起分析。';
+    }
+
     refreshAnalysisBtn?.addEventListener('click', () => {
         if (currentCompanyId) {
             pollPipeline(currentCompanyId);
@@ -437,11 +556,10 @@
 
     submitReviewBtn?.addEventListener('click', submitForReview);
 
-    startOrResumeAnalysis().catch((error) => {
-        analysisNote.textContent = error.message || '初始化分析页失败。';
-        analysisActivity.textContent = '无法启动公司分析，请返回首页重试。';
-        updateBadge('启动失败', 'error');
-        reviewStatusTitle.textContent = '无法启动分析';
-        reviewStatusCopy.textContent = error.message || '请返回首页重新发起分析。';
+    document.addEventListener('georank:auth-changed', (event) => {
+        if (!event.detail?.authenticated || currentCompanyId) return;
+        runStartOrResumeAnalysis().catch(handleStartFailure);
     });
-})();
+
+    runStartOrResumeAnalysis().catch(handleStartFailure);
+});

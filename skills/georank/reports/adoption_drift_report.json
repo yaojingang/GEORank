@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "schema_version": "2.0",
+  "generated_at": "2026-07-16",
+  "skill_dir": "[workspace]/skills/georank",
+  "privacy_contract": {
+    "storage": "local-first",
+    "event_scope": "metadata-only",
+    "raw_content_allowed": false,
+    "raw_event_log_packaged": false,
+    "blocked_fields": [
+      "content",
+      "input",
+      "inputs",
+      "message",
+      "messages",
+      "note",
+      "output",
+      "outputs",
+      "prompt",
+      "raw",
+      "text",
+      "transcript"
+    ]
+  },
+  "summary": {
+    "event_count": 0,
+    "adoption_sample_count": 0,
+    "activation_count": 0,
+    "accepted_count": 0,
+    "edited_count": 0,
+    "rejected_count": 0,
+    "missed_count": 0,
+    "failed_count": 0,
+    "adoption_rate": 0,
+    "missed_trigger_count": 0,
+    "wrong_trigger_count": 0,
+    "bad_output_count": 0,
+    "script_error_count": 0,
+    "missing_resource_count": 0,
+    "review_overdue_count": 0,
+    "risk_band": "no-data",
+    "event_types": {},
+    "failure_types": {},
+    "source_types": {},
+    "command_counts": {}
+  },
+  "adoption_by_skill": [],
+  "next_iteration_candidates": [
+    {
+      "signal": "no telemetry",
+      "recommendation": "Start with a small metadata-only sample before using telemetry for release decisions."
+    }
+  ],
+  "recent_events": [],
+  "failures": [],
+  "artifacts": {
+    "events_jsonl": "[workspace]/skills/georank/reports/telemetry_events.jsonl",
+    "json": "[workspace]/skills/georank/reports/adoption_drift_report.json",
+    "markdown": "[workspace]/skills/georank/reports/adoption_drift_report.md"
+  }
+}

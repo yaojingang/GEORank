@@ -28,6 +28,10 @@ class HomepageAssetError(ValueError):
     """首页资产校验或处理失败。"""
 
 
+class HomepageAssetConflictError(HomepageAssetError):
+    """首页源文件已在编辑期间发生变化。"""
+
+
 @dataclass(frozen=True)
 class HomepageAssetLimits:
     max_compressed_size: int = 20 * 1024 * 1024
@@ -96,9 +100,12 @@ ASSET_ATTR_RE = re.compile(
 )
 CSP_META = (
     '<meta http-equiv="Content-Security-Policy" '
-    'content="script-src \'none\'; object-src \'none\'; base-uri \'self\'">'
+    'content="script-src \'self\'; object-src \'none\'; base-uri \'self\'">'
 )
 CHARSET_META = '<meta charset="utf-8">'
+NAVIGATION_RUNTIME_SCRIPT = (
+    '<script data-georank-navigation-runtime src="/js/site-navigation.js" defer></script>'
+)
 ANALYTICS_BLOCK_START = "<!-- GEORANK_ANALYTICS_START -->"
 ANALYTICS_BLOCK_END = "<!-- GEORANK_ANALYTICS_END -->"
 OVERLAY_METADATA_PATH = ".georank-overlay.json"
@@ -286,7 +293,15 @@ def normalize_homepage_html(html: str, *, base_path: str = "/_custom_homepage/ac
         cleaned = re.sub(r"<head[^>]*>", lambda m: f"{m.group(0)}\n    {CSP_META}", cleaned, count=1, flags=re.IGNORECASE)
     else:
         cleaned = f"{CSP_META}\n{cleaned}"
-    return cleaned
+    if re.search(r"</body\s*>", cleaned, re.IGNORECASE):
+        return re.sub(
+            r"</body\s*>",
+            f"    {NAVIGATION_RUNTIME_SCRIPT}\n</body>",
+            cleaned,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    return f"{cleaned}\n{NAVIGATION_RUNTIME_SCRIPT}"
 
 
 def _is_dangerous_url(value: str) -> bool:
@@ -538,6 +553,16 @@ def _write_manifest(root: Path, release_id: str, manifest: dict) -> None:
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(f".{path.name}-{uuid.uuid4().hex}.tmp")
+    try:
+        temp_path.write_text(content, encoding="utf-8")
+        os.replace(temp_path, path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
 def _file_entries(public_dir: Path) -> list[dict]:
     entries = []
     for path in sorted(public_dir.rglob("*")):
@@ -617,6 +642,149 @@ def build_single_html_release(
     except Exception:
         _clean_release_dirs(root, release_id)
         raise
+
+
+def read_homepage_entry_source(root: Path, release_id: str) -> str:
+    release_id = _ensure_release_id(release_id)
+    entry_path = source_release_path(Path(root), release_id) / ENTRY_PATH
+    if not entry_path.is_file():
+        raise HomepageAssetError("首页版本缺少可编辑的 index.html 源文件")
+    try:
+        return entry_path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HomepageAssetError("首页 index.html 不是有效的 UTF-8 文本") from exc
+
+
+def clone_homepage_release(
+    root: Path,
+    source_release_id: str,
+    target_release_id: str,
+    *,
+    title: str,
+    source_type: str,
+    limits: HomepageAssetLimits = DEFAULT_LIMITS,
+) -> dict:
+    source_release_id = _ensure_release_id(source_release_id)
+    target_release_id = _ensure_release_id(target_release_id)
+    root = Path(root)
+    source_dir = source_release_path(root, source_release_id)
+    if not (source_dir / ENTRY_PATH).is_file():
+        raise HomepageAssetError("首页版本缺少可复制的 index.html 源文件")
+
+    source_files: list[tuple[str, bytes]] = []
+    extracted_size = 0
+    for path in sorted(source_dir.rglob("*")):
+        if path.is_symlink():
+            raise HomepageAssetError("首页版本源文件不能包含符号链接")
+        if not path.is_file():
+            continue
+        relative_path = path.relative_to(source_dir).as_posix()
+        _validate_public_path(relative_path, limits)
+        data = path.read_bytes()
+        _validate_asset_content(relative_path, data)
+        source_files.append((relative_path, data))
+        extracted_size += len(data)
+        if len(source_files) > limits.max_files:
+            raise HomepageAssetError("首页文件数量超过限制")
+        if extracted_size > limits.max_extracted_size:
+            raise HomepageAssetError("首页文件总大小超过限制")
+
+    source_target_dir, public_target_dir = _prepare_release_dirs(root, target_release_id)
+    try:
+        entry_bytes = b""
+        for relative_path, data in source_files:
+            source_target = source_target_dir / relative_path
+            public_target = public_target_dir / relative_path
+            source_target.parent.mkdir(parents=True, exist_ok=True)
+            public_target.parent.mkdir(parents=True, exist_ok=True)
+            source_target.write_bytes(data)
+            if relative_path == ENTRY_PATH:
+                entry_bytes = data
+                public_target.write_text(normalize_homepage_html(data.decode("utf-8")), encoding="utf-8")
+            elif Path(relative_path).suffix.lower() == ".svg":
+                public_target.write_text(sanitize_markup_scripts(data.decode("utf-8")), encoding="utf-8")
+            else:
+                public_target.write_bytes(data)
+
+        return _build_manifest(
+            root,
+            target_release_id,
+            title=title,
+            source_type=source_type,
+            compressed_size=0,
+            extracted_size=extracted_size,
+            sha256=hashlib.sha256(entry_bytes).hexdigest(),
+        )
+    except Exception:
+        _clean_release_dirs(root, target_release_id)
+        raise
+
+
+def update_homepage_entry_source(
+    root: Path,
+    release_id: str,
+    html: str,
+    *,
+    title: str,
+    source_type: str,
+    sync_active: bool = False,
+    analytics_code: str | None = None,
+    expected_sha256: str | None = None,
+    limits: HomepageAssetLimits = DEFAULT_LIMITS,
+) -> dict:
+    release_id = _ensure_release_id(release_id)
+    root = Path(root)
+    source_dir = source_release_path(root, release_id)
+    public_dir = public_release_path(root, release_id)
+    source_entry = source_dir / ENTRY_PATH
+    public_entry = public_dir / ENTRY_PATH
+    if not source_entry.is_file() or not public_entry.is_file():
+        raise HomepageAssetError("首页版本缺少可编辑的 index.html 文件")
+
+    current_source_sha256 = hashlib.sha256(source_entry.read_bytes()).hexdigest()
+    if expected_sha256 and current_source_sha256 != expected_sha256:
+        raise HomepageAssetConflictError("首页 HTML 已被其他管理员更新，请重新加载后再保存")
+
+    html_bytes = (html or "").encode("utf-8")
+    if not html_bytes.strip():
+        raise HomepageAssetError("首页 HTML 不能为空")
+    if len(html_bytes) > limits.max_extracted_size:
+        raise HomepageAssetError("HTML 内容超过大小限制")
+
+    normalized = normalize_homepage_html(html)
+    if sync_active:
+        normalized = inject_analytics_code(normalized, analytics_code)
+    _atomic_write_text(source_entry, html)
+    _atomic_write_text(public_entry, normalized)
+
+    active_dir = public_active_path(root)
+    if sync_active and active_dir.is_dir() and not active_dir.is_symlink():
+        _atomic_write_text(active_dir / ENTRY_PATH, normalized)
+
+    manifest_path = root / "releases" / release_id / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        manifest = {}
+    files = _file_entries(public_dir)
+    extracted_size = sum(path.stat().st_size for path in source_dir.rglob("*") if path.is_file())
+    manifest.update(
+        {
+            "id": release_id,
+            "title": title,
+            "source_type": source_type,
+            "entry_path": ENTRY_PATH,
+            "storage_path": str(root / "releases" / release_id),
+            "public_path": str(public_dir),
+            "file_count": len(files),
+            "extracted_size": extracted_size,
+            "sha256": hashlib.sha256(html_bytes).hexdigest(),
+            "files": files,
+            "updated_at": _utc_now_iso(),
+        }
+    )
+    _write_manifest(root, release_id, manifest)
+    return manifest
 
 
 def _validate_zip_infos(infos: Iterable[zipfile.ZipInfo], limits: HomepageAssetLimits) -> list[tuple[zipfile.ZipInfo, str]]:

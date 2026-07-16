@@ -46,5 +46,6 @@ class DiagnosticReport(Base):
 
     # 关联
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    ai_reservation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

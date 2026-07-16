@@ -1,6 +1,7 @@
 import json
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -100,9 +101,21 @@ class KeywordExpansionApiTests(unittest.IsolatedAsyncioTestCase):
         await invalidate_runtime_settings_cache()
 
     async def test_keywords_expand_endpoint_returns_structured_response(self):
-        with patch(
-            "app.services.keyword_expansion.ai_client.complete",
-            new=AsyncMock(return_value=_mock_ai_payload()),
+        with (
+            patch(
+                "app.api.routes.keywords.resolve_ai_access",
+                new=AsyncMock(
+                    return_value=SimpleNamespace(provider_override=None, reservation_id=None)
+                ),
+            ),
+            patch(
+                "app.api.routes.keywords.record_ai_usage",
+                new=AsyncMock(),
+            ),
+            patch(
+                "app.services.keyword_expansion.ai_client.complete",
+                new=AsyncMock(return_value=_mock_ai_payload()),
+            ),
         ):
             response = await self.client.post(
                 "/api/keywords/expand",
@@ -117,10 +130,16 @@ class KeywordExpansionApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("summary", payload)
 
     async def test_keywords_expand_endpoint_rejects_blank_keywords(self):
-        response = await self.client.post(
-            "/api/keywords/expand",
-            json={"seeds": ["   ", ""]},
-        )
+        with patch(
+            "app.api.routes.keywords.resolve_ai_access",
+            new=AsyncMock(
+                return_value=SimpleNamespace(provider_override=None, reservation_id=None)
+            ),
+        ):
+            response = await self.client.post(
+                "/api/keywords/expand",
+                json={"seeds": ["   ", ""]},
+            )
 
         self.assertEqual(response.status_code, 400, response.text)
         self.assertIn("请至少输入一个关键词", response.text)

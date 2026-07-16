@@ -6,11 +6,13 @@ import logging
 import uuid
 import enum
 import re
+import time
 from statistics import mean
 
 from celery import shared_task
 from app.core.logging_utils import log_event
 from app.tasks.runtime import run_async as _run
+from app.tasks.process import StageClaimBusy
 
 logger = logging.getLogger("georank.diagnose")
 
@@ -21,6 +23,170 @@ def _normalize_update_values(values: dict) -> dict:
     for key, value in values.items():
         normalized[key] = value.value if isinstance(value, enum.Enum) else value
     return normalized
+
+
+def _is_final_attempt(task) -> bool:
+    max_retries = getattr(task, "max_retries", None)
+    return max_retries is not None and task.request.retries >= max_retries
+
+
+async def _finalize_diagnostic_failure(
+    report_id: str,
+    error_code: str,
+    reservation_id: str | uuid.UUID | None = None,
+) -> None:
+    from app.core.database import async_session
+    from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
+    from app.services.ai_usage import record_async_task_usage
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        query = select(DiagnosticReport).where(DiagnosticReport.id == uuid.UUID(report_id))
+        if reservation_id is not None:
+            try:
+                expected_reservation_id = uuid.UUID(str(reservation_id))
+            except (TypeError, ValueError):
+                return
+            query = query.where(DiagnosticReport.ai_reservation_id == expected_reservation_id)
+        report = (await db.execute(query)).scalar_one_or_none()
+        if not report or not report.ai_reservation_id:
+            return
+        await record_async_task_usage(
+            db,
+            module="diagnostics",
+            user_id=report.user_id,
+            reservation_id=report.ai_reservation_id,
+            status_value="error",
+            error_code=error_code,
+            metadata={
+                "report_id": str(report.id),
+                "async_task": True,
+                "terminal_failure": True,
+            },
+            charge_recorded_progress_on_error=True,
+        )
+        await db.commit()
+
+
+async def _diagnostic_reservation_state(
+    report_id: str,
+    reservation_id: str | uuid.UUID | None = None,
+) -> str:
+    from app.core.database import async_session
+    from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
+    from app.services.ai_usage import async_reservation_is_pending
+    from sqlalchemy import select
+
+    async with async_session() as db:
+        report_state = (
+            await db.execute(
+                select(
+                    DiagnosticReport.ai_reservation_id,
+                    DiagnosticReport.status,
+                ).where(DiagnosticReport.id == uuid.UUID(report_id))
+            )
+        ).one_or_none()
+        if report_state is None:
+            return "missing"
+        current_reservation_id, report_status = report_state
+        if report_status in {DiagnosticStatus.COMPLETED, DiagnosticStatus.FAILED}:
+            return "finished"
+        if current_reservation_id is None:
+            return "missing"
+        if reservation_id is not None:
+            try:
+                expected_reservation_id = uuid.UUID(str(reservation_id))
+            except (TypeError, ValueError):
+                return "stale"
+            if current_reservation_id != expected_reservation_id:
+                return "stale"
+        if await async_reservation_is_pending(db, current_reservation_id):
+            return "active"
+        return "expired"
+
+
+async def _claim_diagnostic_analysis(
+    report_id: str,
+    reservation_id: str | uuid.UUID | None,
+    task_id: str,
+) -> bool:
+    from app.core.database import async_session
+    from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
+    from sqlalchemy import select
+
+    expected_reservation_id = None
+    if reservation_id is not None:
+        expected_reservation_id = uuid.UUID(str(reservation_id))
+    now_epoch = int(time.time())
+    async with async_session() as db:
+        report = (
+            await db.execute(
+                select(DiagnosticReport)
+                .where(DiagnosticReport.id == uuid.UUID(report_id))
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if (
+            not report
+            or report.status != DiagnosticStatus.ANALYZING
+            or (
+                expected_reservation_id is not None
+                and report.ai_reservation_id != expected_reservation_id
+            )
+        ):
+            return False
+        current_error = str(report.error_message or "")
+        if current_error.startswith("__georank_task_claim__:"):
+            try:
+                claimed_epoch = int(current_error.rsplit(":", 1)[-1])
+            except ValueError:
+                claimed_epoch = now_epoch
+            if claimed_epoch > now_epoch - 900:
+                raise StageClaimBusy("诊断分析正由其他任务处理")
+        elif current_error and not current_error.startswith("任务将自动重试："):
+            return False
+        report.error_message = (
+            f"__georank_task_claim__:diagnostic:{task_id}:{now_epoch}"
+        )
+        await db.commit()
+        return True
+
+
+async def _claim_diagnostic_provider_stage(
+    reservation_id: str | uuid.UUID | None,
+    stage: str,
+    claim_id: str,
+) -> bool:
+    from app.core.database import async_session
+    from app.services.ai_usage import claim_async_reservation_stage
+
+    async with async_session() as db:
+        claimed = await claim_async_reservation_stage(
+            db,
+            reservation_id=reservation_id,
+            stage=stage,
+            claim_id=claim_id,
+        )
+        await db.commit()
+        return claimed
+
+
+async def _release_diagnostic_provider_stage(
+    reservation_id: str | uuid.UUID | None,
+    stage: str,
+    claim_id: str,
+) -> None:
+    from app.core.database import async_session
+    from app.services.ai_usage import release_async_reservation_stage_claim
+
+    async with async_session() as db:
+        await release_async_reservation_stage_claim(
+            db,
+            reservation_id=reservation_id,
+            stage=stage,
+            claim_id=claim_id,
+        )
+        await db.commit()
 
 DEFAULT_DIAGNOSTIC_RULE_WEIGHTS = {
     "schema": 0.3,
@@ -281,7 +447,13 @@ def _check_citations(soup, base_domain: str) -> dict:
     }
 
 
-async def _llm_recommendations(url: str, schema: dict, meta: dict, content: dict, citation: dict) -> dict:
+async def _llm_recommendations(
+    url: str,
+    schema: dict,
+    meta: dict,
+    content: dict,
+    citation: dict,
+) -> tuple[dict, bool]:
     """调用 LLM 生成优先级排序的优化建议"""
     from app.services.ai_client import ai_client
 
@@ -313,11 +485,13 @@ Meta 评分: {meta['score']}/100，缺失: {meta['missing']}，预览得分: {me
 5. phase_plan 最多 3 条，分别对应 P0/P1/P2 的执行节奏。
 6. 严格返回 JSON。"""
 
+    provider_succeeded = False
     try:
         raw = await ai_client.complete(system, summary, temperature=0.2)
+        provider_succeeded = True
         start, end = raw.find("{"), raw.rfind("}") + 1
         if start >= 0 and end > start:
-            return json.loads(raw[start:end])
+            return json.loads(raw[start:end]), True
     except Exception as e:
         logger.warning("LLM recommendations failed: %s", e)
 
@@ -397,7 +571,7 @@ Meta 评分: {meta['score']}/100，缺失: {meta['missing']}，预览得分: {me
         "recommended": recommended[:3],
         "optional": [],
         "phase_plan": phase_plan[:3],
-    }
+    }, provider_succeeded
 
 
 def _calculate_overall_score(schema_score: float, content_score: float, meta_score: float, citation_score: float, weights: dict | None = None) -> int:
@@ -423,7 +597,11 @@ def _calculate_overall_score(schema_score: float, content_score: float, meta_sco
     )
 
 
-async def _run_analysis(report_id: str):
+async def _run_analysis(
+    report_id: str,
+    reservation_id: str | uuid.UUID | None = None,
+    claim_id: str | None = None,
+):
     from app.core.database import async_session
     from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
     from sqlalchemy import select, update
@@ -431,7 +609,12 @@ async def _run_analysis(report_id: str):
     from bs4 import BeautifulSoup
 
     async with async_session() as db:
-        result = await db.execute(select(DiagnosticReport).where(DiagnosticReport.id == uuid.UUID(report_id)))
+        query = select(DiagnosticReport).where(DiagnosticReport.id == uuid.UUID(report_id))
+        if reservation_id is not None:
+            query = query.where(
+                DiagnosticReport.ai_reservation_id == uuid.UUID(str(reservation_id))
+            )
+        result = await db.execute(query)
         report = result.scalar_one_or_none()
         if not report:
             return
@@ -460,6 +643,20 @@ async def _run_analysis(report_id: str):
                         "error_message": f"无法获取页面内容: {e}",
                     }))
                 )
+                from app.services.ai_usage import record_async_task_usage
+                await record_async_task_usage(
+                    db,
+                    module="diagnostics",
+                    user_id=report.user_id,
+                    reservation_id=report.ai_reservation_id,
+                    status_value="error",
+                    error_code="diagnostic_fetch_failed",
+                    metadata={
+                        "report_id": str(report.id),
+                        "async_task": True,
+                        "terminal_failure": True,
+                    },
+                )
                 await db.commit()
                 return
 
@@ -480,13 +677,41 @@ async def _run_analysis(report_id: str):
             rule_config.get("normalized_weights"),
         )
 
-        recommendations = await _llm_recommendations(report.url, schema, meta, content, citation)
+        recommendations, provider_succeeded = await _llm_recommendations(
+            report.url,
+            schema,
+            meta,
+            content,
+            citation,
+        )
+        if claim_id:
+            from app.services.ai_usage import (
+                complete_async_reservation_stage,
+                estimate_token_count,
+            )
+            await complete_async_reservation_stage(
+                db,
+                reservation_id=report.ai_reservation_id,
+                stage=f"diagnostic_recommendations:{claim_id}",
+                claim_id=claim_id,
+                actual_tokens=(
+                    estimate_token_count(
+                        report.url,
+                        html[:6000],
+                        json.dumps(recommendations, ensure_ascii=False),
+                    )
+                    if provider_succeeded
+                    else 0
+                ),
+            )
+            await db.commit()
 
         await db.execute(
             update(DiagnosticReport)
             .where(DiagnosticReport.id == uuid.UUID(report_id))
             .values(**_normalize_update_values({
                 "status": DiagnosticStatus.COMPLETED,
+                "error_message": None,
                 "overall_score": overall,
                 "schema_analysis": schema,
                 "content_analysis": content,
@@ -500,20 +725,28 @@ async def _run_analysis(report_id: str):
             db,
             module="diagnostics",
             user_id=report.user_id,
+            reservation_id=report.ai_reservation_id,
             input_text=f"{report.url}\n{html[:6000]}",
-            output_text=json.dumps(recommendations, ensure_ascii=False),
+            output_text=(
+                json.dumps(recommendations, ensure_ascii=False)
+                if provider_succeeded
+                else ""
+            ),
+            status_value="success" if provider_succeeded else "error",
+            error_code=None if provider_succeeded else "diagnostic_platform_fallback",
             metadata={
                 "report_id": str(report.id),
                 "url": report.url,
                 "overall_score": overall,
                 "async_task": True,
+                "fallback_generated": not provider_succeeded,
             },
         )
         await db.commit()
 
 
 @shared_task(name="app.tasks.diagnose.analyze_page", bind=True)
-def analyze_page(self, report_id: str):
+def analyze_page(self, report_id: str, reservation_id: str | None = None):
     """
     对爬取的页面进行 GEO 多维诊断:
     1. Schema 标签检测（确定性规则）
@@ -523,7 +756,55 @@ def analyze_page(self, report_id: str):
     5. 综合评分 = schema*0.3 + content*0.3 + meta*0.2 + citation*0.2
     6. LLM 生成优先级优化建议（降级为规则建议）
     """
+    provider_claim_id = f"{self.request.id}:{self.request.retries}"
+    provider_stage = f"diagnostic_recommendations:{provider_claim_id}"
     try:
+        reservation_state = _run(_diagnostic_reservation_state(report_id, reservation_id))
+        if reservation_state in {"missing", "stale", "finished"}:
+            return
+        if reservation_state != "active":
+            async def _mark_inactive():
+                from app.core.database import async_session
+                from app.models.diagnostic import DiagnosticReport, DiagnosticStatus
+                from sqlalchemy import update
+
+                async with async_session() as db:
+                    await db.execute(
+                        update(DiagnosticReport)
+                        .where(
+                            DiagnosticReport.id == uuid.UUID(report_id),
+                            *(
+                                [DiagnosticReport.ai_reservation_id == uuid.UUID(str(reservation_id))]
+                                if reservation_id is not None
+                                else []
+                            ),
+                        )
+                        .values(**_normalize_update_values({
+                            "status": DiagnosticStatus.FAILED,
+                            "error_message": "AI 额度预占已失效，请重新发起诊断。",
+                        }))
+                    )
+                    await db.commit()
+
+            _run(_mark_inactive())
+            _run(_finalize_diagnostic_failure(
+                report_id,
+                "diagnostic_reservation_inactive",
+                reservation_id,
+            ))
+            return
+        if not _run(_claim_diagnostic_analysis(
+            report_id,
+            reservation_id,
+            str(self.request.id),
+        )):
+            return
+        if not _run(_claim_diagnostic_provider_stage(
+            reservation_id,
+            provider_stage,
+            provider_claim_id,
+        )):
+            return
         log_event(
             logger,
             logging.INFO,
@@ -532,7 +813,7 @@ def analyze_page(self, report_id: str):
             report_id=report_id,
             retries=self.request.retries,
         )
-        _run(_run_analysis(report_id))
+        _run(_run_analysis(report_id, reservation_id, provider_claim_id))
         log_event(
             logger,
             logging.INFO,
@@ -540,7 +821,17 @@ def analyze_page(self, report_id: str):
             task_id=self.request.id,
             report_id=report_id,
         )
+    except StageClaimBusy as exc:
+        raise self.retry(exc=exc, countdown=60, max_retries=20)
     except Exception as exc:
+        try:
+            _run(_release_diagnostic_provider_stage(
+                reservation_id,
+                provider_stage,
+                provider_claim_id,
+            ))
+        except Exception:
+            pass
         logger.exception("analyze_page failed: %s", report_id)
         log_event(
             logger,
@@ -558,10 +849,25 @@ def analyze_page(self, report_id: str):
             async with async_session() as db:
                 await db.execute(
                     update(DiagnosticReport)
-                    .where(DiagnosticReport.id == uuid.UUID(report_id))
+                    .where(
+                        DiagnosticReport.id == uuid.UUID(report_id),
+                        *(
+                            [DiagnosticReport.ai_reservation_id == uuid.UUID(str(reservation_id))]
+                            if reservation_id is not None
+                            else []
+                        ),
+                    )
                     .values(**_normalize_update_values({
-                        "status": DiagnosticStatus.FAILED,
-                        "error_message": str(exc)[:500],
+                        "status": (
+                            DiagnosticStatus.FAILED
+                            if _is_final_attempt(self)
+                            else DiagnosticStatus.ANALYZING
+                        ),
+                        "error_message": (
+                            str(exc)[:500]
+                            if _is_final_attempt(self)
+                            else f"任务将自动重试：{str(exc)[:450]}"
+                        ),
                     }))
                 )
                 await db.commit()
@@ -569,4 +875,13 @@ def analyze_page(self, report_id: str):
             _run(_mark_failed())
         except Exception:
             pass
+        if _is_final_attempt(self):
+            try:
+                _run(_finalize_diagnostic_failure(
+                    report_id,
+                    "diagnostic_analysis_failed",
+                    reservation_id,
+                ))
+            except Exception:
+                pass
         raise self.retry(exc=exc, countdown=30)

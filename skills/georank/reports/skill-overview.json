@@ -1,0 +1,1225 @@
+{
+  "skill_summary": {
+    "name": "georank",
+    "title": "GEOrank Operator",
+    "display_name": "GEOrank 管理助手",
+    "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+    "maturity": "governed",
+    "updated_at": "2026-07-16",
+    "core_value": "统一承载 GEOrank 普通用户与管理员操作，并通过实时角色校验、预检和脱敏回执控制风险。",
+    "audience": "GEOrank 普通用户、管理员与平台维护者。",
+    "deliverables": [
+      "SKILL.md",
+      "agents/interface.yaml",
+      "reports/skill-ir.json",
+      "reports/compiled_targets.md",
+      "reports/output_quality_scorecard.md",
+      "reports/output_execution_runs.md",
+      "reports/output_blind_review_pack.md",
+      "reports/output_blind_answer_key.json",
+      "reports/conformance_matrix.md",
+      "reports/security_trust_report.md",
+      "reports/runtime_permission_probes.md",
+      "reports/skill_atlas.html",
+      "reports/registry_audit.md",
+      "reports/package_verification.md",
+      "reports/install_simulation.md",
+      "reports/upgrade_check.md",
+      "reports/adoption_drift_report.md",
+      "reports/review_waivers.md",
+      "reports/review_annotations.md",
+      "reports/review-studio.html",
+      "reports/skill-interpretation.html",
+      "reports/skill-overview.html"
+    ],
+    "flow": [
+      "用户请求",
+      "权限与安全预检",
+      "GEOrank API 回执"
+    ]
+  },
+  "scorecard": {
+    "completeness_score": {
+      "label": "完整度",
+      "score": 90,
+      "reasons": [
+        "SKILL.md 已存在，是 Skill 的入口。",
+        "README.md 未发现或为空，完整度扣分。",
+        "agents/interface.yaml 已存在，便于跨平台适配。",
+        "manifest.json 已存在，生命周期信息可追踪。",
+        "reports/ 已存在，生成证据可以随包体迁移。"
+      ]
+    },
+    "trigger_score": {
+      "label": "触发清晰",
+      "score": 100,
+      "reasons": [
+        "frontmatter description 已存在，具备基础路由面。",
+        "description 有足够长度说明任务边界。",
+        "description 已包含使用场景或排除边界信号。",
+        "evals/ 已存在，可承载触发样例或质量检查。",
+        "intent-confidence 报告已生成，可辅助判断触发稳定性。"
+      ]
+    },
+    "evidence_score": {
+      "label": "证据充分",
+      "score": 70,
+      "reasons": [
+        "已生成 14 / 20 类报告证据。",
+        "skill-ir.json 已存在。",
+        "compiled_targets.json 已存在。",
+        "intent-confidence.json 已存在。",
+        "证据不足：缺少 intent-dialogue.json, reference-synthesis.json, upgrade_check.json。"
+      ]
+    },
+    "maintainability_score": {
+      "label": "可维护性",
+      "score": 100,
+      "reasons": [
+        "SKILL.md 约 513 个词/字。",
+        "入口文件保持克制，可维护性较好。",
+        "references/ 已承载扩展指导。",
+        "scripts/ 已承载确定性逻辑。",
+        "evals/ 已承载可迁移检查。"
+      ]
+    },
+    "portability_score": {
+      "label": "可迁移性",
+      "score": 100,
+      "reasons": [
+        "agents/interface.yaml 已存在。",
+        "manifest.json 已存在。",
+        "目标平台或 adapter target 已声明。",
+        "入口文件未发现明显私有绝对路径。"
+      ]
+    },
+    "context_cost": {
+      "label": "上下文成本",
+      "score": 78,
+      "reasons": [
+        "入口约 513 个词/字，references 约 1234 个词/字。",
+        "分数越高代表上下文成本越低。",
+        "上下文成本处于可控区间。"
+      ]
+    }
+  },
+  "capability_profile": {
+    "archetype": "governed",
+    "task_family": "Skill workflow",
+    "maturity": "governed",
+    "trigger_strength": "手动触发 + description 路由",
+    "reuse_scope": "跨平台",
+    "matrix": {
+      "execution_certainty": 72,
+      "knowledge_density": 62
+    }
+  },
+  "principle_model": {
+    "nodes": [
+      {
+        "title": "意图澄清",
+        "body": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill."
+      },
+      {
+        "title": "边界路由",
+        "body": "用 frontmatter description 决定是否触发，并写明相邻非目标。"
+      },
+      {
+        "title": "资产分层",
+        "body": "把入口、参考、脚本、评估和报告拆到各自目录，避免 SKILL.md 膨胀。"
+      },
+      {
+        "title": "证据回路",
+        "body": "Ask only the highest-leverage clarification before adding package weight."
+      },
+      {
+        "title": "漂移观察",
+        "body": "Add near-neighbor exclusions and route evals before expanding workflow steps."
+      },
+      {
+        "title": "杠杆升级",
+        "body": "Name the recurring job, expected input, output, and strongest non-goal in compact language."
+      }
+    ],
+    "layers": [
+      "入口层",
+      "参考层",
+      "脚本层",
+      "评估层",
+      "报告层"
+    ]
+  },
+  "contract_boundary": {
+    "trigger": {
+      "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+      "activation": "manual",
+      "execution": "inline",
+      "shell": "bash"
+    },
+    "inputs": [
+      "GEOrank base URL",
+      "account or phone identity",
+      "password supplied through a hidden prompt or named environment variable",
+      "relative /api path and HTTP method",
+      "optional protected JSON request body"
+    ],
+    "outputs": [
+      "A redacted execution receipt containing detected access level, operation, target, dry-run or executed status, API status, resource identifiers, request ID, next safe step, and rollback guidance when applicable.",
+      "管理员变更的回滚指导与可追踪请求 ID。"
+    ],
+    "should_trigger": [
+      "登录、查询或管理正在运行的 GEOrank 实例。",
+      "提交公司、运行诊断、管理会话、关键词或用量。",
+      "经实时 admin 角色校验后管理用户、内容、Provider、模块、首页或设置。"
+    ],
+    "should_not_trigger": [
+      "通用 GEO/SEO 解释、策略或文章写作。",
+      "GEOrank 代码开发、仓库评审或部署。",
+      "未获明确授权的写操作或权限不足的管理员操作。"
+    ],
+    "boundary_cards": [
+      {
+        "label": "Owned",
+        "body": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance."
+      },
+      {
+        "label": "Adjacent",
+        "body": "通用 GEO 策略、内容生成和 GEOrank 代码开发交给对应能力处理。"
+      },
+      {
+        "label": "Excluded",
+        "body": "不绕过实时角色校验、执行门禁、删除确认或缺失证据边界。"
+      }
+    ]
+  },
+  "quality_review": {
+    "strengths": [
+      "触发面保持精简，并锚定在 frontmatter description。",
+      "已生成 Skill IR，核心语义可先于平台打包被审查和迁移。",
+      "已生成目标编译报告，可审查 IR 到 OpenAI、Claude、generic 等目标契约的映射。",
+      "已生成 Output Eval Lab scorecard，可比较 with-skill 与 baseline 输出质量。",
+      "已生成 Output Execution Runs，可区分记录样本、命令执行和模型执行证据。",
+      "已生成 Runtime Conformance Matrix，可审查目标端消费能力。"
+    ],
+    "gaps": [
+      "当前关键证据较完整，优先保持轻量。"
+    ],
+    "recommendations": [
+      "先改触发边界，再扩展工作流。",
+      "只把重复且稳定的步骤沉淀为脚本。",
+      "每次升级后重新生成报告并检查分数原因。"
+    ],
+    "artifact_design": {
+      "design_system": "content-led editorial",
+      "highlights": []
+    },
+    "prompt_quality": {
+      "overall_quality_score": "n/a",
+      "highlights": []
+    },
+    "system_model": {
+      "stability": {
+        "score": 92,
+        "band": "system-ready"
+      },
+      "highlights": [
+        "Stability: system-ready (92/100).",
+        "Owned job: Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+        "Leverage: Tune the frontmatter description — Name the recurring job, expected input, output, and strongest non-goal in compact language.",
+        "Leverage: Install output self-repair checks — Add only the checks that prevent recurring output mistakes."
+      ]
+    }
+  },
+  "risk_governance": {
+    "risks": [
+      {
+        "name": "误触发风险",
+        "impact": 3,
+        "probability": 1,
+        "signal": "frontmatter description 已存在，具备基础路由面。",
+        "response": "先补证据和边界，再增加包体复杂度。"
+      },
+      {
+        "name": "输出漂移风险",
+        "impact": 2,
+        "probability": 2,
+        "signal": "已生成 14 / 20 类报告证据。",
+        "response": "先补证据和边界，再增加包体复杂度。"
+      },
+      {
+        "name": "证据不足风险",
+        "impact": 3,
+        "probability": 2,
+        "signal": "已生成 14 / 20 类报告证据。",
+        "response": "先补证据和边界，再增加包体复杂度。"
+      },
+      {
+        "name": "包体膨胀风险",
+        "impact": 2,
+        "probability": 1,
+        "signal": "SKILL.md 约 513 个词/字。",
+        "response": "先补证据和边界，再增加包体复杂度。"
+      },
+      {
+        "name": "跨平台迁移风险",
+        "impact": 3,
+        "probability": 1,
+        "signal": "agents/interface.yaml 已存在。",
+        "response": "先补证据和边界，再增加包体复杂度。"
+      }
+    ],
+    "risk_families": [
+      {
+        "key": "code_or_command_safety",
+        "label": "Code and command safety",
+        "matched_keywords": [
+          "code",
+          "script",
+          "cli",
+          "command",
+          "terminal",
+          "api"
+        ],
+        "score": 6,
+        "risks": [
+          "Commands can omit environment assumptions, working directory, or rollback notes.",
+          "Code snippets can look runnable while missing required inputs.",
+          "Error handling can be either absent or over-engineered."
+        ],
+        "constraints": [
+          "Name the working directory, required inputs, and expected output for each command.",
+          "Mark destructive or external side-effect operations explicitly.",
+          "Prefer the smallest runnable snippet over broad framework code."
+        ],
+        "self_repair": [
+          "Scan each command for cwd, input, output, and side-effect assumptions.",
+          "Remove speculative error handling that is not tied to a real failure mode."
+        ]
+      },
+      {
+        "key": "tone_and_specificity",
+        "label": "Tone and specificity",
+        "matched_keywords": [
+          "copy",
+          "article",
+          "content",
+          "summary"
+        ],
+        "score": 4,
+        "risks": [
+          "Headings and summaries can drift into generic, interchangeable language.",
+          "The output can sound polished but lose the user's actual taste, audience, or scenario.",
+          "Strong claims can appear without examples or constraints."
+        ],
+        "constraints": [
+          "Anchor titles and summaries in the user's audience, object, and concrete outcome.",
+          "Avoid placeholder phrases such as comprehensive guide, ultimate solution, or key insights unless the source demands them.",
+          "Preserve one distinctive phrase, constraint, or standard from the user's input."
+        ],
+        "self_repair": [
+          "Replace generic title candidates with scenario-specific alternatives.",
+          "Delete any polished sentence that could fit almost any project unchanged."
+        ]
+      },
+      {
+        "key": "markdown_readability",
+        "label": "Markdown readability",
+        "matched_keywords": [
+          "markdown",
+          "md",
+          "report"
+        ],
+        "score": 3,
+        "risks": [
+          "Tables can render as dense grids with weak hierarchy or poor mobile readability.",
+          "Long bullets can make the output look complete while hiding the actual decision logic.",
+          "Mixed heading levels can reduce scanability."
+        ],
+        "constraints": [
+          "Use tables only when comparison is the main job; otherwise prefer compact cards or grouped bullets.",
+          "Keep table cells short and move explanations below the table.",
+          "Use heading levels consistently and keep each section anchored to a user-facing outcome."
+        ],
+        "self_repair": [
+          "Preview whether each table still reads well when columns are narrow.",
+          "Convert any table with paragraph-length cells into bullets or cards."
+        ]
+      },
+      {
+        "key": "citation_clutter",
+        "label": "Citation and footnote clutter",
+        "matched_keywords": [
+          "source",
+          "reference"
+        ],
+        "score": 2,
+        "risks": [
+          "Footnote markers or dense citation notes can interrupt the reading flow.",
+          "Evidence can be over-attached to obvious statements and under-attached to risky claims.",
+          "Source notes may become more prominent than the tutorial itself."
+        ],
+        "constraints": [
+          "Attach citations only to claims that need evidence, not to every sentence.",
+          "Group source notes at the end of a section when inline markers would hurt readability.",
+          "Keep the main sentence readable without requiring the reader to chase a footnote."
+        ],
+        "self_repair": [
+          "Remove decorative citations that do not support a material claim.",
+          "Move repeated source explanations into one compact source note."
+        ]
+      }
+    ],
+    "human_judgment_boundary": [
+      "Ask one focused clarification when the real job, output, or exclusion boundary is unclear.",
+      "Escalate visible tradeoffs when benchmark patterns conflict with local privacy, naming, or governance constraints.",
+      "Do not silently broaden the skill into adjacent jobs just because the examples are nearby."
+    ]
+  },
+  "world_class_readiness": {
+    "ready": false,
+    "decision": "not-generated",
+    "entry_count": 0,
+    "pending_count": 0,
+    "accepted_count": 0,
+    "external_pending_count": 0,
+    "human_pending_count": 0,
+    "source_check_count": 0,
+    "source_pass_count": 0,
+    "conclusion_zh": "未生成 world-class ledger；当前报告不会宣称世界级完成。",
+    "conclusion_en": "No world-class ledger was generated; this report does not claim world-class completion.",
+    "entries": []
+  },
+  "package_assets": {
+    "entries": [
+      {
+        "path": "SKILL.md",
+        "label": "Skill entrypoint",
+        "kind": "file",
+        "file_count": 1
+      },
+      {
+        "path": "agents/interface.yaml",
+        "label": "Neutral interface metadata",
+        "kind": "file",
+        "file_count": 1
+      },
+      {
+        "path": "manifest.json",
+        "label": "Lifecycle and portability metadata",
+        "kind": "file",
+        "file_count": 1
+      },
+      {
+        "path": "references",
+        "label": "Extended guidance and reusable notes",
+        "kind": "folder",
+        "file_count": 3
+      },
+      {
+        "path": "scripts",
+        "label": "Deterministic helpers or local tooling",
+        "kind": "folder",
+        "file_count": 1
+      },
+      {
+        "path": "evals",
+        "label": "Trigger and quality checks",
+        "kind": "folder",
+        "file_count": 4
+      },
+      {
+        "path": "reports",
+        "label": "Generated evidence and overview artifacts",
+        "kind": "folder",
+        "file_count": 52
+      }
+    ],
+    "file_count": 63,
+    "folder_count": 4,
+    "distribution": [
+      {
+        "label": "SKILL.md",
+        "value": 1
+      },
+      {
+        "label": "agents/interface.yaml",
+        "value": 1
+      },
+      {
+        "label": "manifest.json",
+        "value": 1
+      },
+      {
+        "label": "references",
+        "value": 3
+      },
+      {
+        "label": "scripts",
+        "value": 1
+      },
+      {
+        "label": "evals",
+        "value": 4
+      },
+      {
+        "label": "reports",
+        "value": 52
+      }
+    ]
+  },
+  "iteration_roadmap": {
+    "items": [
+      {
+        "title": "收紧触发",
+        "why": "先让 Skill 在正确场景被调用，再扩展资产。",
+        "actions": [
+          "增加正例、反例和近邻用例。",
+          "压缩 frontmatter description。"
+        ],
+        "unlocks": "更稳定的路由边界。"
+      }
+    ]
+  },
+  "report_contract": {
+    "schema_version": "2.0",
+    "html_report": "reports/skill-overview.html",
+    "language": "zh-CN",
+    "default_language": "zh-CN",
+    "languages": [
+      "zh-CN",
+      "en"
+    ],
+    "layout": "kami-white-audit-v2",
+    "nav_labels": [
+      "技能概述",
+      "总览指标",
+      "能力画像",
+      "原理结构",
+      "契约边界",
+      "质量评估",
+      "风险治理",
+      "包体资产",
+      "迭代路线"
+    ],
+    "nav_labels_en": [
+      "Overview",
+      "Metrics",
+      "Profile",
+      "Principle",
+      "Contract",
+      "Quality",
+      "Risk",
+      "Assets",
+      "Roadmap"
+    ]
+  },
+  "name": "georank",
+  "title": "GEOrank Operator",
+  "display_name": "GEOrank 管理助手",
+  "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+  "logic_steps": [
+    "Confirm the target GEOrank base URL. Use `http://localhost:8000` only for a local instance; require HTTPS for remote instances.",
+    "Resolve authentication:",
+    "Treat login as an ordinary-user flow and never ask the user to choose a role.",
+    "Run `python3 scripts/georank_client.py login --account <account>` when no session exists.",
+    "Run `python3 scripts/georank_client.py whoami` after login. Enable administrator branches only when the returned role is `admin`; treat `enterprise` as a regular authenticated user."
+  ],
+  "usage_steps": [
+    "Use $georank to operate this GEOrank instance. Guide login as an ordinary user, detect the role with /api/auth/me, and gate administrator changes with a preflight and explicit confirmation.",
+    "Use this skill when the request matches: Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance."
+  ],
+  "package_map": [
+    {
+      "path": "SKILL.md",
+      "label": "Skill entrypoint",
+      "kind": "file",
+      "file_count": 1
+    },
+    {
+      "path": "agents/interface.yaml",
+      "label": "Neutral interface metadata",
+      "kind": "file",
+      "file_count": 1
+    },
+    {
+      "path": "manifest.json",
+      "label": "Lifecycle and portability metadata",
+      "kind": "file",
+      "file_count": 1
+    },
+    {
+      "path": "references",
+      "label": "Extended guidance and reusable notes",
+      "kind": "folder",
+      "file_count": 3
+    },
+    {
+      "path": "scripts",
+      "label": "Deterministic helpers or local tooling",
+      "kind": "folder",
+      "file_count": 1
+    },
+    {
+      "path": "evals",
+      "label": "Trigger and quality checks",
+      "kind": "folder",
+      "file_count": 4
+    },
+    {
+      "path": "reports",
+      "label": "Generated evidence and overview artifacts",
+      "kind": "folder",
+      "file_count": 52
+    }
+  ],
+  "strengths": [
+    "触发面保持精简，并锚定在 frontmatter description。",
+    "已生成 Skill IR，核心语义可先于平台打包被审查和迁移。",
+    "已生成目标编译报告，可审查 IR 到 OpenAI、Claude、generic 等目标契约的映射。",
+    "已生成 Output Eval Lab scorecard，可比较 with-skill 与 baseline 输出质量。",
+    "已生成 Output Execution Runs，可区分记录样本、命令执行和模型执行证据。",
+    "已生成 Runtime Conformance Matrix，可审查目标端消费能力。"
+  ],
+  "scenarios": [
+    "登录、查询或管理正在运行的 GEOrank 实例。",
+    "提交公司、运行诊断、管理会话、关键词或用量。",
+    "经实时 admin 角色校验后管理用户、内容、Provider、模块、首页或设置。"
+  ],
+  "trigger_contract": {
+    "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+    "activation": "manual",
+    "execution": "inline",
+    "shell": "bash"
+  },
+  "io_contract": {
+    "inputs": [
+      "GEOrank base URL",
+      "account or phone identity",
+      "password supplied through a hidden prompt or named environment variable",
+      "relative /api path and HTTP method",
+      "optional protected JSON request body"
+    ],
+    "outputs": [
+      "A redacted execution receipt containing detected access level, operation, target, dry-run or executed status, API status, resource identifiers, request ID, next safe step, and rollback guidance when applicable.",
+      "结构化 Skill 目录，共 7 类关键资产。"
+    ]
+  },
+  "principles": [
+    {
+      "title": "意图澄清",
+      "body": "Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill."
+    },
+    {
+      "title": "边界路由",
+      "body": "用 frontmatter description 决定是否触发，并写明相邻非目标。"
+    },
+    {
+      "title": "资产分层",
+      "body": "把入口、参考、脚本、评估和报告拆到各自目录，避免 SKILL.md 膨胀。"
+    },
+    {
+      "title": "证据回路",
+      "body": "Ask only the highest-leverage clarification before adding package weight."
+    },
+    {
+      "title": "漂移观察",
+      "body": "Add near-neighbor exclusions and route evals before expanding workflow steps."
+    },
+    {
+      "title": "杠杆升级",
+      "body": "Name the recurring job, expected input, output, and strongest non-goal in compact language."
+    }
+  ],
+  "roadmap": [
+    {
+      "title": "收紧触发",
+      "why": "先让 Skill 在正确场景被调用，再扩展资产。",
+      "actions": [
+        "增加正例、反例和近邻用例。",
+        "压缩 frontmatter description。"
+      ],
+      "unlocks": "更稳定的路由边界。"
+    }
+  ],
+  "cards": [],
+  "introduction": [
+    "这份报告用于快速理解新生成 Skill 的定位、原理、触发边界和交付内容。",
+    "先确认重复任务、真实输入形态和可交付输出，再决定是否继续加 references、scripts 或 evals。",
+    "如果需求仍然模糊，优先回到 intent dialogue 收紧边界，再扩展包体结构。"
+  ],
+  "benchmark_highlights": [],
+  "skill_ir": {
+    "schema_version": "2.0.0",
+    "source_path": "reports/skill-ir.json",
+    "target_count": 5,
+    "trigger_samples": 8,
+    "output_eval_cases": 2
+  },
+  "compiled_targets": {
+    "ok": true,
+    "schema_version": "1.0",
+    "summary": {
+      "target_count": 5,
+      "pass_count": 5,
+      "warn_count": 0,
+      "block_count": 0,
+      "failure_count": 0,
+      "warning_count": 0
+    },
+    "targets": [
+      {
+        "target": "openai",
+        "status": "pass",
+        "adapter_mode": "metadata-adapter",
+        "degradation_strategy": "metadata-adapter",
+        "native_surface": "OpenAI-style interface metadata plus neutral Agent Skills source",
+        "permission_enforcement": "metadata-only",
+        "generated_files": [
+          "targets/openai/adapter.json",
+          "targets/openai/agents/openai.yaml"
+        ],
+        "unsupported_features": [
+          "client-native script permission prompts are represented as permission contract metadata"
+        ],
+        "warnings": []
+      },
+      {
+        "target": "claude",
+        "status": "pass",
+        "adapter_mode": "neutral-source-plus-adapter",
+        "degradation_strategy": "neutral-source-plus-adapter",
+        "native_surface": "Claude-compatible neutral source folder with adapter notes",
+        "permission_enforcement": "metadata-fallback",
+        "generated_files": [
+          "targets/claude/adapter.json",
+          "targets/claude/README.md"
+        ],
+        "unsupported_features": [
+          "vendor-native metadata fields are carried as adapter JSON and README notes"
+        ],
+        "warnings": []
+      },
+      {
+        "target": "generic",
+        "status": "pass",
+        "adapter_mode": "agent-skills-compatible",
+        "degradation_strategy": "neutral-source",
+        "native_surface": "Agent Skills compatible neutral package",
+        "permission_enforcement": "consumer-enforced-or-metadata-only",
+        "generated_files": [
+          "targets/generic/adapter.json"
+        ],
+        "unsupported_features": [],
+        "warnings": []
+      },
+      {
+        "target": "agent-skills-compatible",
+        "status": "pass",
+        "adapter_mode": "neutral-agent-skills-source",
+        "degradation_strategy": "neutral-source",
+        "native_surface": "Agent Skills standard source tree",
+        "permission_enforcement": "consumer-enforced-or-metadata-only",
+        "generated_files": [
+          "SKILL.md",
+          "agents/interface.yaml"
+        ],
+        "unsupported_features": [],
+        "warnings": []
+      },
+      {
+        "target": "vscode",
+        "status": "pass",
+        "adapter_mode": "vscode-agent-skills-adapter",
+        "degradation_strategy": "agent-skills-source-with-vscode-notes",
+        "native_surface": "VS Code/Copilot Agent Skills project or user scope",
+        "permission_enforcement": "client-or-workspace-trust",
+        "generated_files": [
+          "targets/vscode/adapter.json",
+          "targets/vscode/README.md"
+        ],
+        "unsupported_features": [
+          "VS Code installation scope is documented but not installed by this compiler"
+        ],
+        "warnings": []
+      }
+    ],
+    "failures": [],
+    "warnings": []
+  },
+  "output_quality": {
+    "case_count": 5,
+    "file_backed_case_count": 1,
+    "near_neighbor_case_count": 1,
+    "boundary_case_count": 2,
+    "baseline_pass_rate": 0.0,
+    "with_skill_pass_rate": 100.0,
+    "delta": 100.0,
+    "regression_count": 0,
+    "gate_pass": true,
+    "failure_taxonomy": [],
+    "blind_pair_count": 5
+  },
+  "output_execution": {
+    "ok": true,
+    "summary": {
+      "case_count": 5,
+      "variant_run_count": 10,
+      "command_executed_count": 10,
+      "model_executed_count": 0,
+      "recorded_fixture_count": 0,
+      "timing_observed_count": 10,
+      "token_observed_count": 0,
+      "token_estimated_count": 10,
+      "baseline_pass_rate": 0.0,
+      "with_skill_pass_rate": 100.0,
+      "delta": 100.0,
+      "regression_count": 0,
+      "failure_count": 0,
+      "gate_pass": true
+    },
+    "runner": {
+      "mode": "command",
+      "command": [
+        "python3",
+        "scripts/local_output_eval_runner.py"
+      ],
+      "timeout_seconds": 30.0
+    },
+    "failures": []
+  },
+  "output_blind_review": {
+    "summary": {
+      "pair_count": 5,
+      "answer_key_separate": true,
+      "with_skill_hidden_count": 5
+    },
+    "seed": "yao-output-eval-blind-v1",
+    "pair_count": 5,
+    "answer_key_separate": true
+  },
+  "output_review_kit": {
+    "ok": false,
+    "summary": {},
+    "artifacts": {},
+    "failures": []
+  },
+  "output_review_adjudication": {
+    "ok": false,
+    "summary": {},
+    "reviewer": "",
+    "reviewed_at": "",
+    "failures": []
+  },
+  "benchmark_reproducibility": {
+    "ok": false,
+    "summary": {},
+    "commit": "",
+    "missing_artifacts": [],
+    "limitations": []
+  },
+  "runtime_conformance": {
+    "target_count": 5,
+    "pass_count": 5,
+    "fail_count": 0
+  },
+  "runtime_permissions": {
+    "ok": true,
+    "summary": {
+      "target_count": 4,
+      "pass_count": 4,
+      "fail_count": 0,
+      "native_enforcement_count": 0,
+      "metadata_fallback_count": 4,
+      "residual_risk_count": 4,
+      "required_capability_count": 3,
+      "failure_count": 0,
+      "installer_enforcement_source_status": "present",
+      "installer_enforcement_target_count": 4,
+      "installer_enforcement_pass_count": 4,
+      "installer_permission_enforced_count": 12,
+      "installer_permission_failure_count": 0,
+      "installer_permission_capability_count": 3,
+      "world_class_native_evidence_ready": false,
+      "installer_enforcement_ready": true
+    },
+    "expected_capabilities": [
+      "file_write",
+      "interactive",
+      "network"
+    ],
+    "targets": [
+      {
+        "target": "openai",
+        "status": "pass",
+        "assurance": "metadata-fallback-explicit",
+        "native_enforcement": false,
+        "metadata_fallback_explicit": true,
+        "residual_risks": [
+          "Client-native permission enforcement is not provided by this target; installer or operator must honor metadata."
+        ]
+      },
+      {
+        "target": "claude",
+        "status": "pass",
+        "assurance": "metadata-fallback-explicit",
+        "native_enforcement": false,
+        "metadata_fallback_explicit": true,
+        "residual_risks": [
+          "Client-native permission enforcement is not provided by this target; installer or operator must honor metadata."
+        ]
+      },
+      {
+        "target": "generic",
+        "status": "pass",
+        "assurance": "metadata-fallback-explicit",
+        "native_enforcement": false,
+        "metadata_fallback_explicit": true,
+        "residual_risks": [
+          "Client-native permission enforcement is not provided by this target; installer or operator must honor metadata."
+        ]
+      },
+      {
+        "target": "vscode",
+        "status": "pass",
+        "assurance": "metadata-fallback-explicit",
+        "native_enforcement": false,
+        "metadata_fallback_explicit": true,
+        "residual_risks": [
+          "Client-native permission enforcement is not provided by this target; installer or operator must honor metadata."
+        ]
+      }
+    ],
+    "failures": []
+  },
+  "trust_security": {
+    "scanned_files": 13,
+    "script_count": 1,
+    "internal_module_count": 0,
+    "secret_findings": 0,
+    "dependency_files": [],
+    "network_script_count": 1,
+    "network_policy_covered_count": 1,
+    "network_policy_missing_count": 0,
+    "file_write_script_count": 1,
+    "permission_required_count": 3,
+    "permission_approved_count": 3,
+    "permission_missing_count": 0,
+    "permission_invalid_count": 0,
+    "permission_expired_count": 0,
+    "help_smoke_checked_count": 1,
+    "help_smoke_failed_count": 0,
+    "interactive_script_count": 1,
+    "package_hash_scope": "source-contract-without-generated-reports",
+    "package_hash_file_count": 13,
+    "package_sha256": "c8aa3180fca3ca4100058bb08d75d70a1328b042c7e891e4b2cae76bd5af9a81"
+  },
+  "skill_atlas": {
+    "skill_count": 1,
+    "actionable_skill_count": 1,
+    "route_collision_count": 0,
+    "actionable_route_collision_count": 0,
+    "owner_gap_count": 0,
+    "actionable_owner_gap_count": 0,
+    "stale_count": 0,
+    "actionable_stale_count": 0,
+    "shared_resource_count": 0,
+    "no_route_opportunity_count": 0,
+    "telemetry_report_count": 1,
+    "drift_signal_count": 1,
+    "actionable_drift_signal_count": 1,
+    "non_actionable_issue_count": 0
+  },
+  "registry_distribution": {
+    "ok": true,
+    "package": {
+      "schema_version": "2.0",
+      "name": "georank",
+      "version": "0.1.0",
+      "description": "Operate and manage a self-hosted GEOrank instance through its HTTP API. Use when asked to log in, inspect a GEOrank account, submit or manage companies, run or read GEO diagnostics, manage solution conversations, expand keywords, inspect usage, or perform authenticated GEOrank administrator work across users, content, experts, providers, modules, homepage releases, and settings. Login guidance defaults to an ordinary user and unlocks administrator actions only after /api/auth/me returns role=admin. Do not use for general GEO strategy, article writing, SEO advice, or GEOrank code development that does not operate a running instance.",
+      "targets": [
+        "openai",
+        "claude",
+        "generic",
+        "agent-skills-compatible",
+        "vscode"
+      ],
+      "maturity": "governed",
+      "owner": "GEOrank Maintainers",
+      "review_cadence": "monthly",
+      "trust_level": "local",
+      "license": "Apache License",
+      "checksums": {
+        "package_sha256": "c8aa3180fca3ca4100058bb08d75d70a1328b042c7e891e4b2cae76bd5af9a81",
+        "archive_sha256": "b5f3c31e35045335132099e70c89fc9eb666e8924517d17734b3e3b7b3012a36"
+      },
+      "compatibility": {
+        "openai": "pass",
+        "claude": "pass",
+        "agent-skills": "pass",
+        "vscode": "pass",
+        "generic": "pass",
+        "agent-skills-compatible": "pass"
+      },
+      "source": {
+        "skill_dir": "[workspace]/skills/georank",
+        "skill_ir": "reports/skill-ir.json",
+        "ir_schema_version": "2.0.0",
+        "canonical_metadata": "agents/interface.yaml"
+      },
+      "artifacts": {
+        "overview_html": "reports/skill-overview.html",
+        "review_studio_html": "reports/review-studio.html",
+        "trust_report": "reports/security_trust_report.md",
+        "conformance_matrix": "reports/conformance_matrix.md",
+        "compiled_targets": "reports/compiled_targets.md",
+        "package_verification": "reports/package_verification.md",
+        "install_simulation": "reports/install_simulation.md",
+        "adoption_drift": "reports/adoption_drift_report.md",
+        "review_waivers": "reports/review_waivers.md",
+        "review_annotations": "reports/review_annotations.md",
+        "package_metadata": "registry/packages/georank.json"
+      },
+      "distribution": {
+        "archive_verified": true,
+        "archive_sha256": "b5f3c31e35045335132099e70c89fc9eb666e8924517d17734b3e3b7b3012a36",
+        "package_verification": "reports/package_verification.json",
+        "install_simulated": true,
+        "install_simulation": "reports/install_simulation.json"
+      },
+      "generated_at": "2026-07-16"
+    },
+    "failures": [],
+    "warnings": []
+  },
+  "package_verification": {
+    "ok": true,
+    "summary": {
+      "target_count": 4,
+      "adapter_count": 4,
+      "archive_present": true,
+      "archive_sha256": "b5f3c31e35045335132099e70c89fc9eb666e8924517d17734b3e3b7b3012a36",
+      "archive_entry_count": 68,
+      "failure_count": 0,
+      "warning_count": 0
+    },
+    "failures": [],
+    "warnings": []
+  },
+  "install_simulation": {
+    "ok": true,
+    "summary": {
+      "archive_present": true,
+      "archive_entry_count": 68,
+      "archive_extracted": true,
+      "entrypoint_loaded": true,
+      "manifest_loaded": true,
+      "interface_loaded": true,
+      "adapter_count": 4,
+      "installer_permission_enforced_count": 12,
+      "installer_permission_failure_count": 0,
+      "permission_target_count": 4,
+      "permission_capability_count": 3,
+      "install_root_is_temp": false,
+      "failure_count": 0,
+      "warning_count": 0
+    },
+    "failures": [],
+    "warnings": []
+  },
+  "upgrade_check": {
+    "ok": false,
+    "summary": {},
+    "upgrade_diff": {},
+    "release_notes": [],
+    "failures": [],
+    "warnings": []
+  },
+  "adoption_drift": {
+    "ok": true,
+    "summary": {
+      "event_count": 0,
+      "adoption_sample_count": 0,
+      "activation_count": 0,
+      "accepted_count": 0,
+      "edited_count": 0,
+      "rejected_count": 0,
+      "missed_count": 0,
+      "failed_count": 0,
+      "adoption_rate": 0,
+      "missed_trigger_count": 0,
+      "wrong_trigger_count": 0,
+      "bad_output_count": 0,
+      "script_error_count": 0,
+      "missing_resource_count": 0,
+      "review_overdue_count": 0,
+      "risk_band": "no-data",
+      "event_types": {},
+      "failure_types": {},
+      "source_types": {},
+      "command_counts": {}
+    },
+    "next_iteration_candidates": [
+      {
+        "signal": "no telemetry",
+        "recommendation": "Start with a small metadata-only sample before using telemetry for release decisions."
+      }
+    ],
+    "privacy_contract": {
+      "storage": "local-first",
+      "event_scope": "metadata-only",
+      "raw_content_allowed": false,
+      "raw_event_log_packaged": false,
+      "blocked_fields": [
+        "content",
+        "input",
+        "inputs",
+        "message",
+        "messages",
+        "note",
+        "output",
+        "outputs",
+        "prompt",
+        "raw",
+        "text",
+        "transcript"
+      ]
+    },
+    "failures": []
+  },
+  "review_waivers": {
+    "ok": true,
+    "summary": {
+      "waiver_count": 0,
+      "active_count": 0,
+      "expired_count": 0,
+      "invalid_count": 0,
+      "covered_gate_count": 0,
+      "covered_gate_keys": [],
+      "waiver_candidate_count": 1,
+      "waiverable_open_count": 1,
+      "non_waivable_count": 0
+    },
+    "policy": {
+      "blocker_waivers_allowed": false,
+      "minimum_reason_chars": 20,
+      "expires_required": true,
+      "review_studio_gate_keys": [
+        "architecture-maintainability",
+        "context-budget",
+        "intent-canvas",
+        "operations-loop",
+        "output-lab",
+        "permission-gates",
+        "permission-runtime",
+        "python-compat",
+        "registry-audit",
+        "release-notes",
+        "review-waivers",
+        "runtime-matrix",
+        "skill-atlas",
+        "trigger-lab",
+        "trust-report",
+        "world-class-evidence"
+      ],
+      "known_gate_keys": [
+        "architecture-maintainability",
+        "context-budget",
+        "intent-canvas",
+        "operations-loop",
+        "output-lab",
+        "permission-gates",
+        "permission-runtime",
+        "python-compat",
+        "registry-audit",
+        "release-notes",
+        "runtime-matrix",
+        "skill-atlas",
+        "trigger-lab",
+        "trust-report"
+      ],
+      "waiverable_gate_keys": [
+        "architecture-maintainability",
+        "context-budget",
+        "intent-canvas",
+        "operations-loop",
+        "output-lab",
+        "permission-gates",
+        "permission-runtime",
+        "python-compat",
+        "registry-audit",
+        "release-notes",
+        "runtime-matrix",
+        "skill-atlas",
+        "trigger-lab",
+        "trust-report"
+      ],
+      "non_waivable_gate_keys": [
+        "review-waivers",
+        "world-class-evidence"
+      ]
+    },
+    "failures": [],
+    "warnings": []
+  },
+  "review_annotations": {
+    "ok": true,
+    "summary": {
+      "annotation_count": 0,
+      "open_count": 0,
+      "resolved_count": 0,
+      "deferred_count": 0,
+      "open_blocker_count": 0,
+      "open_warning_count": 0,
+      "linked_gate_count": 0,
+      "target_missing_count": 0,
+      "failure_count": 0
+    },
+    "annotations": [],
+    "failures": []
+  },
+  "world_class_evidence_plan": {
+    "ok": false,
+    "summary": {},
+    "tasks": [],
+    "source_audit": {}
+  },
+  "world_class_evidence_ledger": {
+    "ok": false,
+    "summary": {},
+    "entries": [],
+    "source_plan": {}
+  },
+  "synthesis_highlights": [],
+  "artifact_design": {
+    "design_system": "content-led editorial",
+    "highlights": []
+  },
+  "prompt_quality": {
+    "overall_quality_score": "n/a",
+    "highlights": []
+  },
+  "system_model": {
+    "stability": {
+      "score": 92,
+      "band": "system-ready"
+    },
+    "highlights": [
+      "Stability: system-ready (92/100).",
+      "Owned job: Safely operate a running self-hosted GEOrank instance for ordinary users and verified administrators through one reusable skill.",
+      "Leverage: Tune the frontmatter description — Name the recurring job, expected input, output, and strongest non-goal in compact language.",
+      "Leverage: Install output self-repair checks — Add only the checks that prevent recurring output mistakes."
+    ]
+  },
+  "metadata": {
+    "canonical_format": "agent-skills",
+    "targets": [
+      "openai",
+      "claude",
+      "generic",
+      "vscode"
+    ],
+    "maturity_tier": "governed",
+    "skill_archetype": "governed",
+    "updated_at": "2026-07-16"
+  }
+}

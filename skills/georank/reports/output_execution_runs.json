@@ -1,0 +1,287 @@
+{
+  "schema_version": "1.0",
+  "ok": true,
+  "cases": "[workspace]/skills/georank/evals/output/cases.jsonl",
+  "runner": {
+    "mode": "command",
+    "command": [
+      "python3",
+      "scripts/local_output_eval_runner.py"
+    ],
+    "timeout_seconds": 30.0
+  },
+  "summary": {
+    "case_count": 5,
+    "variant_run_count": 10,
+    "command_executed_count": 10,
+    "model_executed_count": 0,
+    "recorded_fixture_count": 0,
+    "timing_observed_count": 10,
+    "token_observed_count": 0,
+    "token_estimated_count": 10,
+    "baseline_pass_rate": 0.0,
+    "with_skill_pass_rate": 100.0,
+    "delta": 100.0,
+    "regression_count": 0,
+    "failure_count": 0,
+    "gate_pass": true
+  },
+  "runs": [
+    {
+      "case_id": "ordinary-user-login",
+      "variant": "baseline",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 30.3,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 6,
+        "output_tokens": 6,
+        "total_tokens": 12,
+        "estimated": true
+      },
+      "score": 0.0,
+      "passed_count": 0,
+      "failed_count": 3,
+      "failed_assertions": [
+        "ordinary-default",
+        "live-role",
+        "secret-channel"
+      ],
+      "output_sha256": "570f6e07be08b7e5f2606f5fb55abceb422c5f386ff173027b3ec863391aacb2",
+      "failure": ""
+    },
+    {
+      "case_id": "ordinary-user-login",
+      "variant": "with_skill",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 30.01,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 6,
+        "output_tokens": 27,
+        "total_tokens": 33,
+        "estimated": true
+      },
+      "score": 100.0,
+      "passed_count": 3,
+      "failed_count": 0,
+      "failed_assertions": [],
+      "output_sha256": "537d41130e55f16c74e190a88f97a437fd4a5b16625406191d785242f8b6ab9a",
+      "failure": ""
+    },
+    {
+      "case_id": "admin-change-preflight",
+      "variant": "baseline",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 30.23,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 6,
+        "output_tokens": 4,
+        "total_tokens": 10,
+        "estimated": true
+      },
+      "score": 0.0,
+      "passed_count": 0,
+      "failed_count": 4,
+      "failed_assertions": [
+        "admin-live-check",
+        "preflight",
+        "admin-confirmation",
+        "rollback"
+      ],
+      "output_sha256": "a56d9c5b32756eae511a307a350e0a32b1fa1d8e7500056d84d0a708e7ad5127",
+      "failure": ""
+    },
+    {
+      "case_id": "admin-change-preflight",
+      "variant": "with_skill",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 32.4,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 6,
+        "output_tokens": 42,
+        "total_tokens": 48,
+        "estimated": true
+      },
+      "score": 100.0,
+      "passed_count": 4,
+      "failed_count": 0,
+      "failed_assertions": [],
+      "output_sha256": "03afa75cf0f68e2fe14b8eefaebe411864901edf4ea24ef29808c90572cdc1ab",
+      "failure": ""
+    },
+    {
+      "case_id": "destructive-admin-boundary",
+      "variant": "baseline",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 32.94,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 4,
+        "total_tokens": 12,
+        "estimated": true
+      },
+      "score": 0.0,
+      "passed_count": 0,
+      "failed_count": 3,
+      "failed_assertions": [
+        "exact-delete-phrase",
+        "destructive-preflight",
+        "receipt"
+      ],
+      "output_sha256": "63fac2b52a035a99852106689202c1de6703c341376fb9464c1fdf0a102e50f5",
+      "failure": ""
+    },
+    {
+      "case_id": "destructive-admin-boundary",
+      "variant": "with_skill",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 33.03,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 52,
+        "total_tokens": 60,
+        "estimated": true
+      },
+      "score": 100.0,
+      "passed_count": 3,
+      "failed_count": 0,
+      "failed_assertions": [],
+      "output_sha256": "961d30dcab556f9c3dd7164dd652d2c2a198b9092e99f62885221afb0e5c092a",
+      "failure": ""
+    },
+    {
+      "case_id": "near-neighbor-geo-strategy",
+      "variant": "baseline",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 37.97,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 7,
+        "total_tokens": 15,
+        "estimated": true
+      },
+      "score": 0.0,
+      "passed_count": 0,
+      "failed_count": 2,
+      "failed_assertions": [
+        "exclusion-boundary",
+        "neighbor-route"
+      ],
+      "output_sha256": "9399f62be4710a88ff76b2e6e4a498ffc30df1530a791d36eb2403d55ba50459",
+      "failure": ""
+    },
+    {
+      "case_id": "near-neighbor-geo-strategy",
+      "variant": "with_skill",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 32.03,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 22,
+        "total_tokens": 30,
+        "estimated": true
+      },
+      "score": 100.0,
+      "passed_count": 2,
+      "failed_count": 0,
+      "failed_assertions": [],
+      "output_sha256": "c89750b7151907ae909ca01c1a76f45ab43f67ab10aaf9baf35e0b6cd6519ebd",
+      "failure": ""
+    },
+    {
+      "case_id": "file-backed-provider-change",
+      "variant": "baseline",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 30.41,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 8,
+        "total_tokens": 16,
+        "estimated": true
+      },
+      "score": 0.0,
+      "passed_count": 0,
+      "failed_count": 4,
+      "failed_assertions": [
+        "file-evidence",
+        "secret-redaction",
+        "provider-gate",
+        "evidence-boundary"
+      ],
+      "output_sha256": "a6f889f429016b41ca6fa7be13978e5c05e2f0045c85311dfa2d72e57b9de512",
+      "failure": ""
+    },
+    {
+      "case_id": "file-backed-provider-change",
+      "variant": "with_skill",
+      "status": "pass",
+      "execution_mode": "command",
+      "model_executed": false,
+      "command_executed": true,
+      "duration_ms": 31.28,
+      "provider": "local-output-eval-runner",
+      "model": "",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 55,
+        "total_tokens": 63,
+        "estimated": true
+      },
+      "score": 100.0,
+      "passed_count": 4,
+      "failed_count": 0,
+      "failed_assertions": [],
+      "output_sha256": "85b6563b17c32c43b5972cd1388a6f7b27e66b4d8d7135c470f87c4d35ec9d4d",
+      "failure": ""
+    }
+  ],
+  "failures": [],
+  "artifacts": {
+    "json": "[workspace]/skills/georank/reports/output_execution_runs.json",
+    "markdown": "[workspace]/skills/georank/reports/output_execution_runs.md"
+  }
+}

@@ -1,3 +1,6 @@
+import {parseApiResponse} from './api-error';
+import {getDeviceHeaders} from './device';
+
 const API_BASE = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
 
 export type DiagnoseRequest = {
@@ -34,11 +37,7 @@ export type DiagnosticReportResponse = {
 };
 
 async function parseJson<T>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((payload as { detail?: string }).detail || `API ${response.status}`);
-  }
-  return payload as T;
+  return parseApiResponse<T>(response);
 }
 
 export async function startDiagnosis(token: string, body: DiagnoseRequest): Promise<DiagnoseResponse> {
@@ -46,7 +45,8 @@ export async function startDiagnosis(token: string, body: DiagnoseRequest): Prom
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      ...getDeviceHeaders()
     },
     body: JSON.stringify(body)
   });

@@ -3,46 +3,100 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from datetime import date, datetime
 from html import escape
-from typing import Iterable
+from typing import Any, Iterable
 from urllib.parse import urljoin
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import update
+from sqlalchemy.exc import SQLAlchemyError
 
+from app.core.database import async_session
+from app.core.config import settings
 from app.core.deps import DbSession
 from app.models.company import Company, PipelineStatus, PublishStatus
 from app.services.company_lookup import company_public_path, get_company_by_identifier
-from app.services.company_profile import (
-    company_profile_needs_hydration,
-    ensure_company_profile,
-    normalize_company_name,
-)
-from app.services.company_retrieval import fallback_similar_companies
+from app.services.company_preview import verify_company_preview_token
+from app.services.company_profile import normalize_company_name
+from app.services.company_retrieval import rank_similar_companies
 
 router = APIRouter(include_in_schema=False)
+logger = logging.getLogger("georank")
+
+
+async def _increment_company_view_count(company_id: UUID) -> None:
+    async with async_session() as tracking_db:
+        try:
+            await tracking_db.execute(
+                update(Company)
+                .where(Company.id == company_id)
+                .values(view_count=Company.view_count + 1)
+            )
+            await tracking_db.commit()
+        except SQLAlchemyError:
+            await tracking_db.rollback()
+            logger.warning(
+                "Company page view increment failed: company_id=%s",
+                company_id,
+                exc_info=True,
+            )
 
 
 def _absolute_url(request: Request, path: str) -> str:
-    forwarded_proto = request.headers.get("x-forwarded-proto")
-    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-    if forwarded_host:
-        scheme = forwarded_proto or request.url.scheme or "http"
-        return f"{scheme}://{forwarded_host.rstrip('/')}/{path.lstrip('/')}"
-    return urljoin(str(request.base_url), path.lstrip("/"))
+    # Canonical links and redirects must not inherit an attacker-controlled
+    # Host/X-Forwarded-Host value. Local debug/test hosts retain their active
+    # port; all other traffic uses the configured public origin.
+    if settings.DEBUG and request.url.hostname in {"localhost", "127.0.0.1", "testserver"}:
+        base_url = str(request.base_url)
+    else:
+        base_url = settings.PUBLIC_BASE_URL
+    return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
 
 
 def _render_json_ld(*payloads: dict) -> str:
     return "\n".join(
-        f'<script type="application/ld+json">{json.dumps(payload, ensure_ascii=False)}</script>'
+        f'<script type="application/ld+json">{_json_for_html(payload)}</script>'
         for payload in payloads if payload
+    )
+
+
+def _json_for_html(payload: dict) -> str:
+    """序列化可安全嵌入 script 元素的 JSON，阻止外部资料闭合标签。"""
+    return (
+        json.dumps(payload, ensure_ascii=False)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
     )
 
 
 def _normalize_text(value: str | None) -> str:
     return " ".join((value or "").split()).strip()
+
+
+_PUBLIC_PLACEHOLDER_VALUES = {
+    "--",
+    "n/a",
+    "na",
+    "none",
+    "null",
+    "unknown",
+    "待补充",
+    "未知",
+}
+
+
+def _public_profile_value(value: object) -> str:
+    text = _normalize_text(str(value) if value is not None else "")
+    return "" if text.lower() in _PUBLIC_PLACEHOLDER_VALUES else text
 
 
 def _normalize_list(values: object) -> list[str]:
@@ -57,6 +111,39 @@ def _normalize_list(values: object) -> list[str]:
         if text and text not in normalized:
             normalized.append(text)
     return normalized
+
+
+def _public_record_list(values: object, fields: tuple[str, ...]) -> list[dict[str, Any]]:
+    if not isinstance(values, list):
+        return []
+    return [
+        item
+        for item in values
+        if isinstance(item, dict)
+        and any(_public_profile_value(item.get(field)) for field in fields)
+    ]
+
+
+def _public_team_members(values: object) -> list[dict[str, Any]]:
+    return [
+        member
+        for member in _public_record_list(values, ("name", "role", "bg"))
+        if _public_profile_value(member.get("name"))
+    ]
+
+
+def _public_source_pages(values: object) -> list[dict[str, Any]]:
+    pages = _public_record_list(values, ("role", "title", "reason", "url", "key", "status"))
+    return [
+        page
+        for page in pages
+        if page.get("status") == "captured"
+        and bool(_public_profile_value(page.get("key")))
+        and (
+            _public_profile_value(page.get("title"))
+            or _public_profile_value(page.get("url")).startswith(("http://", "https://"))
+        )
+    ]
 
 
 def _paragraphs(text: str | None) -> list[str]:
@@ -83,7 +170,7 @@ def _company_keywords(company: Company) -> list[str]:
     keywords.extend(_normalize_list(company.tech_stack))
     deduped: list[str] = []
     for item in keywords:
-        text = _normalize_text(item)
+        text = _public_profile_value(item)
         if text and text not in deduped:
             deduped.append(text)
     return deduped[:20]
@@ -706,15 +793,20 @@ def _team_signal_markup(company: Company) -> str:
         """
     preferred_text = "、".join(preferred_pages) if preferred_pages else "About / Team / Leadership"
     cards = [
-        ("当前判断", "人物实体密度偏低，但品牌档案和技术语义已经完成入库。"),
-        ("建议抓取", f"下一轮优先补抓 {preferred_text}，增强组织信号。"),
-        ("目标结果", "补齐核心成员、职责分工和公开团队页面，提高可信度与引用稳定性。"),
+        ("当前判断", "人物实体密度偏低，但品牌档案和技术语义已经完成入库。", False),
+        ("建议抓取", f"下一轮优先补抓 {preferred_text}，增强组织信号。", False),
+        ("目标结果", "补齐核心成员、职责分工和公开团队页面，提高可信度与引用稳定性。", True),
     ]
     rendered = []
-    for label, value in cards:
+    for label, value, is_wide in cards:
+        note_class = (
+            "company-organization-note company-organization-note--wide"
+            if is_wide
+            else "company-organization-note"
+        )
         rendered.append(
             f"""
-            <article class="company-organization-note">
+            <article class="{note_class}">
                 <p class="company-organization-note-label">{escape(label)}</p>
                 <p class="company-organization-note-text">{escape(value)}</p>
             </article>
@@ -855,6 +947,566 @@ def _completeness_markup(company: Company, tags: list[str], tech_stack: list[str
     return f'<ul class="space-y-3">{"".join(rows)}</ul>'
 
 
+_GEO_DIMENSIONS = (
+    ("schema", "结构化", "组织、网站与问答等机器可读标记"),
+    ("content", "答案内容", "定义、步骤、案例与可直接引用的结论"),
+    ("meta", "预览信息", "标题、摘要、Canonical 与 Open Graph"),
+    ("citation", "引用信号", "公开引用材料的完整度与可核验性"),
+)
+
+_GEO_PRIORITY_ACTIONS = {
+    "schema": "补齐 Organization、WebSite、FAQPage 与 BreadcrumbList。",
+    "content": "补充 FAQ、案例和答案段落，增加可引用内容密度。",
+    "meta": "重写 Title、Description、Canonical 与 Open Graph。",
+    "citation": "增加案例引用、合作伙伴和权威来源链接。",
+}
+
+
+def _geo_dimension_values(company: Company) -> list[dict[str, Any]]:
+    details = company.geo_details if isinstance(company.geo_details, dict) else {}
+    dimensions: list[dict[str, Any]] = []
+    for key, label, hint in _GEO_DIMENSIONS:
+        raw_value = details.get(key)
+        value = None
+        if raw_value is not None:
+            try:
+                value = max(0, min(int(round(float(raw_value))), 100))
+            except (TypeError, ValueError, OverflowError):
+                value = None
+        dimensions.append({"key": key, "label": label, "hint": hint, "value": value})
+    return dimensions
+
+
+def _geo_score_band(score: float | None) -> str:
+    if score is None:
+        return "等待评估"
+    if score >= 85:
+        return "表现稳健"
+    if score >= 70:
+        return "具备良好基础"
+    if score >= 50:
+        return "需要持续增强"
+    return "优先完成基础建设"
+
+
+def _geo_priority(
+    company: Company,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    dimensions = _geo_dimension_values(company)
+    scored = [item for item in dimensions if item["value"] is not None]
+    if not scored:
+        return None, None
+    strongest = max(scored, key=lambda item: item["value"])
+    weakest = min(scored, key=lambda item: item["value"])
+    return strongest, weakest
+
+
+def _profile_completeness_items(
+    company: Company,
+    tags: list[str],
+    tech_stack: list[str],
+    pages: list[dict],
+    members: list[dict],
+) -> list[tuple[str, bool]]:
+    return [
+        ("公司简介", bool(_normalize_text(company.description) or _normalize_text(company.short_description))),
+        ("语义标签", bool(tags)),
+        ("技术主题", bool(tech_stack)),
+        ("来源页面", bool(pages)),
+        ("团队实体", bool(members)),
+        ("地区信息", bool(_normalize_text(company.headquarters))),
+    ]
+
+
+def _geo_overview_markup(company: Company) -> str:
+    dimensions = [item for item in _geo_dimension_values(company) if item["value"] is not None]
+    strongest, weakest = _geo_priority(company)
+    score_rows = []
+    for item in dimensions:
+        value = item["value"]
+        score_rows.append(
+            f"""
+            <li class="company-dimension-row">
+                <div class="company-dimension-copy">
+                    <span class="company-dimension-name">{escape(item['label'])}</span>
+                    <span class="company-dimension-hint">{escape(item['hint'])}</span>
+                </div>
+                <div class="company-dimension-measure">
+                    <span class="company-dimension-value">{value if value is not None else '待评估'}</span>
+                    <span class="company-dimension-track" aria-hidden="true">
+                        <span class="company-dimension-fill" style="width:{value if value is not None else 0}%"></span>
+                    </span>
+                </div>
+            </li>
+            """
+        )
+
+    strongest_label = strongest["label"] if strongest else "待评估"
+    weakest_label = weakest["label"] if weakest else "待评估"
+    verdict = "当前公司尚未形成完整的 GEO 评估。"
+    if strongest:
+        verdict = f"当前最稳定的维度是{strongest_label}，{strongest['value']} 分。"
+    overall_score = "待评估" if company.geo_score is None else f"{max(0.0, min(float(company.geo_score), 100.0)):.1f}"
+    dimension_markup = (
+        f'<ol class="company-dimension-list" aria-label="GEO 四维评分">{"".join(score_rows)}</ol>'
+        if score_rows
+        else '<p class="company-compact-state">四个 GEO 维度仍在等待评估。</p>'
+    )
+    priority_markup = ""
+    if weakest:
+        priority_markup = f"""
+            <div class="company-overview-priority">
+                <p class="company-mini-label">建议优先关注</p>
+                <h3>{escape(weakest_label)}</h3>
+                <p>{escape(_GEO_PRIORITY_ACTIONS[weakest['key']])}</p>
+                <span>{weakest['value']} 分</span>
+            </div>
+        """
+    return f"""
+    <div class="company-overview-layout">
+        <div class="company-overview-summary">
+            <p class="company-overview-verdict">{escape(verdict)}</p>
+            <p class="company-overview-explanation">GEOrank 从结构化表达、答案内容、预览信息和外部引用四个方向，判断公开资料被生成式引擎理解和引用的稳定程度。</p>
+            <dl class="company-overview-facts">
+                <div><dt>综合评分</dt><dd>{escape(overall_score)}</dd></div>
+                <div><dt>当前表现</dt><dd>{escape(_geo_score_band(company.geo_score))}</dd></div>
+                <div><dt>优势维度</dt><dd>{escape(strongest_label)}</dd></div>
+                <div><dt>关注维度</dt><dd>{escape(weakest_label)}</dd></div>
+            </dl>
+            {priority_markup}
+        </div>
+        {dimension_markup}
+    </div>
+    """
+
+
+def _semantic_map_markup(
+    company: Company,
+    display_name: str,
+    tags: list[str],
+    tech_stack: list[str],
+    graph_nodes: list[str] | None = None,
+) -> str:
+    candidates = [
+        *(graph_nodes or [])[:8],
+        company.category,
+        company.headquarters,
+        company.funding_stage,
+        *tech_stack[:3],
+        *tags[:5],
+    ]
+    nodes: list[str] = []
+    for item in candidates:
+        text = _public_profile_value(item)
+        if text and text != display_name and text not in nodes:
+            nodes.append(text)
+
+    if len(nodes) < 4:
+        terms = nodes or ["待补充语义实体"]
+        return (
+            '<div class="company-semantic-terms">'
+            + "".join(f'<span class="company-term">{escape(term)}</span>' for term in terms)
+            + "</div>"
+        )
+
+    rendered_nodes = "".join(
+        f'<li class="company-semantic-node">{escape(node)}</li>' for node in nodes[:8]
+    )
+    return f"""
+    <div class="company-semantic-map" aria-label="{escape(display_name)} 语义关系">
+        <div class="company-semantic-center">
+            <span>Company</span>
+            <strong>{escape(display_name)}</strong>
+        </div>
+        <ul class="company-semantic-nodes">{rendered_nodes}</ul>
+    </div>
+    """
+
+
+def _company_story_markup(
+    company: Company,
+    display_name: str,
+    short_description: str,
+) -> str:
+    description_paragraphs = _paragraphs(
+        _public_profile_value(company.description) or short_description
+    )
+    narrative = description_paragraphs[:3]
+    prose = "".join(f"<p>{escape(paragraph)}</p>" for paragraph in narrative if paragraph)
+
+    story_facts = [
+        ("公司类型", _public_profile_value(company.category)),
+        ("总部地区", _public_profile_value(company.headquarters)),
+        ("成立时间", _public_profile_value(_format_short_date(company.founded_date))),
+        ("团队规模", _public_profile_value(company.employee_count)),
+        ("融资阶段", _public_profile_value(company.funding_stage)),
+    ]
+    story_facts = [(label, value) for label, value in story_facts if value]
+    facts_markup = "".join(
+        f'<div><dt>{escape(label)}</dt><dd>{escape(value)}</dd></div>'
+        for label, value in story_facts
+    )
+    facts_content = (
+        f"<dl>{facts_markup}</dl>"
+        if facts_markup
+        else '<p class="company-compact-state">公司公开档案仍在完善。</p>'
+    )
+
+    return f"""
+    <div class="company-story-layout">
+        <article class="company-story-copy">
+            <p class="company-mini-label">Company story</p>
+            <h3>{escape(display_name)} 在做什么</h3>
+            <p class="company-story-lead">{escape(short_description)}</p>
+            <div class="company-reading-prose">{prose}</div>
+        </article>
+        <aside class="company-story-facts" aria-label="公司档案摘要">
+            <p class="company-mini-label">Company facts</p>
+            {facts_content}
+        </aside>
+    </div>
+    """
+
+
+def _business_capabilities_markup(
+    company: Company,
+    display_name: str,
+    tags: list[str],
+    tech_stack: list[str],
+) -> str:
+    category = _public_profile_value(company.category) or "公开业务资料"
+    business_topics = tags[:8]
+    business_terms = "、".join(business_topics[:4]) if business_topics else category
+    topic_markup = "".join(
+        f'<span class="company-term">{escape(value)}</span>' for value in business_topics
+    ) or '<span class="company-term">业务主题待完善</span>'
+    tool_markup = "".join(
+        f'<span class="company-tool-term">{escape(value)}</span>' for value in tech_stack[:8]
+    )
+    tool_content = (
+        f'<div class="company-tool-list">{tool_markup}</div>'
+        if tool_markup
+        else '<p class="company-compact-state">暂未识别到可公开展示的数字工具。</p>'
+    )
+    tech_level = _public_profile_value(company.tech_level)
+    tech_level_markup = (
+        f'<p class="company-capability-level"><span>GEO 技术层级</span><strong>{escape(tech_level)}</strong></p>'
+        if tech_level
+        else ""
+    )
+
+    return f"""
+    <div class="company-capabilities-layout">
+        <article class="company-capability-positioning">
+            <p class="company-mini-label">Business positioning</p>
+            <h3>{escape(category)}</h3>
+            <p>{escape(display_name)} 的公开信息主要围绕{escape(business_terms)}展开，用于描述公司的业务方向与市场定位。</p>
+            <div class="company-term-list">{topic_markup}</div>
+        </article>
+        <article class="company-capability-tools">
+            <p class="company-mini-label">Detected tools</p>
+            <h3>已识别的技术与数字工具</h3>
+            <p>以下信息来自官网公开页面的技术检测结果，用于理解公司的数字化环境。</p>
+            {tool_content}
+            {tech_level_markup}
+        </article>
+    </div>
+    """
+
+
+def _geo_semantic_profile_markup(
+    company: Company,
+    display_name: str,
+    tags: list[str],
+    tech_stack: list[str],
+    graph_nodes: list[str] | None = None,
+) -> str:
+    category = _public_profile_value(company.category) or "公司档案"
+    service_terms = "、".join(tags[:4]) if tags else "品牌定位与公开资料"
+    tech_terms = "、".join(tech_stack[:3]) if tech_stack else "尚未形成稳定的技术主题"
+    interpretation = (
+        f"AI 当前将 {display_name} 识别为{category}，核心语义集中在{service_terms}。"
+        f"技术与数字工具层主要关联{tech_terms}。"
+    )
+    return f"""
+    <div class="company-geo-semantic">
+        <div class="company-geo-semantic-copy">
+            <p class="company-mini-label">AI interpretation</p>
+            <h3>AI 如何理解这家公司</h3>
+            <p>{escape(interpretation)}</p>
+        </div>
+        {_semantic_map_markup(company, display_name, tags, tech_stack, graph_nodes)}
+    </div>
+    """
+
+
+def _source_evidence_markup(company: Company) -> str:
+    pages = _public_source_pages(company.crawl_pages)
+    if not pages:
+        return ""
+
+    items = []
+    for index, page in enumerate(pages[:5]):
+        page = page if isinstance(page, dict) else {}
+        role = _public_profile_value(page.get("role")) or f"页面 {index + 1}"
+        title = (
+            _public_profile_value(page.get("title"))
+            or _public_profile_value(page.get("url"))
+            or "未命名页面"
+        )
+        reason = _public_profile_value(page.get("reason")) or "该页面被纳入企业知识库的优先来源。"
+        url = _public_profile_value(page.get("url"))
+        url_markup = ""
+        if url:
+            safe_url = escape(url)
+            if url.startswith(("http://", "https://")):
+                url_markup = f'<a href="{safe_url}" target="_blank" rel="noreferrer">{safe_url}</a>'
+            else:
+                url_markup = f"<span>{safe_url}</span>"
+        items.append(
+            f"""
+            <li class="company-source-item">
+                <span class="company-source-index">{index + 1:02d}</span>
+                <div class="company-source-copy">
+                    <p class="company-source-role">{escape(role)}</p>
+                    <h3>{escape(title)}</h3>
+                    <p>{escape(reason)}</p>
+                    <div class="company-source-url">{url_markup}</div>
+                </div>
+            </li>
+            """
+        )
+    return f'<ol class="company-source-list">{"".join(items)}</ol>'
+
+
+def _team_profile_section_markup(company: Company) -> str:
+    members = _public_team_members(company.team_members)
+    if not members:
+        return ""
+
+    roles: list[str] = []
+    rows = []
+    for index, member in enumerate(members[:8]):
+        name = _public_profile_value(member.get("name")) or f"成员 {index + 1}"
+        role = _public_profile_value(member.get("role")) or "核心成员"
+        background = _public_profile_value(member.get("bg"))
+        if role not in roles:
+            roles.append(role)
+        rows.append(
+            f"""
+            <li class="company-person-row">
+                <span class="company-person-mark">{escape(name[:1])}</span>
+                <div>
+                    <strong>{escape(name)}</strong>
+                    <span>{escape(role)}</span>
+                    {f'<p>{escape(background)}</p>' if background else ''}
+                </div>
+            </li>
+            """
+        )
+
+    role_terms = "".join(
+        f'<span class="company-term">{escape(role)}</span>' for role in roles[:6]
+    )
+    return f"""
+    <section id="company-team" class="company-editorial-section" aria-labelledby="company-team-title">
+        <header class="company-section-heading">
+            <p>People / 公开团队</p>
+            <h2 id="company-team-title">团队与信任</h2>
+            <span>通过公开成员、角色和背景信息建立清晰的组织实体。</span>
+        </header>
+        <div class="company-team-layout">
+            <article class="company-team-summary">
+                <p class="company-mini-label">Public team</p>
+                <h3>已识别 {len(members)} 位公开成员</h3>
+                <p>这些人物信息来自公司公开资料。明确的姓名、职责与背景有助于用户和生成式引擎确认组织身份。</p>
+                <div class="company-term-list">{role_terms}</div>
+            </article>
+            <div class="company-team-list-panel">
+                <ul class="company-person-list">{"".join(rows)}</ul>
+            </div>
+        </div>
+    </section>
+    """
+
+
+def _public_sources_section_markup(company: Company) -> str:
+    pages = _public_source_pages(company.crawl_pages)
+    if not pages:
+        return ""
+
+    roles: list[str] = []
+    linked_pages = 0
+    for page in pages:
+        role = _public_profile_value(page.get("role")) or "其他"
+        if role not in roles:
+            roles.append(role)
+        url = _public_profile_value(page.get("url"))
+        if url.startswith(("http://", "https://")):
+            linked_pages += 1
+
+    role_terms = "".join(
+        f'<span class="company-term">{escape(role)}</span>' for role in roles[:6]
+    )
+    return f"""
+    <section id="company-sources" class="company-editorial-section" aria-labelledby="company-sources-title">
+        <header class="company-section-heading">
+            <p>Sources / 公开资料</p>
+            <h2 id="company-sources-title">公开资料与可信信号</h2>
+            <span>列出构成公司档案的官网页面，方便访客核对信息来源。</span>
+        </header>
+        <div class="company-sources-layout">
+            <article class="company-sources-summary">
+                <p class="company-mini-label">Source overview</p>
+                <h3>已收录 {len(pages)} 个公开页面</h3>
+                <p>这些页面是公司介绍、业务能力和 GEO 分析的主要公开依据。</p>
+                <dl class="company-source-facts">
+                    <div><dt>公开页面</dt><dd>{len(pages)}</dd></div>
+                    <div><dt>来源类型</dt><dd>{len(roles)}</dd></div>
+                    <div><dt>可访问链接</dt><dd>{linked_pages}</dd></div>
+                </dl>
+                <div class="company-term-list">{role_terms}</div>
+            </article>
+            {_source_evidence_markup(company)}
+        </div>
+    </section>
+    """
+
+
+def _trust_and_entities_markup(company: Company) -> str:
+    members = company.team_members if isinstance(company.team_members, list) else []
+    pages = company.crawl_pages if isinstance(company.crawl_pages, list) else []
+    dimensions = {item["key"]: item["value"] for item in _geo_dimension_values(company)}
+    citation_score = dimensions.get("citation")
+    has_case_source = any(
+        any(token in (_normalize_text(page.get("role")) + " " + _normalize_text(page.get("title"))).lower()
+            for token in ("case", "customer", "client", "partner", "案例", "客户", "合作"))
+        for page in pages if isinstance(page, dict)
+    )
+
+    member_markup = ""
+    if members:
+        rows = []
+        for index, member in enumerate(members[:6]):
+            member = member if isinstance(member, dict) else {}
+            name = _normalize_text(member.get("name")) or f"成员 {index + 1}"
+            role = _normalize_text(member.get("role")) or "核心成员"
+            background = _normalize_text(member.get("bg"))
+            rows.append(
+                f"""
+                <li class="company-person-row">
+                    <span class="company-person-mark">{escape(name[:1])}</span>
+                    <div><strong>{escape(name)}</strong><span>{escape(role)}</span>{f'<p>{escape(background)}</p>' if background else ''}</div>
+                </li>
+                """
+            )
+        member_markup = f'<ul class="company-person-list">{"".join(rows)}</ul>'
+    else:
+        member_markup = """
+        <div class="company-trust-gap">
+            <p class="company-mini-label">团队实体待补充</p>
+            <strong>当前没有可验证的团队与高管节点</strong>
+            <p>建议公开团队页、高管介绍、作者署名与案例责任人。</p>
+        </div>
+        """
+
+    gaps = []
+    if not members:
+        gaps.append("团队与高管实体")
+    if not has_case_source:
+        gaps.append("案例或合作伙伴证明")
+    if citation_score is None or citation_score < 70:
+        gaps.append("外部权威引用")
+    gap_text = "、".join(gaps)
+    trust_claim = (
+        f"可信度仍需重点检查 {gap_text}。"
+        if gap_text
+        else "当前核心信任信号已经形成基础覆盖。"
+    )
+    citation_display = citation_score if citation_score is not None else "待评估"
+
+    return f"""
+    <div class="company-trust-layout">
+        <div class="company-trust-summary">
+            <p class="company-understanding-claim">{escape(trust_claim)}</p>
+            <dl class="company-trust-facts">
+                <div><dt>团队实体</dt><dd>{len(members)}</dd></div>
+                <div><dt>公开来源</dt><dd>{len(pages)}</dd></div>
+                <div><dt>外部背书</dt><dd>{citation_display}</dd></div>
+            </dl>
+            <p class="company-trust-note">实体、案例与外部引用越清晰，生成式引擎越容易确认品牌身份和引用边界。</p>
+        </div>
+        <div class="company-trust-entities">{member_markup}</div>
+    </div>
+    """
+
+
+def _editorial_roadmap_markup(company: Company) -> str:
+    dimensions = _geo_dimension_values(company)
+    ordered = sorted(
+        dimensions,
+        key=lambda item: item["value"] if item["value"] is not None else -1,
+    )
+    phases = (
+        ("01", "7 天", ordered[:2]),
+        ("02", "30 天", ordered[2:3]),
+        ("03", "90 天", ordered[3:4]),
+    )
+    steps = []
+    for phase_code, phase_label, phase_items in phases:
+        actions = "".join(
+            f"""
+            <li>
+                <strong>{escape(item['label'])}</strong>
+                <p>{escape(_GEO_PRIORITY_ACTIONS[item['key']])}</p>
+                <span>当前 {item['value'] if item['value'] is not None else '待评估'} 分</span>
+            </li>
+            """
+            for item in phase_items
+        )
+        steps.append(
+            f"""
+            <article class="company-roadmap-step">
+                <div class="company-roadmap-marker"><span>{phase_code}</span></div>
+                <div class="company-roadmap-copy">
+                    <p class="company-mini-label">Phase {phase_code}</p>
+                    <h3>{phase_label}</h3>
+                    <ul>{actions}</ul>
+                </div>
+            </article>
+            """
+        )
+    return f'<div class="company-roadmap-timeline">{"".join(steps)}</div>'
+
+
+def _similar_companies_section_markup(companies: list[Company]) -> str:
+    if not companies:
+        return ""
+    items = []
+    for company in companies[:3]:
+        company_name = normalize_company_name(company.name, fallback_name=company.name) or company.name
+        score = f"{float(company.geo_score):.1f}" if company.geo_score is not None else "待评估"
+        items.append(
+            f"""
+            <a href="{company_public_path(company)}" class="company-related-item">
+                <span class="company-related-name">{escape(company_name)}</span>
+                <span class="company-related-category">{escape(_public_profile_value(company.category) or '公司档案')}</span>
+                <strong>GEO {escape(score)}</strong>
+            </a>
+            """
+        )
+    return f"""
+    <section id="company-recommendations" class="company-editorial-section company-related-section" aria-labelledby="company-recommendations-title">
+        <header class="company-section-heading">
+            <p>Related / 同类公司</p>
+            <h2 id="company-recommendations-title">相关公司</h2>
+            <span>继续查看同类公司的 GEO 状态与公开资料。</span>
+        </header>
+        <div class="company-related-list">{"".join(items)}</div>
+    </section>
+    """
+
+
 def _company_structured_data(request: Request, company: Company, canonical_url: str, description: str, keywords: list[str]) -> str:
     company_name = normalize_company_name(company.name, fallback_name=company.name) or company.name
     breadcrumbs = {
@@ -862,7 +1514,7 @@ def _company_structured_data(request: Request, company: Company, canonical_url: 
         "@type": "BreadcrumbList",
         "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "首页", "item": _absolute_url(request, "/")},
-            {"@type": "ListItem", "position": 2, "name": "公司", "item": _absolute_url(request, "/")},
+            {"@type": "ListItem", "position": 2, "name": "公司", "item": _absolute_url(request, "/companies")},
             {"@type": "ListItem", "position": 3, "name": company_name, "item": canonical_url},
         ],
     }
@@ -880,16 +1532,18 @@ def _company_structured_data(request: Request, company: Company, canonical_url: 
     }
     if company.logo_url:
         organization["logo"] = company.logo_url
-    if company.headquarters:
+    headquarters = _public_profile_value(company.headquarters)
+    if headquarters:
         organization["location"] = {
             "@type": "Place",
-            "name": company.headquarters,
-            "address": company.headquarters,
+            "name": headquarters,
+            "address": headquarters,
         }
     if company.founded_date:
         organization["foundingDate"] = _format_iso_date(company.founded_date)
-    if company.employee_count:
-        organization["numberOfEmployees"] = company.employee_count
+    employee_count = _public_profile_value(company.employee_count)
+    if employee_count:
+        organization["numberOfEmployees"] = employee_count
 
     webpage = {
         "@context": "https://schema.org",
@@ -945,15 +1599,18 @@ def _render_page(
     request: Request,
     company: Company,
     similar_companies: list[Company],
+    graph_data: dict[str, Any] | None = None,
 ) -> HTMLResponse:
     display_name = normalize_company_name(company.name, fallback_name=company.name) or company.name
     canonical_url = _absolute_url(request, company_public_path(company))
     allow_index = company.publish_status == PublishStatus.PUBLISHED
-    short_description = _normalize_text(company.short_description) or "查看该公司的 GEO 资料、技术栈、团队信息与相似推荐。"
-    description = _normalize_text(company.description) or short_description
+    short_description = (
+        _public_profile_value(company.short_description)
+        or _public_profile_value(company.description)
+        or "查看该公司的 GEO 资料、技术栈、团队信息与相似推荐。"
+    )[:300]
     title = f"{display_name} - GEO 公司档案 | GEOrank"
     keywords = _company_keywords(company)
-    progress = _progress_value(company.pipeline_status)
     meta_tags = _render_meta_tags(
         title=title,
         description=short_description,
@@ -963,31 +1620,86 @@ def _render_page(
         allow_index=allow_index,
     )
     structured_data = _company_structured_data(request, company, canonical_url, short_description, keywords)
-    tags = _normalize_list(company.tags)
-    tech_stack = _normalize_list(company.tech_stack)
+    tags = [
+        value for value in _normalize_list(company.tags) if _public_profile_value(value)
+    ]
+    tech_stack = [
+        value
+        for value in _normalize_list(company.tech_stack)
+        if _public_profile_value(value)
+    ]
     pages = company.crawl_pages if isinstance(company.crawl_pages, list) else []
     members = company.team_members if isinstance(company.team_members, list) else []
-    brand_summary_html = _brand_summary_markup(
-        company,
-        tags=tags,
-        tech_stack=tech_stack,
-        pages=pages,
-        members=members,
-    )
-    related_terms = (tech_stack + tags)[:12]
-    meta_chips = [chip for chip in [company.category, company.funding_stage, company.headquarters] if _normalize_text(chip)]
     hero_title_class = _hero_title_class(display_name)
-    score_value = max(0.0, min(float(company.geo_score or 0), 100.0))
-    score_ratio = f"{score_value:.1f}"
-    readiness_text = (
-        "该页面已经将品牌名称、简介、抓取来源、技术语义和 GEO 评分拆解直接输出到 HTML，便于搜索引擎和生成式引擎优先理解核心资料。"
-        if progress >= 70
-        else "当前页面已具备基础资料输出，但仍建议继续补强结构化标记、答案层与外部背书，提升 AI 优先读取能力。"
+    graph_nodes = [
+        _public_profile_value(node.get("name"))
+        for node in ((graph_data or {}).get("nodes") or [])
+        if isinstance(node, dict) and _public_profile_value(node.get("name"))
+    ]
+
+    score_value = None if company.geo_score is None else max(0.0, min(float(company.geo_score), 100.0))
+    score_display = "待评估" if score_value is None else f"{score_value:.1f}"
+    score_progress = 0 if score_value is None else score_value
+    score_gauge_angle = score_progress * 3.6
+    strongest, weakest = _geo_priority(company)
+    strongest_label = strongest["label"] if strongest else "待评估"
+    weakest_label = weakest["label"] if weakest else "待评估"
+    profile_status = {
+        "completed": "公开资料已收录",
+        "failed": "资料更新受阻",
+    }.get(company.pipeline_status.value, "公开资料整理中")
+    score_visual_html = (
+        f"""
+        <div class="company-score-gauge" style="--company-score-angle:{score_gauge_angle:.1f}deg" aria-label="GEO 评分 {escape(score_display)}">
+            <div class="company-score-gauge-core">
+                <strong>{escape(score_display)}</strong>
+                <span>/ 100</span>
+            </div>
+        </div>
+        """
+        if score_value is not None
+        else """
+        <div class="company-score-empty">
+            <span>GEO score</span>
+            <strong>待评估</strong>
+        </div>
+        """
     )
+
+    hero_facts = [
+        ("公司类型", _public_profile_value(company.category) or "公司档案"),
+        ("总部地区", _public_profile_value(company.headquarters)),
+        ("成立时间", _public_profile_value(_format_short_date(company.founded_date))),
+        ("团队规模", _public_profile_value(company.employee_count)),
+    ]
+    hero_facts = [(label, value) for label, value in hero_facts if value]
+    hero_facts_html = "".join(
+        f'<div><dt>{escape(label)}</dt><dd>{escape(value)}</dd></div>'
+        for label, value in hero_facts
+    )
+    hero_topics: list[str] = []
+    for item in [company.category, company.funding_stage, company.headquarters, *tags[:5]]:
+        text = _public_profile_value(item)
+        if text and text not in hero_topics:
+            hero_topics.append(text)
+    if company.is_geo_certified:
+        hero_topics.append("GEO 认证合作伙伴")
+    hero_topics_html = "".join(
+        f'<span class="company-term">{escape(topic)}</span>' for topic in hero_topics
+    )
+    hero_topics_block = (
+        f'<div class="company-term-list">{hero_topics_html}</div>' if hero_topics_html else ""
+    )
+
+    similar_section_html = _similar_companies_section_markup(similar_companies)
+    team_section_html = _team_profile_section_markup(company)
+    public_sources_section_html = _public_sources_section_markup(company)
+    team_nav_link = '<a href="#company-team">团队与信任</a>' if team_section_html else ""
+    sources_nav_link = '<a href="#company-sources">公开资料</a>' if public_sources_section_html else ""
     preview_notice = ""
     if company.publish_status != PublishStatus.PUBLISHED:
         preview_notice = """
-        <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-700">
+        <div class="company-preview-notice">
             当前页面为审核预览状态，尚未在公开目录中放出；搜索引擎将收到 noindex。
         </div>
         """
@@ -999,300 +1711,117 @@ def _render_page(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     {meta_tags}
-    <style>body{{opacity:0;transition:opacity 0.15s ease}}</style>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script src="/js/tailwind.config.js"></script>
-    <link rel="stylesheet" href="/css/common.css?v=20260613-common-hidden-fix">
-    <link rel="stylesheet" href="/css/company.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="/css/public-tailwind.css?v=20260716-first-paint-lifecycle">
+    <link rel="stylesheet" href="/css/common.css?v=20260716-first-paint-lifecycle">
+    <link rel="stylesheet" href="/css/company.css?v=20260716-company-profile">
     {structured_data}
 </head>
-<body class="bg-white text-on-surface antialiased overflow-x-hidden company-page">
+<body class="company-page">
+    <a class="company-skip-link" href="#company-profile">跳到公司档案</a>
     <div id="header-container"></div>
 
     <div class="company-page-shell">
-        <div class="company-glow company-glow--blue"></div>
-        <div class="company-glow company-glow--violet"></div>
-        <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-24 md:pt-32 pb-16 md:pb-24">
-        <main class="company-page-content">
-            <section class="company-page-hero">
-                <nav class="flex flex-wrap items-center gap-1 text-xs font-medium text-slate-400">
-                    <a href="/" class="hover:text-primary transition-colors">首页</a>
-                    <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <a href="/" class="hover:text-primary transition-colors">公司</a>
-                    <span class="material-symbols-outlined text-[14px]">chevron_right</span>
-                    <span class="text-on-surface">{escape(display_name)}</span>
-                </nav>
+        <main id="company-content" class="company-page-content">
+            <nav class="company-breadcrumb" aria-label="面包屑">
+                <a href="/">首页</a><span>/</span><a href="/companies">公司</a><span>/</span><span>{escape(display_name)}</span>
+            </nav>
 
-                {preview_notice}
+            {preview_notice}
 
-                <div class="company-hero-shell">
-                    <div class="company-hero-main company-card">
-                        <div class="company-hero-top">
-                            <div class="company-hero-brand">
-                                <div class="company-hero-logo">
-                                    {_logo_markup(company)}
-                                </div>
-                                <div class="company-hero-copy">
-                                    <p class="company-eyebrow">Company Profile</p>
-                                    <h1 class="{hero_title_class}">{escape(display_name)}</h1>
-                                    <div class="company-hero-domain">{escape(company.url)}</div>
-                                </div>
-                            </div>
-                            <div class="company-hero-summary-card">
-                                <p class="company-hero-summary-label">品牌概述</p>
-                                <p class="company-hero-description">{escape(short_description)}</p>
+            <section id="company-profile" class="company-hero" aria-labelledby="company-profile-title">
+                <div class="company-hero-layout">
+                    <article class="company-identity">
+                        <div class="company-identity-brand">
+                            <div class="company-hero-logo">{_logo_markup(company)}</div>
+                            <div class="company-identity-title">
+                                <p class="company-kicker">Company dossier</p>
+                                <h1 id="company-profile-title" class="{hero_title_class}">{escape(display_name)}</h1>
+                                <a class="company-domain" href="{escape(company.url)}" target="_blank" rel="noreferrer">{escape(company.url)}</a>
                             </div>
                         </div>
-
-                        <div class="company-hero-insights">
-                            <div class="company-hero-fact-grid">
-                                {_hero_fact_tiles(company, tags, tech_stack, pages, members)}
-                            </div>
-                            <div class="company-hero-tag-block">
-                                <p class="company-hero-summary-label">核心主题</p>
-                                <div class="company-chip-row">
-                                    {"".join(f'<span class="tag">{escape(item)}</span>' for item in meta_chips)}
-                                    {"".join(f'<span class="tag {"tag-primary" if index < 4 else ""}">{escape(item)}</span>' for index, item in enumerate(tags[:8]))}
-                                    {'<span class="tag tag-primary">GEO 认证合作伙伴</span>' if company.is_geo_certified else ''}
-                                </div>
-                            </div>
+                        <p class="company-hero-description">{escape(short_description)}</p>
+                        <dl class="company-identity-facts">{hero_facts_html}</dl>
+                        {hero_topics_block}
+                        <div class="company-hero-actions">
+                            <a class="company-primary-action" href="{escape(company.url)}" target="_blank" rel="noreferrer">访问官网 <span aria-hidden="true">↗</span></a>
+                            <a class="company-text-action" href="/diagnostic?company_id={company.id}&url={escape(company.url)}">发起 GEO 诊断</a>
                         </div>
+                    </article>
 
-                        <div class="company-cta-row">
-                            <a href="{escape(company.url)}" target="_blank" rel="noreferrer" class="company-primary-action">
-                                <span class="material-symbols-outlined text-base">language</span>
-                                访问官网
-                            </a>
-                            <a href="/diagnostic?company_id={company.id}&url={escape(company.url)}" class="company-secondary-action">
-                                <span class="material-symbols-outlined text-base">analytics</span>
-                                发起诊断
-                            </a>
+                    <aside class="company-hero-score" aria-label="GEO 快照">
+                        <div class="company-score-heading">
+                            <p>GEO 快照</p>
+                            <span>{escape(_geo_score_band(score_value))}</span>
                         </div>
-                    </div>
-
-                    <aside class="company-card company-hero-panel">
-                        <div class="company-card-head">
+                        {score_visual_html}
+                        <p class="company-score-status">{escape(profile_status)}</p>
+                        <div class="company-score-snapshot">
                             <div>
-                                <p class="company-card-eyebrow">Snapshot</p>
-                                <h2 class="company-card-title">企业快照</h2>
+                                <span>优势维度</span>
+                                <strong>{escape(strongest_label)}</strong>
                             </div>
-                            <span class="material-symbols-outlined text-primary">dashboard</span>
-                        </div>
-                        <div class="company-score-shell">
-                            <div class="company-score-ring" style="background:conic-gradient(#2563eb 0 {score_ratio}%, rgba(37, 99, 235, 0.12) {score_ratio}% 100%)">
-                                <div class="company-score-core">
-                                    <strong class="company-score-value">{f"{score_value:.1f}" if company.geo_score is not None else "--"}</strong>
-                                    <span class="company-score-caption">GEO Score</span>
-                                </div>
-                            </div>
-                            <div class="company-score-meta">
-                                <span class="company-score-pill">{escape(company.pipeline_status.value)}</span>
-                                <span class="company-score-pill">HTML Ready</span>
-                                <span class="company-score-pill">AI Readable</span>
+                            <div>
+                                <span>关注维度</span>
+                                <strong>{escape(weakest_label)}</strong>
                             </div>
                         </div>
-                        {_snapshot_rows(company, progress)}
+                        <a class="company-score-link" href="#company-geo">查看 GEO 分析 <span aria-hidden="true">↓</span></a>
+                        <p class="company-score-updated">档案更新于 {_format_short_date(company.updated_at or company.created_at)}</p>
                     </aside>
                 </div>
             </section>
 
-            <section class="company-metric-grid">
-                {_metric_strip_markup(company, progress, tags, tech_stack, pages, members)}
+            <nav class="company-profile-nav" aria-label="公司档案章节">
+                <a href="#company-story">公司介绍</a>
+                <a href="#company-capabilities">业务与能力</a>
+                {team_nav_link}
+                {sources_nav_link}
+                <a href="#company-geo">GEO 分析</a>
+            </nav>
+
+            <section id="company-story" class="company-editorial-section" aria-labelledby="company-story-title">
+                <header class="company-section-heading">
+                    <p>About / 公司故事</p>
+                    <h2 id="company-story-title">公司介绍</h2>
+                    <span>从公开资料理解公司的定位、背景与发展阶段。</span>
+                </header>
+                {_company_story_markup(company, display_name, short_description)}
             </section>
 
-            <section class="company-results-grid">
-                <div class="company-results-two">
-                    <article class="company-card company-card-tall">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Executive Summary</p>
-                                <h2 class="company-card-title">品牌摘要</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">business_center</span>
-                        </div>
-                        <div class="company-prose">
-                            {brand_summary_html or "<p>该公司暂未补充更多档案摘要。</p>"}
-                        </div>
-                    </article>
+            <section id="company-capabilities" class="company-editorial-section" aria-labelledby="company-capabilities-title">
+                <header class="company-section-heading">
+                    <p>Capabilities / 业务档案</p>
+                    <h2 id="company-capabilities-title">业务与能力</h2>
+                    <span>梳理公司公开业务主题，以及官网中识别到的技术与数字工具。</span>
+                </header>
+                {_business_capabilities_markup(company, display_name, tags, tech_stack)}
+            </section>
 
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Readability</p>
-                                <h2 class="company-card-title">页面可读性摘要</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">analytics</span>
-                        </div>
-                        <div class="company-card-stack">
-                            <p class="company-story-text">{escape(readiness_text)}</p>
-                            {_readability_support_markup(company, tags, tech_stack, pages)}
-                        </div>
-                    </article>
-                </div>
+            {team_section_html}
 
-                <div class="company-results-two">
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Knowledge Base</p>
-                                <h2 class="company-card-title">知识库概览</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">inventory_2</span>
-                        </div>
-                        {_brand_summary_support_markup(tags, tech_stack, pages, members)}
-                    </article>
+            {public_sources_section_html}
 
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Completeness</p>
-                                <h2 class="company-card-title">资料完备清单</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">checklist</span>
-                        </div>
-                        <div class="company-card-stack">
-                            {_completeness_summary_markup(company, tags, tech_stack, pages, members)}
-                            {_completeness_markup(company, tags, tech_stack, pages, members)}
-                        </div>
-                    </article>
-                </div>
-
-                <div class="company-results-two">
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Score Dashboard</p>
-                                <h2 class="company-card-title">GEO 评分拆解</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">monitoring</span>
-                        </div>
-                        <div class="company-score-layout">
-                            <div class="company-score-bars">
-                                {_score_rows(company)}
-                            </div>
-                            {_score_dashboard_support_markup(company)}
-                        </div>
-                    </article>
-
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Signals</p>
-                                <h2 class="company-card-title">AI 读取信号矩阵</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">neurology</span>
-                        </div>
-                        {_signal_matrix_markup(company, progress, tags, tech_stack, pages, members)}
-                    </article>
-                </div>
-
-                <div class="company-results-two">
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Semantic Layer</p>
-                                <h2 class="company-card-title">核心语义关键词</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">cloud</span>
-                        </div>
-                        {_semantic_cloud_markup(related_terms)}
-                    </article>
-
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Knowledge Graph</p>
-                                <h2 class="company-card-title">企业语义图谱</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">device_hub</span>
-                        </div>
-                        {_knowledge_graph_markup(company, related_terms, tags, tech_stack)}
-                    </article>
-                </div>
-
-                <div class="company-results-full">
-                    <section class="company-card company-section-block">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Source Pages</p>
-                                <h2 class="company-card-title">AI 优先抓取页面</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">travel_explore</span>
-                        </div>
-                        <p class="company-section-intro">系统先从官网首页抽取一级目录，再优先选择不超过 3 个最适合构建企业知识库的页面进入最终分析。</p>
-                        {_crawl_pages_markup(company)}
-                    </section>
-                </div>
-
-                <div class="company-results-two">
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Source Structure</p>
-                                <h2 class="company-card-title">来源结构优先级</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">schema</span>
-                        </div>
-                        {_source_structure_markup(company)}
-                    </article>
-
-                    <article class="company-card">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Tech & Assets</p>
-                                <h2 class="company-card-title">技术与内容资产</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">code_blocks</span>
-                        </div>
-                        {_tech_stack_markup(company, tags, tech_stack)}
-                    </article>
-                </div>
-
-                <div class="company-results-two">
-                    <section class="company-card company-section-block">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Organization</p>
-                                <h2 class="company-card-title">团队与组织信号</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">groups</span>
-                        </div>
-                        {_team_signal_markup(company)}
-                    </section>
-
-                    <section class="company-card company-section-block">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Recommended</p>
-                                <h2 class="company-card-title">相似公司推荐</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">hub</span>
-                        </div>
-                        {_similar_companies_markup(similar_companies)}
-                    </section>
-                </div>
-
-                <div class="company-results-full">
-                    <section class="company-card company-section-block">
-                        <div class="company-card-head">
-                            <div>
-                                <p class="company-card-eyebrow">Action Roadmap</p>
-                                <h2 class="company-card-title">GEO 行动路线图</h2>
-                            </div>
-                            <span class="material-symbols-outlined text-primary">conversion_path</span>
-                        </div>
-                        {_action_roadmap_markup(company)}
-                    </section>
+            <section id="company-geo" class="company-editorial-section" aria-labelledby="company-geo-title">
+                <header class="company-section-heading">
+                    <p>GEOrank / AI 可见性</p>
+                    <h2 id="company-geo-title">GEO 分析</h2>
+                    <span>查看公司公开信息被生成式引擎理解、识别和引用的当前状态。</span>
+                </header>
+                {_geo_overview_markup(company)}
+                {_geo_semantic_profile_markup(company, display_name, tags, tech_stack, graph_nodes)}
+                <div class="company-geo-actions">
+                    <a class="company-primary-action" href="/diagnostic?company_id={company.id}&url={escape(company.url)}">查看完整 GEO 诊断</a>
                 </div>
             </section>
+
+            {similar_section_html}
         </main>
-        </div>
     </div>
 
     <div id="footer-container"></div>
-    <script src="/js/common.js?v=20260613-site-settings2"></script>
+    <script src="/js/common.js?v=20260716-first-paint-lifecycle"></script>
 </body>
 </html>
 """
@@ -1301,22 +1830,52 @@ def _render_page(
 
 @router.get("/c/{company_identifier}", response_class=HTMLResponse)
 @router.get("/companies/{company_identifier}", response_class=HTMLResponse)
-async def company_detail_page(company_identifier: str, request: Request, db: DbSession):
+async def company_detail_page(
+    company_identifier: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: DbSession,
+):
     company = await get_company_by_identifier(db, company_identifier)
     if not company:
         raise HTTPException(status_code=404, detail="公司不存在")
-
-    if company.pipeline_status == PipelineStatus.COMPLETED and company_profile_needs_hydration(company):
-        try:
-            await ensure_company_profile(db, company)
-            refreshed = await get_company_by_identifier(db, company_identifier)
-            company = refreshed or company
-        except Exception:
-            pass
+    preview_token = request.query_params.get("preview")
+    if (
+        company.publish_status != PublishStatus.PUBLISHED
+        and not verify_company_preview_token(preview_token, company.id)
+    ):
+        raise HTTPException(status_code=404, detail="公司不存在")
 
     canonical_path = company_public_path(company)
     if request.url.path != canonical_path:
-        return RedirectResponse(url=_absolute_url(request, canonical_path), status_code=301)
+        redirect_url = _absolute_url(request, canonical_path)
+        if preview_token:
+            from urllib.parse import quote
 
-    similar_companies = await fallback_similar_companies(db, company, limit=3)
-    return _render_page(request=request, company=company, similar_companies=similar_companies)
+            redirect_url = f"{redirect_url}?preview={quote(preview_token)}"
+        return RedirectResponse(url=redirect_url, status_code=301)
+
+    async def load_graph_data() -> dict[str, Any]:
+        try:
+            from app.services.graph_store import get_company_graph
+
+            return await asyncio.wait_for(get_company_graph(str(company.id)), timeout=2.0)
+        except Exception:
+            logger.warning("Company graph unavailable: company_id=%s", company.id, exc_info=True)
+            return {}
+
+    similar_companies, graph_data = await asyncio.gather(
+        rank_similar_companies(db, company, limit=3),
+        load_graph_data(),
+    )
+    response = _render_page(
+        request=request,
+        company=company,
+        similar_companies=similar_companies,
+        graph_data=graph_data,
+    )
+
+    if company.publish_status == PublishStatus.PUBLISHED:
+        background_tasks.add_task(_increment_company_view_count, company.id)
+
+    return response

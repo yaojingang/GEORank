@@ -1,7 +1,8 @@
 /**
  * Index Page - 公司目录动态加载
  */
-(function () {
+(window.GEOrank?.PageLifecycle?.run?.bind(window.GEOrank.PageLifecycle)
+    || ((callback) => callback()))(() => {
     'use strict';
 
     const API_BASE = '';
@@ -20,7 +21,7 @@
         companyList: document.getElementById('company-list'),
         loadMore: document.getElementById('company-load-more'),
         sortNewest: document.getElementById('company-sort-newest'),
-        sortUpvotes: document.getElementById('company-sort-upvotes'),
+        sortViews: document.getElementById('company-sort-views'),
         featuredTipTitle: document.getElementById('featured-tip-title'),
         featuredTipCopy: document.getElementById('featured-tip-copy'),
         featuredTipLink: document.getElementById('featured-tip-link'),
@@ -33,6 +34,22 @@
         const div = document.createElement('div');
         div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
+    }
+
+    const PUBLIC_PLACEHOLDER_VALUES = new Set([
+        '--',
+        'n/a',
+        'na',
+        'none',
+        'null',
+        'unknown',
+        '待补充',
+        '未知',
+    ]);
+
+    function publicProfileValue(value) {
+        const normalized = value == null ? '' : String(value).replace(/\s+/g, ' ').trim();
+        return PUBLIC_PLACEHOLDER_VALUES.has(normalized.toLowerCase()) ? '' : normalized;
     }
 
     function request(path) {
@@ -82,30 +99,35 @@
     }
 
     function renderCompanyCard(company) {
-        const tags = Array.isArray(company.tags) ? company.tags.slice(0, 3) : [];
-        const metaTags = [company.category, company.funding_stage, company.headquarters].filter(Boolean);
+        const tags = Array.isArray(company.tags)
+            ? company.tags.map(publicProfileValue).filter(Boolean).slice(0, 3)
+            : [];
+        const metaTags = [company.category, company.funding_stage, company.headquarters]
+            .map(publicProfileValue)
+            .filter(Boolean);
+        const description = publicProfileValue(company.short_description) || '该公司暂未补充简介';
         return `
             <div class="group flex items-start gap-4 md:gap-6 p-3 md:p-4 rounded-xl hover:bg-slate-50 transition-colors duration-300">
                 <div class="w-14 h-14 md:w-20 md:h-20 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-100 border border-slate-100">
                     ${renderCompanyLogo(company)}
                 </div>
                 <div class="flex-grow min-w-0">
-                    <a href="${buildCompanyLink(company)}" class="block">
+                    <a href="${buildCompanyLink(company)}" class="company-card-link block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
                         <div class="flex items-center gap-2 mb-1">
                             <h3 class="text-base md:text-lg font-bold font-headline truncate group-hover:text-primary transition-colors">${escapeHtml(company.name)}</h3>
                             ${company.is_geo_certified ? '<span class="material-symbols-outlined text-primary text-sm filled">verified</span>' : ''}
                         </div>
+                        <p class="text-on-surface-variant text-sm mb-3 line-clamp-2">${escapeHtml(description)}</p>
                     </a>
-                    <p class="text-on-surface-variant text-sm mb-3 line-clamp-2">${escapeHtml(company.short_description || '该公司暂未补充简介')}</p>
                     <div class="flex flex-wrap gap-2">
                         ${tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
                         ${!tags.length && metaTags.length ? metaTags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('') : ''}
                     </div>
                 </div>
-                <button type="button" disabled title="用户投票功能即将开放" class="flex flex-col items-center justify-center border border-slate-100 rounded-lg px-3 py-2 bg-white/80 text-slate-400 min-w-[52px] cursor-not-allowed">
-                    <span class="material-symbols-outlined text-sm">arrow_drop_up</span>
-                    <span class="text-xs md:text-sm font-bold mt-1">${Number(company.upvotes || 0).toLocaleString('zh-CN')}</span>
-                </button>
+                <div title="公司详情页访问量" aria-label="公司详情页访问量 ${Number(company.view_count || 0).toLocaleString('zh-CN')}" class="flex min-w-[58px] flex-col items-center justify-center rounded-lg border border-slate-100 bg-white/80 px-3 py-2 text-slate-400">
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">visibility</span>
+                    <span class="mt-1 text-xs font-bold text-slate-500 md:text-sm">${Number(company.view_count || 0).toLocaleString('zh-CN')}</span>
+                </div>
             </div>
         `;
     }
@@ -113,13 +135,15 @@
     function updateSortButtons() {
         [
             [elements.sortNewest, 'newest'],
-            [elements.sortUpvotes, 'upvotes'],
+            [elements.sortViews, 'views'],
         ].forEach(([button, value]) => {
             if (!button) return;
             const isActive = state.sort === value;
+            button.setAttribute('aria-pressed', String(isActive));
+            button.querySelector('[data-company-sort-indicator]')?.classList.toggle('hidden', !isActive);
             button.className = isActive
-                ? 'text-sm font-semibold text-primary flex items-center gap-1'
-                : 'text-sm font-semibold text-neutral-400 hover:text-neutral-900 transition-colors';
+                ? 'company-sort-control text-sm font-semibold text-primary flex items-center gap-1'
+                : 'company-sort-control text-sm font-semibold text-neutral-400 hover:text-neutral-900 transition-colors flex items-center gap-1';
         });
     }
 
@@ -177,7 +201,12 @@
         }
 
         elements.hotCompaniesList.innerHTML = companies.map((company) => {
-            const tags = Array.isArray(company.tags) ? company.tags.slice(0, 2) : [];
+            const tags = Array.isArray(company.tags)
+                ? company.tags.map(publicProfileValue).filter(Boolean).slice(0, 2)
+                : [];
+            const category = publicProfileValue(company.category) || 'GEO';
+            const description = publicProfileValue(company.short_description)
+                || '正在构建生成式搜索时代的 GEO 能力与内容分发体系。';
             return `
                 <a href="${buildCompanyLink(company)}" class="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-4 transition-all hover:border-primary/20 hover:bg-slate-50">
                     <div class="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-slate-50 border border-slate-100">
@@ -188,9 +217,9 @@
                             <p class="text-sm font-bold leading-6 text-slate-800 truncate">${escapeHtml(company.name)}</p>
                             ${company.is_geo_certified ? '<span class="material-symbols-outlined text-primary text-sm filled">verified</span>' : ''}
                         </div>
-                        <p class="mt-1 text-xs leading-6 text-slate-500 line-clamp-2">${escapeHtml(company.short_description || '正在构建生成式搜索时代的 GEO 能力与内容分发体系。')}</p>
+                        <p class="mt-1 text-xs leading-6 text-slate-500 line-clamp-2">${escapeHtml(description)}</p>
                         <div class="mt-2 flex flex-wrap gap-2">
-                            ${(tags.length ? tags : [company.category || 'GEO']).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                            ${(tags.length ? tags : [category]).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
                         </div>
                     </div>
                 </a>
@@ -243,7 +272,7 @@
 
     async function loadPopularCompanies() {
         try {
-            const payload = await request('/api/companies/?page=1&size=3&sort=upvotes');
+            const payload = await request('/api/companies/?page=1&size=3&sort=views');
             state.popularCompanies = Array.isArray(payload.items) ? payload.items : [];
             renderHotCompanies();
         } catch (_) {
@@ -317,9 +346,5 @@
         ]);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
+    init();
+});

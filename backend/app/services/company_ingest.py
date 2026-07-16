@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+import ipaddress
+import socket
 from typing import Iterable
 from urllib.parse import urlparse, urlunparse
 import re
@@ -71,6 +73,26 @@ _ROLE_PATTERNS = [
     ("product", ("product", "products", "platform", "solution", "solutions", "technology")),
 ]
 
+_BLOCKED_HOSTNAMES = {"localhost", "localhost.localdomain"}
+
+
+def _validate_public_hostname(hostname: str) -> None:
+    normalized = hostname.rstrip(".").lower()
+    if (
+        normalized in _BLOCKED_HOSTNAMES
+        or normalized.endswith(".localhost")
+        or normalized.endswith(".local")
+        or normalized.endswith(".internal")
+    ):
+        raise ValueError("公司官网必须使用可公开访问的互联网地址")
+
+    try:
+        address = ipaddress.ip_address(normalized)
+    except ValueError:
+        return
+    if not address.is_global:
+        raise ValueError("公司官网不能指向内网、回环或保留地址")
+
 
 def normalize_company_url(raw_url: str) -> str:
     value = (raw_url or "").strip()
@@ -87,6 +109,11 @@ def normalize_company_url(raw_url: str) -> str:
         raise ValueError("仅支持 http 或 https 网站地址")
     if not parsed.netloc:
         raise ValueError("请输入有效的公司官网地址")
+    if parsed.username or parsed.password:
+        raise ValueError("公司官网地址不能包含登录凭据")
+    if not parsed.hostname:
+        raise ValueError("请输入有效的公司官网地址")
+    _validate_public_hostname(parsed.hostname)
 
     path = parsed.path or ""
     normalized_path = path.rstrip("/")
@@ -103,6 +130,27 @@ def normalize_company_url(raw_url: str) -> str:
             "",
         )
     )
+
+
+def validate_public_crawl_url(raw_url: str) -> str:
+    normalized_url = normalize_company_url(raw_url)
+    parsed = urlparse(normalized_url)
+    hostname = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        resolved = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+    except OSError as exc:
+        raise ValueError(f"公司官网域名解析失败：{hostname}") from exc
+    if not resolved:
+        raise ValueError(f"公司官网域名没有可用地址：{hostname}")
+
+    for family, _, _, _, sockaddr in resolved:
+        if family not in {socket.AF_INET, socket.AF_INET6}:
+            continue
+        address = ipaddress.ip_address(sockaddr[0])
+        if not address.is_global:
+            raise ValueError("公司官网解析到了内网、回环或保留地址")
+    return normalized_url
 
 
 def _same_domain(left: str, right: str) -> bool:

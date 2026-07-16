@@ -30,7 +30,7 @@ Public fixture review must confirm:
 
 ## Built-in homepage
 
-Release `43a461f6-6be2-4931-9dbb-f1d56576292a` is the built-in default homepage. Its canonical uploaded source is:
+Release `9fe4a087-42bc-423a-bc59-fc020018a6f9` is the built-in default homepage. Its canonical uploaded source is:
 
 `runtime/homepages/releases/<release-id>/source`
 

@@ -1,0 +1,26 @@
+interface:
+  display_name: "GEOrank 管理助手"
+  short_description: "登录并安全管理 GEOrank 的用户、诊断、内容与管理员能力"
+  default_prompt: "Use $georank to operate this GEOrank instance. Guide login as an ordinary user, detect the role with /api/auth/me, and gate administrator changes with a preflight and explicit confirmation."
+compatibility:
+  canonical_format: "agent-skills"
+  adapter_targets:
+    - "openai"
+    - "claude"
+    - "generic"
+    - "vscode"
+  activation:
+    mode: "manual"
+    paths: []
+  execution:
+    context: "inline"
+    shell: "bash"
+  trust:
+    source_tier: "local"
+    remote_inline_execution: "forbid"
+    remote_metadata_policy: "allow-metadata-only"
+  degradation:
+    openai: "metadata-adapter"
+    claude: "neutral-source-plus-adapter"
+    generic: "neutral-source"
+    vscode: "agent-skills-source-with-vscode-notes"

@@ -1,18 +1,23 @@
 'use client';
 
 import type {FormEvent} from 'react';
-import {useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslations} from 'next-intl';
 
 import type {AdminHomepageRelease, AdminHomepageResponse} from '@georank/api-sdk';
 import {
   activateAdminHomepageRelease,
+  cloneAdminHomepageRelease,
   createAdminHomepageRelease,
   deleteAdminHomepageRelease,
   getAdminHomepage,
+  getAdminHomepageReleaseSource,
   previewAdminHomepageRelease,
-  restoreDefaultAdminHomepage
+  restoreDefaultAdminHomepage,
+  updateAdminHomepageReleaseSource
 } from '@georank/api-sdk';
+
+import {HtmlCodeEditor} from './html-code-editor';
 
 type AdminHomepageProps = {
   token: string;
@@ -35,10 +40,25 @@ export function AdminHomepage({token}: AdminHomepageProps) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [cloning, setCloning] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorLoading, setEditorLoading] = useState(false);
+  const [editorSaving, setEditorSaving] = useState(false);
+  const [editorHtml, setEditorHtml] = useState('');
+  const [savedEditorHtml, setSavedEditorHtml] = useState('');
+  const [editorSourceSha256, setEditorSourceSha256] = useState('');
+  const [editorError, setEditorError] = useState('');
   const [error, setError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const selectedIdRef = useRef(selectedId);
+  const editorLoadRequestRef = useRef(0);
+  const pendingEditorIdRef = useRef('');
 
-  async function loadHomepage(nextSelectedId?: string) {
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  const loadHomepage = useCallback(async (nextSelectedId?: string) => {
     setLoading(true);
     setError('');
     try {
@@ -58,15 +78,26 @@ export function AdminHomepage({token}: AdminHomepageProps) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [t, token]);
 
   useEffect(() => {
-    loadHomepage();
-  }, [token]);
+    void loadHomepage();
+  }, [loadHomepage]);
 
   const selected = useMemo<AdminHomepageRelease | null>(() => {
     return payload?.releases.find((release) => release.id === selectedId) || null;
   }, [payload, selectedId]);
+  const editorDirty = editorHtml !== savedEditorHtml;
+
+  useEffect(() => {
+    if (!editorOpen || !editorDirty) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [editorDirty, editorOpen]);
 
   const topStats = useMemo(
     () => [
@@ -86,8 +117,18 @@ export function AdminHomepage({token}: AdminHomepageProps) {
     [payload, t]
   );
 
+  function confirmDiscardEditorChanges() {
+    return !editorOpen || !editorDirty || window.confirm(t('editorDiscardConfirm'));
+  }
+
+  function handleSelectRelease(releaseId: string) {
+    if (releaseId === selectedId || !confirmDiscardEditorChanges()) return;
+    setSelectedId(releaseId);
+  }
+
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!confirmDiscardEditorChanges()) return;
     setCreating(true);
     setActionMessage('');
     try {
@@ -159,6 +200,98 @@ export function AdminHomepage({token}: AdminHomepageProps) {
     }
   }
 
+  const openEditorForRelease = useCallback(async (releaseId: string) => {
+    const requestId = ++editorLoadRequestRef.current;
+    setEditorOpen(true);
+    setEditorLoading(true);
+    setEditorError('');
+    try {
+      const source = await getAdminHomepageReleaseSource(token, releaseId);
+      if (editorLoadRequestRef.current !== requestId || selectedIdRef.current !== releaseId) return;
+      setEditorHtml(source.html);
+      setSavedEditorHtml(source.html);
+      setEditorSourceSha256(source.sha256);
+    } catch (actionError: unknown) {
+      if (editorLoadRequestRef.current === requestId && selectedIdRef.current === releaseId) {
+        setEditorError(actionError instanceof Error ? actionError.message : t('editorLoadFailed'));
+      }
+    } finally {
+      if (editorLoadRequestRef.current === requestId) setEditorLoading(false);
+    }
+  }, [t, token]);
+
+  useEffect(() => {
+    editorLoadRequestRef.current += 1;
+    setEditorOpen(false);
+    setEditorHtml('');
+    setSavedEditorHtml('');
+    setEditorSourceSha256('');
+    setEditorError('');
+    if (pendingEditorIdRef.current && pendingEditorIdRef.current === selectedId) {
+      pendingEditorIdRef.current = '';
+      void openEditorForRelease(selectedId);
+    }
+  }, [openEditorForRelease, selectedId]);
+
+  async function handleOpenEditor() {
+    if (!selected || selected.is_builtin) return;
+    await openEditorForRelease(selected.id);
+  }
+
+  async function handleCloneAndEdit() {
+    if (!selected || !selected.is_builtin || cloning) return;
+    setCloning(true);
+    setActionMessage('');
+    try {
+      const created = await cloneAdminHomepageRelease(token, selected.id);
+      pendingEditorIdRef.current = created.id;
+      await loadHomepage(created.id);
+      setActionMessage(t('clonedMessage'));
+    } catch (actionError: unknown) {
+      setActionMessage(actionError instanceof Error ? actionError.message : t('cloneFailed'));
+    } finally {
+      setCloning(false);
+    }
+  }
+
+  function handleCloseEditor() {
+    if (editorDirty && !window.confirm(t('editorDiscardConfirm'))) return;
+    setEditorOpen(false);
+    setEditorHtml('');
+    setSavedEditorHtml('');
+    setEditorSourceSha256('');
+    setEditorError('');
+  }
+
+  async function handleSaveEditor() {
+    if (!selected || selected.is_builtin || editorSaving || !editorDirty || !editorSourceSha256) return;
+    const releaseId = selected.id;
+    const submittedHtml = editorHtml;
+    setEditorSaving(true);
+    setEditorError('');
+    setActionMessage('');
+    try {
+      const result = await updateAdminHomepageReleaseSource(
+        token,
+        releaseId,
+        submittedHtml,
+        editorSourceSha256
+      );
+      if (selectedIdRef.current === releaseId) {
+        setSavedEditorHtml(submittedHtml);
+        setEditorSourceSha256(result.source_sha256);
+        setActionMessage(result.updated_active ? t('editorSavedActive') : t('editorSaved'));
+      }
+      await loadHomepage(selectedIdRef.current || undefined);
+    } catch (actionError: unknown) {
+      if (selectedIdRef.current === releaseId) {
+        setEditorError(actionError instanceof Error ? actionError.message : t('editorSaveFailed'));
+      }
+    } finally {
+      setEditorSaving(false);
+    }
+  }
+
   return (
     <main className="admin-page">
       <section className="admin-page__hero">
@@ -224,7 +357,7 @@ export function AdminHomepage({token}: AdminHomepageProps) {
               <label className="admin-field">
                 <span>{t('zipFile')}</span>
                 <input
-                  className="admin-input"
+                  className="admin-input homepage-file-input"
                   accept=".zip"
                   required
                   type="file"
@@ -260,7 +393,7 @@ export function AdminHomepage({token}: AdminHomepageProps) {
                   className={`admin-record-row ${release.id === selectedId ? 'is-active' : ''}`}
                   key={release.id}
                   type="button"
-                  onClick={() => setSelectedId(release.id)}
+                  onClick={() => handleSelectRelease(release.id)}
                 >
                   <div className="admin-record-row__body">
                     <div className="admin-record-row__title">
@@ -273,7 +406,7 @@ export function AdminHomepage({token}: AdminHomepageProps) {
                     <p>{release.entry_path || release.storage_path || release.id}</p>
                     <div className="admin-record-row__meta">
                       <span>{release.source_type}</span>
-                      <span>{formatBytes(release.compressed_size)}</span>
+                      <span>{formatBytes(release.extracted_size || release.compressed_size)}</span>
                       <span>{t('fileCount', {count: release.file_count || 0})}</span>
                     </div>
                   </div>
@@ -294,6 +427,14 @@ export function AdminHomepage({token}: AdminHomepageProps) {
             <div className="admin-company-detail__actions">
               <button className="admin-button admin-button--ghost admin-button--small" onClick={handlePreview}>
                 {t('preview')}
+              </button>
+              <button
+                className="admin-button admin-button--ghost admin-button--small"
+                disabled={cloning}
+                title={selected.is_builtin ? t('cloneDescription') : undefined}
+                onClick={selected.is_builtin ? handleCloneAndEdit : handleOpenEditor}
+              >
+                {selected.is_builtin ? (cloning ? t('cloning') : t('cloneAndEdit')) : t('editHtml')}
               </button>
               <button
                 className="admin-button admin-button--primary admin-button--small"
@@ -334,6 +475,54 @@ export function AdminHomepage({token}: AdminHomepageProps) {
             </div>
           </div>
         )}
+        {selected && editorOpen ? (
+          <section className="admin-html-editor" aria-label={t('editorTitle')}>
+            <div className="admin-html-editor__header">
+              <div>
+                <div className="admin-html-editor__title-row">
+                  <h3>{t('editorTitle')}</h3>
+                  <span className={`admin-pill ${editorDirty ? 'admin-pill--warning' : 'admin-pill--success'}`}>
+                    {editorDirty ? t('editorUnsaved') : t('editorSavedState')}
+                  </span>
+                </div>
+                <p>{t('editorDescription')}</p>
+              </div>
+              <button className="admin-button admin-button--ghost admin-button--small" onClick={handleCloseEditor}>
+                {actions('cancel')}
+              </button>
+            </div>
+            {editorError ? <div className="admin-inline-error">{editorError}</div> : null}
+            {editorLoading ? (
+              <div className="admin-html-editor__loading">{t('editorLoading')}</div>
+            ) : (
+              <HtmlCodeEditor
+                ariaLabel={t('editorAriaLabel')}
+                value={editorHtml}
+                onChange={setEditorHtml}
+                onSave={handleSaveEditor}
+              />
+            )}
+            <div className="admin-html-editor__footer">
+              <p>{t('editorHint')}</p>
+              <div className="admin-company-detail__actions">
+                <button className="admin-button admin-button--ghost admin-button--small" onClick={handlePreview}>
+                  {t('preview')}
+                </button>
+                <button
+                  className="admin-button admin-button--primary admin-button--small"
+                  disabled={editorLoading || editorSaving || !editorDirty}
+                  onClick={handleSaveEditor}
+                >
+                  {editorSaving
+                    ? t('editorSaving')
+                    : selected.status === 'active'
+                      ? t('editorSave')
+                      : t('editorSaveDraft')}
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
       </section>
     </main>
   );
