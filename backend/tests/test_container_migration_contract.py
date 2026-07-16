@@ -3,8 +3,21 @@ import unittest
 
 import yaml
 
+from app.core.config import Settings
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+class ComposeLoader(yaml.SafeLoader):
+    pass
+
+
+for compose_tag in ("!override", "!reset"):
+    ComposeLoader.add_constructor(
+        compose_tag,
+        lambda loader, node: loader.construct_sequence(node),
+    )
 
 
 class ContainerMigrationContractTests(unittest.TestCase):
@@ -12,6 +25,12 @@ class ContainerMigrationContractTests(unittest.TestCase):
     def setUpClass(cls):
         cls.compose = yaml.safe_load(
             (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        )
+        cls.contract = yaml.load(
+            (REPO_ROOT / "docker-compose.migration-contract.yml").read_text(
+                encoding="utf-8"
+            ),
+            Loader=ComposeLoader,
         )
 
     def test_compose_has_one_migration_owner(self):
@@ -54,6 +73,12 @@ class ContainerMigrationContractTests(unittest.TestCase):
             services["frontend"]["depends_on"]["api"]["condition"],
             "service_healthy",
         )
+
+    def test_migration_contract_api_passes_production_security_validation(self):
+        environment = self.contract["services"]["api"]["environment"]
+        config = Settings(_env_file=None, **environment)
+
+        config.validate_production_security()
 
     def test_postgres_healthcheck_uses_configured_database_and_user(self):
         command = self.compose["services"]["postgres"]["healthcheck"]["test"][-1]
