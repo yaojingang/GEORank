@@ -227,17 +227,54 @@ test('new frontend JavaScript reveals a legacy cached transparent document befor
   );
 });
 
-test('the immediate header shell is structural and exposes no unbound controls', async () => {
-  const source = await readFile(sharedFrontendScriptPath, 'utf8');
-  const shellMatch = source.match(/const HEADER_SHELL_HTML = `([\s\S]*?)`;/);
+test('the immediate header is complete before asynchronous configuration loads', async () => {
+  const [source, header] = await Promise.all([
+    readFile(sharedFrontendScriptPath, 'utf8'),
+    readFile(sharedHeaderPath, 'utf8')
+  ]);
+  const inlineHeader = source.match(/const HEADER_HTML = `([\s\S]*?)`;/)?.[1] || '';
 
-  assert.ok(shellMatch, 'expected a dedicated immediate header shell');
-  assert.match(shellMatch[1], /<nav\b[^>]*aria-hidden="true"/);
-  assert.doesNotMatch(shellMatch[1], /<(?:a|button)\b|data-(?:nav-link|auth-trigger)/);
+  assert.ok(inlineHeader, 'expected a complete immediate header');
+  assert.match(inlineHeader, /<nav\b[^>]*id="main-nav"/);
+  assert.match(inlineHeader, /data-nav-link/);
+  assert.match(inlineHeader, /data-auth-trigger/);
+  assert.match(inlineHeader, /id="mobile-menu-toggle"/);
+  assert.match(inlineHeader, /data-navigation-item="github"/);
+  assert.match(header, /data-navigation-item="github"/);
+  assert.doesNotMatch(source, /HEADER_SHELL_HTML/);
   assert.match(
     source,
-    /mountFallbacks\(\)\s*\{[\s\S]*?header\.innerHTML\s*=\s*HEADER_SHELL_HTML/
+    /mountFallbacks\(\)\s*\{[\s\S]*?header\.innerHTML\s*=\s*HEADER_HTML/
   );
+  assert.match(
+    source,
+    /loadHeader\(\)\s*\{[\s\S]*?header\?\.querySelector\('#main-nav'\)[\s\S]*?this\.load\('\/components\/header\.html'/
+  );
+});
+
+test('first-frame header controls render without external icon fonts', async () => {
+  const [source, sharedHeader, solutionsDocument] = await Promise.all([
+    readFile(sharedFrontendScriptPath, 'utf8'),
+    readFile(sharedHeaderPath, 'utf8'),
+    readFile(solutionsDocumentPath, 'utf8')
+  ]);
+  const inlineHeader = source.match(/const HEADER_HTML = `([\s\S]*?)`;/)?.[1] || '';
+  const solutionsHeader = solutionsDocument.match(
+    /<div id="header-container"[^>]*>([\s\S]*?)<\/div>\s*\n\s*<!-- Main Container -->/
+  )?.[1] || '';
+
+  for (const [label, header] of [
+    ['inline header', inlineHeader],
+    ['shared header', sharedHeader],
+    ['solutions header', solutionsHeader]
+  ]) {
+    assert.equal([...header.matchAll(/<svg\b/g)].length, 2, label);
+    assert.doesNotMatch(
+      header,
+      /class="material-symbols-outlined[^>]*">\s*(?:person|menu)\s*</,
+      label
+    );
+  }
 });
 
 test('module configuration updates the visible header independently of component hydration', async () => {
