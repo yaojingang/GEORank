@@ -30,7 +30,11 @@ from app.models.company import Company, PipelineStatus, PublishStatus  # noqa: E
 from app.models.conversation import Conversation, Message  # noqa: E402
 from app.models.settings import Setting  # noqa: E402
 from app.models.user import User, UserRole  # noqa: E402
-from app.services.ai_usage import record_async_task_usage, usage_date_for_policy  # noqa: E402
+from app.services.ai_usage import (  # noqa: E402
+    admin_user_quota_payload,
+    record_async_task_usage,
+    usage_date_for_policy,
+)
 from app.services.runtime_settings import invalidate_runtime_settings_cache  # noqa: E402
 
 
@@ -221,11 +225,48 @@ class AiUsagePolicyApiTests(unittest.TestCase):
         self.assertEqual(updated.json()["remaining_tokens"], 24500)
         self.assertTrue(updated.json()["frozen"])
 
-        async def _audit_count():
+        async def _audit_payload():
             async with async_session() as db:
-                return int(await db.scalar(select(func.count(AIQuotaAuditLog.id))) or 0)
+                audit = (
+                    await db.execute(
+                        select(AIQuotaAuditLog).where(
+                            AIQuotaAuditLog.action == "admin_wallet_update"
+                        )
+                    )
+                ).scalar_one()
+                return {
+                    "delta_tokens": audit.delta_tokens,
+                    "before_state": audit.before_state,
+                    "after_state": audit.after_state,
+                }
 
-        self.assertEqual(self.run_async(_audit_count()), 1)
+        audit = self.run_async(_audit_payload())
+        self.assertEqual(audit["delta_tokens"], 14500)
+        self.assertEqual(audit["before_state"]["consumed_tokens"], 0)
+        self.assertEqual(audit["after_state"]["consumed_tokens"], 500)
+
+    def test_celery_visibility_timeout_exceeds_async_reservation_lifetime(self):
+        from app.core.celery_app import celery_app
+
+        visibility_timeout = celery_app.conf.broker_transport_options["visibility_timeout"]
+        self.assertGreater(visibility_timeout, 6 * 60 * 60)
+
+    def test_admin_quota_payload_leaves_transaction_control_to_caller(self):
+        user = self.run_async(self._register_user())
+
+        async def _load_without_commit():
+            async with async_session() as db:
+                stored_user = (
+                    await db.execute(select(User).where(User.email == user["email"]))
+                ).scalar_one()
+                commit = AsyncMock()
+                with patch.object(db, "commit", commit):
+                    payload = await admin_user_quota_payload(db, stored_user)
+                commit.assert_not_awaited()
+                return payload
+
+        payload = self.run_async(_load_without_commit())
+        self.assertEqual(payload["username"], user["username"])
 
     def test_solutions_chat_is_blocked_when_estimated_request_exceeds_daily_quota(self):
         admin = self.run_async(self._register_user(admin=True))

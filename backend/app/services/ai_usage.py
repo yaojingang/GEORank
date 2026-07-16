@@ -1738,7 +1738,6 @@ async def admin_user_quota_payload(db: AsyncSession, user: User) -> dict[str, An
             select(func.count(AIPrincipalDevice.id)).where(AIPrincipalDevice.principal_id == principal_id)
         ) or 0
     )
-    await db.commit()
     return {
         "user_id": str(user.id),
         "username": user.username,
@@ -1790,13 +1789,18 @@ async def update_admin_user_quota(
         "reserved_tokens": wallet.reserved_tokens,
         "frozen": wallet.frozen,
     }
+    available_token_delta = (
+        wallet.granted_tokens
+        - int(before_state["granted_tokens"])
+        - (wallet.consumed_tokens - int(before_state["consumed_tokens"]))
+    )
     db.add(
         AIQuotaAuditLog(
             actor_user_id=admin.id,
             target_user_id=user.id,
             principal_id=principal_id,
             action="admin_wallet_update",
-            delta_tokens=wallet.granted_tokens - int(before_state["granted_tokens"]),
+            delta_tokens=available_token_delta,
             before_state=before_state,
             after_state=after_state,
             reason=reason.strip(),

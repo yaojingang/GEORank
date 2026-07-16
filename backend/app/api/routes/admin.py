@@ -2835,7 +2835,9 @@ class AdminUserQuotaUpdateRequest(BaseModel):
 async def get_user_ai_quota_admin(user_id: str, db: DbSession, _: AdminUser):
     """读取用户所属风险主体的终身 AI 额度。"""
     user = await _load_admin_user_or_404(db, user_id)
-    return await admin_user_quota_payload(db, user)
+    payload = await admin_user_quota_payload(db, user)
+    await db.commit()
+    return payload
 
 
 @router.put("/users/{user_id}/ai-quota")
