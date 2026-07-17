@@ -4247,6 +4247,178 @@ ${pages.map(p => p === '…'
         });
     }
 
+    async function openUserEditModal(userId) {
+        if (!userId) return;
+
+        let user;
+        try {
+            user = await api('GET', `/api/admin/users/${userId}`);
+        } catch (err) {
+            toast('加载用户资料失败: ' + err.message, 'error');
+            return;
+        }
+
+        const isCurrentUser = Boolean(currentAdminUser?.id && currentAdminUser.id === user.id);
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[9998] bg-slate-900/45 flex items-center justify-center p-4';
+        overlay.innerHTML = `
+<div class="admin-dialog bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-x-hidden overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="user-edit-title">
+    <div class="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4 sticky top-0 bg-white z-10 rounded-t-2xl">
+        <div class="min-w-0">
+            <p class="text-xs font-bold text-blue-600 uppercase tracking-widest">USER PROFILE</p>
+            <h3 id="user-edit-title" class="text-lg font-bold font-headline mt-1 break-all">编辑用户 · ${escapeHtml(user.username || '未命名用户')}</h3>
+            <p class="text-sm text-slate-500 mt-1">修改账号资料、权限状态和登录密码。</p>
+        </div>
+        <button type="button" id="user-edit-close" class="flex-shrink-0" aria-label="关闭编辑用户弹窗">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
+
+    <div class="p-6 space-y-6">
+        <form id="user-profile-form" class="space-y-5">
+            <div>
+                <h4 class="text-sm font-bold text-slate-800">账号资料</h4>
+                <p class="text-xs text-slate-500 mt-1">保存后会立即更新用户列表和登录标识。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="space-y-2 text-sm">
+                    <span class="font-semibold text-slate-700">用户名</span>
+                    <input name="username" autocomplete="username" class="form-input" required minlength="2" maxlength="100" value="${escapeHtml(user.username || '')}">
+                </label>
+                <label class="space-y-2 text-sm">
+                    <span class="font-semibold text-slate-700">邮箱</span>
+                    <input name="email" type="email" autocomplete="email" class="form-input" required maxlength="200" value="${escapeHtml(user.email || '')}">
+                </label>
+                <label class="space-y-2 text-sm">
+                    <span class="font-semibold text-slate-700">手机号</span>
+                    <input name="phone" type="tel" autocomplete="tel" class="form-input" minlength="6" maxlength="30" placeholder="未绑定" value="${escapeHtml(user.phone || '')}">
+                </label>
+                <label class="space-y-2 text-sm">
+                    <span class="font-semibold text-slate-700">角色</span>
+                    <select name="role" class="form-input" ${isCurrentUser ? 'disabled title="当前管理员不能修改自己的角色"' : ''}>
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>管理员</option>
+                        <option value="enterprise" ${user.role === 'enterprise' ? 'selected' : ''}>企业用户</option>
+                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>普通用户</option>
+                    </select>
+                </label>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-between gap-4 text-sm font-semibold text-slate-700">
+                    <span>账号启用</span>
+                    <input name="is_active" type="checkbox" ${user.is_active ? 'checked' : ''} ${isCurrentUser ? 'disabled title="当前管理员不能停用自己"' : ''}>
+                </label>
+                <label class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-between gap-4 text-sm font-semibold text-slate-700">
+                    <span>邮箱已验证</span>
+                    <input name="is_verified" type="checkbox" ${user.is_verified ? 'checked' : ''}>
+                </label>
+            </div>
+            ${isCurrentUser ? '<p class="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs leading-5 text-blue-700">当前账号的角色和启用状态受保护。</p>' : ''}
+            <div class="flex justify-end">
+                <button type="submit" id="user-profile-submit" class="btn btn-primary px-5 py-2 rounded-lg text-sm">保存账号资料</button>
+            </div>
+        </form>
+
+        <div class="border-t border-slate-100"></div>
+
+        ${isCurrentUser ? `
+        <section class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-4">
+            <h4 class="text-sm font-bold text-slate-800">修改登录密码</h4>
+            <p class="text-xs leading-5 text-slate-500 mt-1">当前管理员请前往个人中心修改自己的登录密码。</p>
+        </section>` : `
+        <form id="user-password-form" class="space-y-5">
+            <div>
+                <h4 class="text-sm font-bold text-slate-800">直接重置登录密码</h4>
+                <p class="text-xs leading-5 text-slate-500 mt-1">输入两次新密码后立即生效，请将新密码安全告知用户。已有登录会话可能继续有效至会话过期。</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="space-y-2 text-sm">
+                    <span class="font-semibold text-slate-700">新密码</span>
+                    <input name="new_password" type="password" autocomplete="new-password" class="form-input" required minlength="6" maxlength="128" placeholder="至少 6 位">
+                </label>
+                <label class="space-y-2 text-sm">
+                    <span class="font-semibold text-slate-700">确认新密码</span>
+                    <input name="confirm_password" type="password" autocomplete="new-password" class="form-input" required minlength="6" maxlength="128" placeholder="再次输入新密码">
+                </label>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" id="user-password-submit" class="btn admin-btn-secondary px-5 py-2 rounded-lg text-sm inline-flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-base">password</span>
+                    重置密码
+                </button>
+            </div>
+        </form>`}
+    </div>
+</div>`;
+        document.body.appendChild(overlay);
+
+        const close = bindAdminDialogOverlay(overlay, () => overlay.remove());
+        overlay.querySelector('#user-edit-close')?.addEventListener('click', close);
+
+        const profileForm = overlay.querySelector('#user-profile-form');
+        profileForm?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const payload = {
+                username: String(profileForm.elements.username.value || '').trim(),
+                email: String(profileForm.elements.email.value || '').trim(),
+                phone: String(profileForm.elements.phone.value || '').trim() || null,
+                is_verified: Boolean(profileForm.elements.is_verified.checked),
+            };
+            const sensitiveChanges = [];
+            if (!isCurrentUser) {
+                payload.role = String(profileForm.elements.role.value || 'user');
+                payload.is_active = Boolean(profileForm.elements.is_active.checked);
+                if (payload.role !== user.role) sensitiveChanges.push(`将角色修改为「${payload.role}」`);
+                if (payload.is_active !== Boolean(user.is_active)) {
+                    sensitiveChanges.push(payload.is_active ? '启用账号' : '停用账号');
+                }
+            }
+            if (sensitiveChanges.length && !await confirm(`确认${sensitiveChanges.join('并')}？`)) {
+                return;
+            }
+
+            const submit = overlay.querySelector('#user-profile-submit');
+            if (submit) submit.disabled = true;
+            try {
+                user = await api('PUT', `/api/admin/users/${userId}`, payload);
+                toast('用户资料已更新');
+                await loadUsers();
+            } catch (err) {
+                toast(err.message, 'error');
+            } finally {
+                if (submit) submit.disabled = false;
+            }
+        });
+
+        const passwordForm = overlay.querySelector('#user-password-form');
+        passwordForm?.addEventListener('submit', async event => {
+            event.preventDefault();
+            const newPassword = String(passwordForm.elements.new_password.value || '');
+            const confirmation = String(passwordForm.elements.confirm_password.value || '');
+            if (newPassword.length < 6) {
+                toast('新密码至少需要 6 位', 'error');
+                return;
+            }
+            if (newPassword !== confirmation) {
+                toast('两次输入的新密码不一致', 'error');
+                return;
+            }
+
+            const submit = overlay.querySelector('#user-password-submit');
+            if (submit) submit.disabled = true;
+            try {
+                await api('PUT', `/api/admin/users/${userId}/password`, { password: newPassword });
+                passwordForm.reset();
+                toast('用户密码已重置');
+            } catch (err) {
+                toast(err.message, 'error');
+            } finally {
+                if (submit) submit.disabled = false;
+            }
+        });
+
+        profileForm?.elements.username?.focus();
+    }
+
     async function loadUsers() {
         const params = new URLSearchParams({ page: userPage, size: 20 });
         if (userFilters.role) params.set('role', userFilters.role);
@@ -4308,6 +4480,9 @@ ${pages.map(p => p === '…'
     <td class="text-on-surface-variant">${formatDate(u.created_at)}</td>
     <td class="text-right">
         <div class="flex items-center justify-end gap-1">
+            <button class="btn-edit-user w-8 h-8 flex items-center justify-center rounded-md hover:bg-blue-50" title="编辑用户" aria-label="编辑用户 ${safeUsername}" data-uid="${u.id}">
+                <span class="material-symbols-outlined text-blue-500 text-lg">edit</span>
+            </button>
             <button class="btn-ai-quota w-8 h-8 flex items-center justify-center rounded-md hover:bg-blue-50" title="管理 AI 额度" data-uid="${u.id}" data-username="${safeUsername}">
                 <span class="material-symbols-outlined text-blue-500 text-lg">toll</span>
             </button>
@@ -4398,6 +4573,11 @@ ${pages.map(p => p === '…'
 
         // 事件委托
         document.addEventListener('click', async (e) => {
+            const editBtn = e.target.closest('.btn-edit-user');
+            if (editBtn) {
+                await openUserEditModal(editBtn.dataset.uid);
+                return;
+            }
             const quotaBtn = e.target.closest('.btn-ai-quota');
             if (quotaBtn) {
                 await openUserAiQuotaModal(quotaBtn.dataset.uid, quotaBtn.dataset.username || '用户');
