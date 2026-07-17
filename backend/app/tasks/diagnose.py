@@ -198,6 +198,29 @@ DEFAULT_DIAGNOSTIC_RULE_WEIGHTS = {
 
 # ===== 确定性规则检测 =====
 
+def _iter_jsonld_nodes(value):
+    if isinstance(value, list):
+        for item in value:
+            yield from _iter_jsonld_nodes(item)
+        return
+    if not isinstance(value, dict):
+        return
+
+    yield value
+    graph = value.get("@graph")
+    if isinstance(graph, (dict, list)):
+        yield from _iter_jsonld_nodes(graph)
+
+
+def _normalize_jsonld_types(value) -> list[str]:
+    values = value if isinstance(value, list) else [value]
+    return [
+        item.strip()
+        for item in values
+        if isinstance(item, str) and item.strip()
+    ]
+
+
 def _check_schema(soup) -> dict:
     """检测 JSON-LD Schema 标签"""
     import json as _json
@@ -208,17 +231,11 @@ def _check_schema(soup) -> dict:
     for s in scripts:
         try:
             data = _json.loads(s.string or "")
-            if isinstance(data, list):
-                for item in data:
-                    t = item.get("@type", "")
-                    if t:
-                        found_types.append(t)
-                        raw_schemas.append(item)
-            elif isinstance(data, dict):
-                t = data.get("@type", "")
-                if t:
-                    found_types.append(t)
-                    raw_schemas.append(data)
+            for item in _iter_jsonld_nodes(data):
+                type_names = _normalize_jsonld_types(item.get("@type"))
+                if type_names:
+                    found_types.extend(type_names)
+                    raw_schemas.append(item)
         except Exception:
             pass
 

@@ -11,10 +11,65 @@ from app.tasks.diagnose import (  # noqa: E402
     _check_citations,
     _check_content,
     _check_meta,
+    _check_schema,
 )
 
 
 class DiagnoseRuleTests(unittest.TestCase):
+    def test_check_schema_flattens_list_valued_jsonld_types(self):
+        soup = BeautifulSoup(
+            """
+            <html>
+              <head>
+                <script type="application/ld+json">
+                  {
+                    "@context": "https://schema.org",
+                    "@type": ["Organization", "ClothingBusiness", "Organization"]
+                  }
+                </script>
+              </head>
+            </html>
+            """,
+            "lxml",
+        )
+
+        result = _check_schema(soup)
+
+        self.assertEqual(
+            result["found_types"],
+            ["Organization", "ClothingBusiness"],
+        )
+        self.assertTrue(result["has_org"])
+
+    def test_check_schema_reads_types_from_jsonld_graph(self):
+        soup = BeautifulSoup(
+            """
+            <html>
+              <head>
+                <script type="application/ld+json">
+                  {
+                    "@context": "https://schema.org",
+                    "@graph": [
+                      {"@type": "WebSite"},
+                      {"@type": ["Organization", "LocalBusiness"]}
+                    ]
+                  }
+                </script>
+              </head>
+            </html>
+            """,
+            "lxml",
+        )
+
+        result = _check_schema(soup)
+
+        self.assertEqual(
+            result["found_types"],
+            ["WebSite", "Organization", "LocalBusiness"],
+        )
+        self.assertTrue(result["has_website"])
+        self.assertTrue(result["has_org"])
+
     def test_calculate_overall_score_uses_runtime_weights(self):
         score = _calculate_overall_score(
             schema_score=90,
