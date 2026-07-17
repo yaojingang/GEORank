@@ -26,8 +26,21 @@
         { id: 'tutorial', label: '教程', url: '/tutorial', target: '_blank', enabled: true },
         { id: 'github', label: 'GitHub', url: 'https://github.com/yaojingang/GEORank', target: '_blank', enabled: true },
     ];
+    const ADMIN_PAGE_TITLES = Object.freeze({
+        dashboard: '仪表盘',
+        companies: '公司管理',
+        diagnostics: '诊断管理',
+        solutions: '问答管理',
+        keywords: '拓词管理',
+        tutorials: '教程管理',
+        'tutorials-edit': '教程编辑',
+        experts: '专家管理',
+        users: '用户管理',
+        settings: '系统设置',
+    });
     let configuredAdminEntryPath = null;
     let currentAdminUser = null;
+    let adminTopbarEventsBound = false;
 
     function isCanonicalAdminPath(path) {
         return path === '/admin' || path.startsWith('/admin/');
@@ -503,7 +516,10 @@
 
     // ─── 侧边栏 & 顶栏 ──────────────────────────────────────────────────────
     function renderSidebar(user) {
-        const initials = (user?.username || 'A').slice(0, 2).toUpperCase();
+        const hasVerifiedUser = Boolean(user);
+        const initials = hasVerifiedUser ? (user?.username || 'A').slice(0, 2).toUpperCase() : '…';
+        const username = hasVerifiedUser ? (user?.username || 'Admin') : '正在验证管理员';
+        const email = hasVerifiedUser ? (user?.email || '') : '后台会话校验中';
         const html = `
 <div class="flex flex-col h-full bg-white border-r border-slate-100">
     <div class="px-6 h-16 flex items-center gap-3 border-b border-slate-50">
@@ -554,12 +570,12 @@
         <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors">
             <div class="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">${escapeHtml(initials)}</div>
             <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold truncate">${escapeHtml(user?.username || 'Admin')}</p>
-                <p class="text-[10px] text-slate-400 truncate">${escapeHtml(user?.email || '')}</p>
+                <p class="text-sm font-semibold truncate">${escapeHtml(username)}</p>
+                <p class="text-[10px] text-slate-400 truncate">${escapeHtml(email)}</p>
             </div>
-            <button id="logout-btn" title="退出登录" class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 transition-colors">
+            ${hasVerifiedUser ? `<button id="logout-btn" title="退出登录" class="w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 transition-colors">
                 <span class="material-symbols-outlined text-slate-400 hover:text-red-500 text-lg">logout</span>
-            </button>
+            </button>` : '<span class="w-7 h-7" aria-hidden="true"></span>'}
         </div>
     </div>
 </div>`;
@@ -598,6 +614,8 @@
     </div>
 </header>`;
 
+        if (adminTopbarEventsBound) return;
+        adminTopbarEventsBound = true;
         document.addEventListener('click', e => {
             if (e.target.closest('#sidebar-toggle')) {
                 document.getElementById('admin-sidebar')?.classList.toggle('open');
@@ -5707,6 +5725,8 @@ ${pages.map(p => p === '…'
     }
 
     // ─── 启动 ────────────────────────────────────────────────────────────────
+    renderSidebar();
+    renderTopbar(ADMIN_PAGE_TITLES[detectPage()] || '');
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initPage);
     } else {

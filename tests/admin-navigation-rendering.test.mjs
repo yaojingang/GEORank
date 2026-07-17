@@ -3,6 +3,7 @@ import {readdir, readFile} from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import {fileURLToPath} from 'node:url';
+import vm from 'node:vm';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const adminHtmlDir = path.join(projectRoot, 'dist', 'admin');
@@ -36,6 +37,76 @@ test('static admin navigation keeps a stable shell while the next document initi
   assert.match(css, /@view-transition\s*\{[^}]*navigation:\s*auto/s);
   assert.match(css, /#admin-topbar\s*\{[^}]*min-height:\s*4rem/s);
   assert.match(css, /#admin-sidebar\s*\{[^}]*background:\s*#fff/s);
+});
+
+test('every static admin page mounts the shared shell before parsing visible main content', async () => {
+  const htmlFiles = (await readdir(adminHtmlDir)).filter((file) => file.endsWith('.html')).sort();
+
+  for (const file of htmlFiles) {
+    const html = await readFile(path.join(adminHtmlDir, file), 'utf8');
+    const topbarIndex = html.indexOf('<div id="admin-topbar"></div>');
+    const scriptPattern = /<script src="\.\.\/js\/admin\.js\?v=[^"]+"><\/script>/g;
+    const scriptMatches = html.match(scriptPattern) || [];
+    const scriptIndex = html.search(scriptPattern);
+    const contentIndex = html.search(/<(?:main\b|div class="admin-editor-topbar\b)/);
+
+    assert.ok(topbarIndex >= 0, `${file}: missing admin topbar mount`);
+    assert.equal(scriptMatches.length, 1, `${file}: expected exactly one admin.js entrypoint`);
+    assert.ok(scriptIndex > topbarIndex, `${file}: admin.js must run after the shell mounts exist`);
+    assert.ok(contentIndex > scriptIndex, `${file}: admin.js must mount the shell before main content parses`);
+  }
+});
+
+test('shared admin script mounts the complete shell before asynchronous hydration', async () => {
+  const javascript = await readFile(adminJsPath, 'utf8');
+  const sidebar = {innerHTML: ''};
+  const topbar = {innerHTML: ''};
+  const listeners = new Map();
+
+  vm.runInNewContext(javascript, {
+    URL,
+    URLSearchParams,
+    console,
+    document: {
+      readyState: 'loading',
+      addEventListener(type, listener) {
+        listeners.set(type, listener);
+      },
+      getElementById(id) {
+        if (id === 'admin-sidebar') return sidebar;
+        if (id === 'admin-topbar') return topbar;
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    },
+    localStorage: {
+      getItem() { return null; },
+      setItem() {},
+      removeItem() {},
+    },
+    window: {
+      location: {
+        href: 'https://example.com/admin/users',
+        hostname: 'example.com',
+        origin: 'https://example.com',
+        pathname: '/admin/users',
+        port: '',
+        protocol: 'https:',
+        search: '',
+      },
+    },
+  });
+
+  assert.match(sidebar.innerHTML, /GEOrank/);
+  assert.match(sidebar.innerHTML, /仪表盘/);
+  assert.match(sidebar.innerHTML, /用户管理/);
+  assert.match(sidebar.innerHTML, /系统设置/);
+  assert.match(sidebar.innerHTML, /正在验证管理员/);
+  assert.doesNotMatch(sidebar.innerHTML, /id="logout-btn"/);
+  assert.match(topbar.innerHTML, /用户管理/);
+  assert.ok(listeners.has('DOMContentLoaded'));
 });
 
 test('deployed homepage settings exposes a guarded HTML source editor', async () => {
