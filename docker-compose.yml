@@ -153,7 +153,7 @@ services:
 
   # ---------- 9. Qdrant 向量数据库 ----------
   qdrant:
-    image: qdrant/qdrant:v1.12.1@sha256:d774e7bb65744454984c6021637a0da89271f30df15e48601a9fafc926d26b1f
+    image: qdrant/qdrant:v1.18.3@sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286
     restart: always
     volumes:
       - qdrant_data:/qdrant/storage
