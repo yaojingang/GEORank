@@ -2034,7 +2034,16 @@ const FOOTER_HTML = `
 
         applyPolicy(policy) {
             if (!policy || typeof policy !== 'object') return this.policy;
-            this.policy = policy;
+            const approvedProviders = Array.isArray(policy.allowed_byok_providers)
+                ? policy.allowed_byok_providers
+                : Array.isArray(policy.provider_presets)
+                    ? policy.provider_presets
+                    : (this.policy?.allowed_byok_providers || []);
+            this.policy = {
+                ...(this.policy || {}),
+                ...policy,
+                allowed_byok_providers: approvedProviders,
+            };
             if (policy.allow_user_byok === false) this.clear();
             return this.policy;
         },
@@ -2240,6 +2249,8 @@ const FOOTER_HTML = `
                 if (!preset || !form) return;
                 form.baseUrl.value = preset.base_url || '';
                 form.model.value = preset.default_model || '';
+                form.apiKey.value = '';
+                form.enabled.checked = false;
             });
         },
 

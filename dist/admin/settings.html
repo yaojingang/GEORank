@@ -239,9 +239,41 @@
                             </label>
                         </div>
 
-                        <div class="mt-6">
+                        <div class="mt-6 pt-6 border-t border-slate-100">
+                            <div class="admin-section-head">
+                                <div>
+                                    <p class="text-sm font-bold text-on-surface">允许用户使用的 API 供应商</p>
+                                    <p class="mt-1 text-xs leading-5 text-on-surface-variant">前台只接受这里列出的供应商和地址，最多配置 12 个。</p>
+                                </div>
+                                <div class="admin-llm-provider-actions">
+                                    <select id="api-policy-provider-template" class="form-input admin-compact-select" aria-label="供应商模板">
+                                        <option value="deepseek">DeepSeek</option>
+                                        <option value="openai">OpenAI</option>
+                                        <option value="openrouter">OpenRouter</option>
+                                        <option value="siliconflow">SiliconFlow</option>
+                                        <option value="qwen">通义千问</option>
+                                        <option value="openai-compatible">通用 OpenAI-compatible</option>
+                                    </select>
+                                    <button id="api-policy-provider-add" type="button" class="btn admin-btn-secondary px-4 py-2.5 rounded-lg text-sm inline-flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-sm" aria-hidden="true">add</span>
+                                        添加供应商
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="admin-llm-provider-hint">
+                                <span class="material-symbols-outlined" aria-hidden="true">shield_lock</span>
+                                <p>Base URL 会作为服务端临时代理的安全白名单。可从模板快速添加，也可使用通用 OpenAI-compatible 模板填写自建网关。</p>
+                            </div>
+                            <div id="api-policy-provider-list" class="admin-llm-provider-list"></div>
+                        </div>
+
+                        <div class="mt-6 pt-6 border-t border-slate-100">
                             <p class="text-xs font-semibold text-on-surface-variant mb-2">用户自备 API 引导</p>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">默认供应商</label>
+                                    <select id="api-policy-guidance-provider" class="form-input"></select>
+                                </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">引导标题</label>
                                     <input id="api-policy-guidance-title" type="text" class="form-input" placeholder="使用自己的 DeepSeek API 继续">
@@ -255,7 +287,7 @@
                                     <textarea id="api-policy-guidance-message" class="form-input min-h-20" placeholder="平台赠送额度已用完，请绑定自己的 API Key。"></textarea>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">DeepSeek 官网</label>
+                                    <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">获取 API Key 地址</label>
                                     <input id="api-policy-guidance-official-url" type="url" class="form-input" placeholder="https://platform.deepseek.com/api_keys">
                                 </div>
                                 <div>

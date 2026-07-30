@@ -2,6 +2,8 @@ import sys
 import unittest
 from pathlib import Path
 
+from starlette.requests import Request
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -10,6 +12,7 @@ from app.services.ai_usage import (  # noqa: E402
     calculate_reservation_tokens,
     evaluate_platform_quota,
     normalize_policy_payload,
+    parse_byok_override,
 )
 from app.services.runtime_settings import _build_ai_usage_policy_config  # noqa: E402
 
@@ -81,6 +84,54 @@ class AiQuotaPolicyRulesTests(unittest.TestCase):
         policy = _build_ai_usage_policy_config({})
         self.assertNotIn("custom", {item["key"] for item in policy["allowed_byok_providers"]})
         self.assertTrue(all(item["base_url"] for item in policy["allowed_byok_providers"]))
+
+    def test_multiple_byok_providers_keep_generic_gateway_and_allow_same_origin_paths(self):
+        policy = _build_ai_usage_policy_config(
+            {
+                "api_usage_policy": {
+                    "allow_user_byok": True,
+                    "allowed_byok_providers": [
+                        {
+                            "key": "deepseek",
+                            "name": "DeepSeek",
+                            "base_url": "https://api.deepseek.com",
+                            "default_model": "deepseek-v4-flash",
+                        },
+                        {
+                            "key": "team-gateway",
+                            "name": "团队网关",
+                            "base_url": "https://gateway.example/v1",
+                            "default_model": "team-chat",
+                        },
+                    ],
+                }
+            }
+        )
+        self.assertEqual(
+            [item["key"] for item in policy["allowed_byok_providers"]],
+            ["deepseek", "team-gateway"],
+        )
+
+        request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/api/solutions/chat",
+                "headers": [
+                    (b"x-georank-byok-provider", b"team-gateway"),
+                    (b"x-georank-byok-base-url", b"https://gateway.example/v1/user-route"),
+                    (b"x-georank-byok-model", b"team-chat-custom"),
+                    (b"x-georank-byok-key", b"team-user-secret"),
+                ],
+            }
+        )
+        override = parse_byok_override(request, policy)
+
+        self.assertIsNotNone(override)
+        self.assertEqual(override.provider, "team-gateway")
+        self.assertEqual(override.base_url, "https://gateway.example/v1/user-route")
+        self.assertEqual(override.model, "team-chat-custom")
+        self.assertEqual(override.api_key, "team-user-secret")
 
     def test_partial_guidance_update_preserves_existing_fields(self):
         current = _build_ai_usage_policy_config({})
