@@ -4626,6 +4626,45 @@ ${pages.map(p => p === '…'
     async function initSettings() {
         renderTopbar('系统设置');
 
+        const BYOK_PROVIDER_TEMPLATES = {
+            deepseek: {
+                key: 'deepseek',
+                name: 'DeepSeek',
+                base_url: 'https://api.deepseek.com',
+                default_model: 'deepseek-v4-flash',
+            },
+            openai: {
+                key: 'openai',
+                name: 'OpenAI',
+                base_url: 'https://api.openai.com/v1',
+                default_model: 'gpt-5-mini',
+            },
+            openrouter: {
+                key: 'openrouter',
+                name: 'OpenRouter',
+                base_url: 'https://openrouter.ai/api/v1',
+                default_model: '~openai/gpt-latest',
+            },
+            siliconflow: {
+                key: 'siliconflow',
+                name: 'SiliconFlow',
+                base_url: 'https://api.siliconflow.cn/v1',
+                default_model: 'Qwen/Qwen2.5-72B-Instruct',
+            },
+            qwen: {
+                key: 'qwen',
+                name: '通义千问',
+                base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                default_model: 'qwen-plus',
+            },
+            'openai-compatible': {
+                key: 'openai-compatible',
+                name: 'OpenAI-compatible',
+                base_url: '',
+                default_model: '',
+            },
+        };
+
         let settings = {};
         try {
             settings = await api('GET', '/api/admin/settings');
@@ -5009,6 +5048,25 @@ ${pages.map(p => p === '…'
             };
         }
 
+        const apiPolicyProviderAddBtn = document.getElementById('api-policy-provider-add');
+        if (apiPolicyProviderAddBtn) {
+            apiPolicyProviderAddBtn.onclick = () => {
+                const providers = collectByokProvidersFromDom({validate: false});
+                if (providers.length >= 12) {
+                    toast('最多支持 12 个用户自备 API 供应商', 'warning');
+                    return;
+                }
+                const templateKey = document.getElementById('api-policy-provider-template')?.value || 'deepseek';
+                const template = BYOK_PROVIDER_TEMPLATES[templateKey] || BYOK_PROVIDER_TEMPLATES.deepseek;
+                const currentGuidanceKey = document.getElementById('api-policy-guidance-provider')?.value || '';
+                const nextProvider = {
+                    ...template,
+                    key: uniqueByokProviderKey(template.key, providers),
+                };
+                renderByokProviders([...providers, nextProvider], currentGuidanceKey);
+            };
+        }
+
         const apiPolicySaveBtn = document.getElementById('api-policy-save');
         if (apiPolicySaveBtn) {
             apiPolicySaveBtn.onclick = async () => {
@@ -5017,6 +5075,10 @@ ${pages.map(p => p === '…'
                     apiPolicySaveBtn.disabled = true;
                     const modules = Array.from(document.querySelectorAll('[data-api-policy-module]'))
                         .map(input => input.value);
+                    const allowedByokProviders = collectByokProvidersFromDom();
+                    const guidanceProviderSelect = document.getElementById('api-policy-guidance-provider');
+                    const guidanceProviderIndex = Math.max(0, guidanceProviderSelect?.selectedIndex ?? 0);
+                    const guidanceProvider = allowedByokProviders[guidanceProviderIndex] || allowedByokProviders[0];
                     const payload = {
                         access_mode: document.getElementById('api-policy-access-mode')?.value || 'lifetime_quota_with_byok',
                         daily_token_limit: Number(apiPolicyPayload?.policy?.daily_token_limit || 0),
@@ -5028,8 +5090,9 @@ ${pages.map(p => p === '…'
                         byok_transport_mode: document.getElementById('api-policy-byok-mode')?.value || 'proxy_transient',
                         allow_anonymous_ai_usage: Boolean(document.getElementById('api-policy-allow-anonymous')?.checked),
                         allow_user_byok: Boolean(document.getElementById('api-policy-allow-byok')?.checked),
+                        allowed_byok_providers: allowedByokProviders,
                         byok_guidance: {
-                            provider: apiPolicyPayload?.policy?.byok_guidance?.provider || 'deepseek',
+                            provider: guidanceProvider?.key || 'deepseek',
                             title: document.getElementById('api-policy-guidance-title')?.value || '',
                             message: document.getElementById('api-policy-guidance-message')?.value || '',
                             cta_label: document.getElementById('api-policy-guidance-cta')?.value || '',
@@ -5557,6 +5620,179 @@ ${pages.map(p => p === '…'
             });
         }
 
+        function normalizeByokProviderKey(value, index) {
+            const normalized = String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9_-]+/g, '-')
+                .replace(/^[-_]+|[-_]+$/g, '');
+            return (normalized || `provider-${index + 1}`).slice(0, 50);
+        }
+
+        function uniqueByokProviderKey(value, providers) {
+            const baseKey = normalizeByokProviderKey(value, providers.length);
+            const existingKeys = new Set(providers.map((provider, index) => (
+                normalizeByokProviderKey(provider.key, index)
+            )));
+            if (!existingKeys.has(baseKey)) return baseKey;
+            let suffix = 2;
+            while (existingKeys.has(`${baseKey}-${suffix}`)) suffix += 1;
+            return `${baseKey}-${suffix}`.slice(0, 50);
+        }
+
+        function buildByokProviderRow(provider, index) {
+            const key = normalizeByokProviderKey(provider.key, index);
+            return `
+                <div class="admin-llm-provider-card" data-byok-provider-row data-provider-index="${index}">
+                    <div class="admin-llm-provider-card__top">
+                        <div class="admin-llm-provider-title">
+                            <span class="admin-llm-provider-badge material-symbols-outlined" aria-hidden="true">key</span>
+                            <div>
+                                <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">供应商名称</label>
+                                <input type="text" class="form-input" data-byok-provider-field="name" value="${escapeHtml(provider.name || `供应商 ${index + 1}`)}" placeholder="例如 DeepSeek">
+                            </div>
+                        </div>
+                        <div class="admin-llm-provider-controls">
+                            <button type="button" class="btn admin-btn-secondary px-3 py-2 rounded-lg text-xs" data-byok-provider-remove>删除</button>
+                        </div>
+                    </div>
+                    <div class="admin-llm-provider-grid">
+                        <div>
+                            <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">供应商 ID</label>
+                            <input type="text" class="form-input" data-byok-provider-field="key" value="${escapeHtml(key)}" placeholder="deepseek">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">默认模型</label>
+                            <input type="text" class="form-input" data-byok-provider-field="default_model" value="${escapeHtml(provider.default_model || '')}" placeholder="模型 ID">
+                        </div>
+                        <div class="span-2">
+                            <label class="block text-xs font-semibold text-on-surface-variant mb-1.5">API Base URL</label>
+                            <input type="url" class="form-input" data-byok-provider-field="base_url" value="${escapeHtml(provider.base_url || '')}" placeholder="https://api.example.com/v1">
+                        </div>
+                    </div>
+                    <div class="admin-llm-provider-meta">
+                        用户可填写同源的完整路径，服务端会校验协议、域名和端口。
+                    </div>
+                </div>`;
+        }
+
+        function collectByokProvidersFromDom({validate = true} = {}) {
+            const providers = Array.from(document.querySelectorAll('[data-byok-provider-row]'))
+                .map((row, index) => {
+                    const read = (field) => row.querySelector(`[data-byok-provider-field="${field}"]`)?.value?.trim() || '';
+                    return {
+                        key: normalizeByokProviderKey(read('key'), index),
+                        name: read('name'),
+                        base_url: read('base_url').replace(/\/+$/, ''),
+                        default_model: read('default_model'),
+                    };
+                });
+            if (!validate) return providers;
+            if (!providers.length) {
+                throw new Error('请至少配置一个用户自备 API 供应商');
+            }
+            if (providers.length > 12) {
+                throw new Error('用户自备 API 供应商最多支持 12 个');
+            }
+            const seenKeys = new Set();
+            providers.forEach((provider, index) => {
+                if (!provider.name) {
+                    throw new Error(`第 ${index + 1} 个供应商缺少名称`);
+                }
+                if (!/^[a-z0-9][a-z0-9_-]{0,49}$/.test(provider.key)) {
+                    throw new Error(`供应商 ${provider.name} 的 ID 只能使用小写字母、数字、横线和下划线`);
+                }
+                if (seenKeys.has(provider.key)) {
+                    throw new Error(`供应商 ID ${provider.key} 重复`);
+                }
+                seenKeys.add(provider.key);
+                if (!provider.base_url) {
+                    throw new Error(`供应商 ${provider.name} 缺少 API Base URL`);
+                }
+                let parsedUrl;
+                try {
+                    parsedUrl = new URL(provider.base_url);
+                } catch {
+                    throw new Error(`供应商 ${provider.name} 的 API Base URL 无效`);
+                }
+                if (
+                    !['http:', 'https:'].includes(parsedUrl.protocol)
+                    || !parsedUrl.hostname
+                    || parsedUrl.username
+                    || parsedUrl.password
+                    || parsedUrl.search
+                    || parsedUrl.hash
+                ) {
+                    throw new Error(`供应商 ${provider.name} 的 API Base URL 必须是标准 HTTP/HTTPS 地址`);
+                }
+                if (!provider.default_model) {
+                    throw new Error(`供应商 ${provider.name} 缺少默认模型`);
+                }
+            });
+            return providers;
+        }
+
+        function syncByokGuidanceProviderOptions(providers, preferredKey) {
+            const select = document.getElementById('api-policy-guidance-provider');
+            if (!select) return;
+            const previousKey = preferredKey || select.value;
+            select.innerHTML = providers.map((provider, index) => {
+                const key = normalizeByokProviderKey(provider.key, index);
+                return `<option value="${escapeHtml(key)}">${escapeHtml(provider.name || key)}</option>`;
+            }).join('');
+            const matchedProvider = providers.find((provider, index) => (
+                normalizeByokProviderKey(provider.key, index) === previousKey
+            ));
+            const selectedProvider = matchedProvider || providers[0];
+            if (!selectedProvider) return;
+            select.value = normalizeByokProviderKey(selectedProvider.key, 0);
+            if (previousKey && !matchedProvider) {
+                const baseUrlEl = document.getElementById('api-policy-guidance-base-url');
+                const modelEl = document.getElementById('api-policy-guidance-model');
+                if (baseUrlEl) baseUrlEl.value = selectedProvider.base_url || '';
+                if (modelEl) modelEl.value = selectedProvider.default_model || '';
+            }
+            select.onchange = () => {
+                const currentProviders = collectByokProvidersFromDom({validate: false});
+                const provider = currentProviders.find((item, index) => (
+                    normalizeByokProviderKey(item.key, index) === select.value
+                ));
+                if (!provider) return;
+                const baseUrlEl = document.getElementById('api-policy-guidance-base-url');
+                const modelEl = document.getElementById('api-policy-guidance-model');
+                if (baseUrlEl) baseUrlEl.value = provider.base_url || '';
+                if (modelEl) modelEl.value = provider.default_model || '';
+            };
+        }
+
+        function renderByokProviders(providers, preferredGuidanceKey) {
+            const list = document.getElementById('api-policy-provider-list');
+            if (!list) return;
+            const normalizedProviders = Array.isArray(providers) ? providers : [];
+            if (!normalizedProviders.length) {
+                list.innerHTML = `
+                    <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-5 text-sm text-slate-500">
+                        暂无供应商，选择模板后点击“添加供应商”。
+                    </div>`;
+                syncByokGuidanceProviderOptions([], preferredGuidanceKey);
+                return;
+            }
+            list.innerHTML = normalizedProviders.map((provider, index) => (
+                buildByokProviderRow(provider, index)
+            )).join('');
+            syncByokGuidanceProviderOptions(normalizedProviders, preferredGuidanceKey);
+            list.querySelectorAll('[data-byok-provider-remove]').forEach(button => {
+                button.onclick = () => {
+                    const currentGuidanceKey = document.getElementById('api-policy-guidance-provider')?.value || '';
+                    button.closest('[data-byok-provider-row]')?.remove();
+                    renderByokProviders(
+                        collectByokProvidersFromDom({validate: false}),
+                        currentGuidanceKey
+                    );
+                };
+            });
+        }
+
         function renderApiPolicy(payload) {
             const policy = payload?.policy || payload || {};
             const summary = payload?.summary || {};
@@ -5610,6 +5846,7 @@ ${pages.map(p => p === '…'
                 const field = document.getElementById(id);
                 if (field) field.value = value;
             });
+            renderByokProviders(policy.allowed_byok_providers || [], guidance.provider);
 
             document.querySelectorAll('[data-api-policy-module]').forEach(input => {
                 input.checked = true;

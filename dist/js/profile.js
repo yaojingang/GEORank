@@ -39,7 +39,8 @@
     }
 
     function t(key, fallback = '') {
-        return window.GEOrank?.I18N?.t?.(key) || fallback || key;
+        const translated = window.GEOrank?.I18N?.t?.(key);
+        return translated && translated !== key ? translated : (fallback || key);
     }
 
     function isValidBaseUrl(value) {
@@ -49,6 +50,27 @@
         } catch (_) {
             return false;
         }
+    }
+
+    function resolveProfileProviderConfig(providers = [], guidance = {}, config = {}) {
+        const approvedProviders = Array.isArray(providers) ? providers : [];
+        const findProvider = (key) => {
+            const normalizedKey = String(key || '').trim().toLowerCase();
+            return approvedProviders.find(provider => (
+                String(provider?.key || '').trim().toLowerCase() === normalizedKey
+            ));
+        };
+        const storedProvider = findProvider(config.provider);
+        const guidanceProvider = findProvider(guidance.provider);
+        const selectedProvider = storedProvider || guidanceProvider || approvedProviders[0] || {};
+        const preserveStoredConfig = Boolean(storedProvider) || !approvedProviders.length;
+        return {
+            provider: selectedProvider.key || (preserveStoredConfig ? config.provider : '') || guidance.provider || 'deepseek',
+            baseUrl: (preserveStoredConfig ? config.baseUrl : '') || selectedProvider.base_url || guidance.base_url || 'https://api.deepseek.com',
+            model: (preserveStoredConfig ? config.model : '') || selectedProvider.default_model || guidance.model || 'deepseek-chat',
+            apiKey: preserveStoredConfig ? (config.apiKey || '') : '',
+            enabled: Boolean(preserveStoredConfig && config.enabled && config.apiKey),
+        };
     }
 
     function showMessage(selector, message, type = 'info') {
@@ -170,12 +192,12 @@
             form.provider.replaceChildren(...providerOptions);
         }
         const guidance = usagePolicy?.byok_guidance || {};
-        const selectedProvider = providers.find(provider => provider.key === config.provider) || providers[0] || {};
-        form.provider.value = config.provider || guidance.provider || selectedProvider.key || 'deepseek';
-        form.baseUrl.value = config.baseUrl || selectedProvider.base_url || guidance.base_url || 'https://api.deepseek.com';
-        form.model.value = config.model || selectedProvider.default_model || guidance.model || 'deepseek-chat';
-        form.apiKey.value = config.apiKey || '';
-        form.enabled.checked = Boolean(config.enabled && config.apiKey);
+        const resolvedConfig = resolveProfileProviderConfig(providers, guidance, config);
+        form.provider.value = resolvedConfig.provider;
+        form.baseUrl.value = resolvedConfig.baseUrl;
+        form.model.value = resolvedConfig.model;
+        form.apiKey.value = resolvedConfig.apiKey;
+        form.enabled.checked = resolvedConfig.enabled;
         const byokAllowed = usagePolicy?.allow_user_byok !== false;
         Array.from(form.elements).forEach(control => {
             control.disabled = !byokAllowed;
@@ -260,6 +282,21 @@
                 setBusy('[data-profile-password-submit]', false, t('profile.passwordSubmit', '保存新密码'));
             }
         });
+
+        const apiForm = $('[data-profile-api-form]');
+        if (apiForm?.provider) {
+            apiForm.provider.addEventListener('change', (event) => {
+                const providerKey = String(event.currentTarget.value || '').trim().toLowerCase();
+                const provider = (usagePolicy?.provider_presets || []).find(item => (
+                    String(item?.key || '').trim().toLowerCase() === providerKey
+                ));
+                if (!provider) return;
+                apiForm.baseUrl.value = provider.base_url || '';
+                apiForm.model.value = provider.default_model || '';
+                apiForm.apiKey.value = '';
+                apiForm.enabled.checked = false;
+            });
+        }
 
         $('[data-profile-api-form]')?.addEventListener('submit', (event) => {
             event.preventDefault();

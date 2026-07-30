@@ -189,6 +189,79 @@ class AiUsagePolicyApiTests(unittest.TestCase):
 
         self.assertEqual(self.run_async(_policy_audit_action()), "admin_policy_update")
 
+    def test_admin_can_publish_multiple_byok_providers_and_use_same_origin_gateway_path(self):
+        admin = self.run_async(self._register_user(admin=True))
+        user = self.run_async(self._register_user())
+        providers = [
+            {
+                "key": "deepseek",
+                "name": "DeepSeek",
+                "base_url": "https://api.deepseek.com",
+                "default_model": "deepseek-v4-flash",
+            },
+            {
+                "key": "team-gateway",
+                "name": "团队 OpenAI-compatible 网关",
+                "base_url": "https://gateway.example/v1",
+                "default_model": "team-chat",
+            },
+        ]
+
+        update_response = self.run_async(
+            self.client.put(
+                "/api/admin/api-policy",
+                headers=self._auth_headers(admin["token"]),
+                json={
+                    "access_mode": "byok_required",
+                    "allow_user_byok": True,
+                    "allowed_byok_providers": providers,
+                    "byok_guidance": {
+                        "provider": "team-gateway",
+                        "base_url": "https://gateway.example/v1",
+                        "model": "team-chat",
+                    },
+                },
+            )
+        )
+        self.assertEqual(update_response.status_code, 200, update_response.text)
+        self.assertEqual(
+            [item["key"] for item in update_response.json()["policy"]["allowed_byok_providers"]],
+            ["deepseek", "team-gateway"],
+        )
+
+        usage_response = self.run_async(
+            self.client.get("/api/usage/me", headers=self._auth_headers(user["token"]))
+        )
+        self.assertEqual(usage_response.status_code, 200, usage_response.text)
+        self.assertEqual(
+            [item["key"] for item in usage_response.json()["provider_presets"]],
+            ["deepseek", "team-gateway"],
+        )
+
+        async def fake_raw_chat_complete(**kwargs):
+            self.assertEqual(kwargs["api_key"], "team-user-secret")
+            self.assertEqual(kwargs["base_url"], "https://gateway.example/v1/user-route")
+            self.assertEqual(kwargs["model"], "team-chat-custom")
+            return "GATEWAY_OK"
+
+        with patch("app.services.ai_client.ai_client._raw_chat_complete", new=fake_raw_chat_complete):
+            response = self.run_async(
+                self.client.post(
+                    "/api/solutions/chat",
+                    headers={
+                        **self._auth_headers(user["token"]),
+                        "X-GEOrank-BYOK-Provider": "team-gateway",
+                        "X-GEOrank-BYOK-Base-URL": "https://gateway.example/v1/user-route",
+                        "X-GEOrank-BYOK-Model": "team-chat-custom",
+                        "X-GEOrank-BYOK-Key": "team-user-secret",
+                    },
+                    json={"message": "验证通用网关"},
+                )
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["reply"], "GATEWAY_OK")
+
     def test_admin_can_adjust_and_freeze_single_user_quota_with_audit(self):
         admin = self.run_async(self._register_user(admin=True))
         user = self.run_async(self._register_user())
