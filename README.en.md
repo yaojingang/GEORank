@@ -67,12 +67,25 @@ GEOrank is a monorepo with a static frontend, a Next.js 2.0 migration path, a Fa
 - **AI layer**: OpenAI-compatible chat and embedding providers with configurable API pools.
 - **Tooling**: pnpm workspace, Turborepo, OpenAPI SDK, Docker Compose.
 
-## Local Development
+## Local deployment with Docker
+
+GEOrank is deployed with Docker Compose. Before you begin, install and start Docker Desktop on Windows/macOS, or Docker Engine with the Compose plugin on Linux.
+
+> If Docker has never been installed on the computer, ask Codex to inspect the system, install Docker, complete the required setup, and start the project. A first-time Windows installation may require administrator approval, WSL 2, and a reboot.
+
+Copy the environment template before the first run. Add your model credentials when you want to enable AI-powered features.
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+After Compose starts, open the full site on the port configured by `GEORANK_HTTP_PORT` in `.env`; with the unchanged template, use `http://localhost`. The development override also exposes the static frontend and API on local development ports.
+
+Node.js and pnpm are only required when you want to modify and run the Next.js web or admin source. They are not required for a Docker-only deployment:
 
 ```bash
 pnpm install
-cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # Web app
 pnpm dev:web

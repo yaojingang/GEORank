@@ -120,14 +120,25 @@ GEOrank/
   docs/           # 项目文档
 ```
 
-## 本地运行
+## Docker 本地部署
 
-> 首次运行前，请先复制环境变量模板，并填入自己的密钥。
+本项目使用 Docker Compose 部署。开始前请确认已安装并启动 Docker Desktop（Windows/macOS）或 Docker Engine 与 Compose 插件（Linux）。
+
+> 如果电脑从未安装过 Docker，可以直接让 Codex 帮你检查系统、安装 Docker、完成必要配置并启动本项目。Windows 首次安装可能需要管理员授权、启用 WSL 2，并按提示重启电脑。
+
+首次运行前复制环境变量模板；需要使用 AI 功能时，再填入自己的模型密钥。
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+Compose 启动完成后，通过 `.env` 中的 `GEORANK_HTTP_PORT` 访问完整站点；未修改模板端口时默认访问 `http://localhost`。`docker-compose.dev.yml` 还会把静态前端和 API 暴露到本机开发端口。
+
+只有需要修改 Next.js 前后台源码时，才需要安装 Node.js/pnpm 并运行开发服务；单纯使用 Docker 部署不需要执行以下命令：
 
 ```bash
 pnpm install
-cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # 前台应用
 pnpm dev:web
