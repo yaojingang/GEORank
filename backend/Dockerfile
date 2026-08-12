@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/georank-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/georank-entrypoint
 
 EXPOSE 8000
 
