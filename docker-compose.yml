@@ -119,7 +119,7 @@ services:
 
   # ---------- 7. PostgreSQL ----------
   postgres:
-    image: postgres:16.9-alpine@sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7
+    image: postgres:18.6-alpine@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
     restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-georank}
