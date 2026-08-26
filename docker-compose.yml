@@ -164,7 +164,7 @@ services:
 
   # ---------- 10. Neo4j 知识图谱数据库 ----------
   neo4j:
-    image: neo4j:5.26.29-community@sha256:d9dd3dc7d1c78fa959191ff02dbdcbefadceaf83eee23428fb92a58cac8ad3fe
+    image: neo4j:5.26.29-community@sha256:89d577f2e49606de76441eca8cf7a0fe88e594cbaac4d2a3d86c6e59676e2b1e
     restart: always
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-change-me-neo4j-password}
