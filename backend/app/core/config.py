@@ -98,6 +98,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    # ----- Google AI Overview 证据源（GoAnyAPI）-----
+    # 留空则关闭该证据源，诊断流程仍使用 LLM 生成的回答。
+    GOANYAPI_API_KEY: str = ""
+    GOANYAPI_BASE_URL: str = "https://api.goanyapi.com"
+    GOANYAPI_TIMEOUT_SECONDS: float = 30.0
+
     # Embedding 配置，需单独配置兼容 OpenAI 格式的 Embedding Key，或留空使用降级逻辑。
     EMBEDDING_API_KEY: str = ""         # 专用于 Embedding 的 API Key（如有直连 OpenAI）
     EMBEDDING_BASE_URL: str = ""        # 留空则使用 api.openai.com
